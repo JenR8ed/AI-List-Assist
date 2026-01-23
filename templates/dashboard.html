@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eBay Listing Assistant - Valuation Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { text-align: center; color: white; margin-bottom: 30px; }
+        header h1 { font-size: 2.2em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .tabs { display: flex; background: white; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
+        .tab { flex: 1; padding: 15px; background: #f8f9ff; border: none; cursor: pointer; font-size: 1em; transition: all 0.3s; }
+        .tab.active { background: white; color: #667eea; font-weight: bold; }
+        .tab-content { background: white; border-radius: 0 0 12px 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-box { background: #f8f9ff; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid #667eea; }
+        .stat-number { font-size: 1.5em; color: #667eea; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { color: #666; font-size: 0.8em; }
+        .upload-section { background: #f8f9ff; border: 2px dashed #667eea; border-radius: 8px; padding: 30px; text-align: center; margin-bottom: 30px; cursor: pointer; transition: all 0.3s ease; }
+        .upload-section:hover { border-color: #764ba2; background: #f0f2ff; }
+        .upload-section.dragover { border-color: #764ba2; background: #e8e5ff; }
+        #imageInput { display: none; }
+        .preview-img { max-width: 200px; max-height: 150px; border-radius: 8px; margin: 10px 0; display: none; }
+        .preview-img.show { display: block; }
+        button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 1em; transition: all 0.3s; }
+        button:hover { background: #764ba2; transform: translateY(-2px); }
+        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .valuations-grid { display: grid; gap: 15px; }
+        .valuation-item { background: #f8f9ff; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; display: grid; grid-template-columns: 100px 1fr auto; gap: 15px; align-items: center; }
+        .valuation-item.worth-listing { border-left-color: #28a745; }
+        .valuation-item.not-worth { border-left-color: #dc3545; }
+        .item-image { width: 80px; height: 60px; object-fit: cover; border-radius: 4px; background: #eee; }
+        .item-details h4 { margin-bottom: 5px; color: #333; }
+        .item-details p { color: #666; font-size: 0.9em; margin-bottom: 3px; }
+        .item-actions button { margin-left: 10px; padding: 8px 16px; font-size: 0.9em; }
+        .approve-btn { background: #28a745; }
+        .approve-btn:hover { background: #218838; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .status-analyzed { background: #e9ecef; color: #495057; }
+        .status-approved { background: #d4edda; color: #155724; }
+        .status-submitted { background: #cce5ff; color: #004085; }
+        .loading { display: none; text-align: center; color: #667eea; margin: 20px 0; }
+        .error { background: #fee; color: #c33; padding: 15px; border-radius: 6px; margin: 10px 0; display: none; }
+        .error.show { display: block; }
+        .listing-editor { background: #f8f9ff; border: 2px solid #667eea; border-radius: 8px; padding: 20px; margin-top: 20px; }
+        .listing-form { display: grid; gap: 15px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; color: #333; }
+        .form-group input, .form-group select, .form-group textarea { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 1em; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #667eea; }
+        .char-count { font-size: 0.8em; color: #666; margin-top: 2px; }
+        .form-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .submit-btn { background: #28a745; }
+        .submit-btn:hover { background: #218838; }
+        .submit-btn:disabled { background: #ccc; }
+        .cancel-btn { background: #6c757d; }
+        .cancel-btn:hover { background: #545b62; }
+        .create-listing-btn { background: #17a2b8; }
+        .category-aspects { border-top: 1px solid #ddd; padding-top: 15px; margin-top: 15px; }
+        .aspect-group { margin-bottom: 15px; }
+        .aspect-required { border-left: 3px solid #dc3545; padding-left: 10px; }
+        .aspect-recommended { border-left: 3px solid #ffc107; padding-left: 10px; }
+        .analysis-results { background: #f8f9ff; border: 1px solid #667eea; border-radius: 8px; padding: 20px; }
+        .item-result { background: white; border-radius: 6px; padding: 15px; margin-bottom: 15px; border-left: 4px solid #667eea; }
+        .item-result.worth-listing { border-left-color: #28a745; }
+        .item-result.not-worth { border-left-color: #dc3545; }
+        .item-header { display: flex; justify-content: between; align-items: center; margin-bottom: 10px; }
+        .item-name { font-weight: bold; color: #333; margin: 0; }
+        .item-value { color: #667eea; font-size: 1.2em; font-weight: bold; }
+        .item-details { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9em; }
+        .detail-item { display: flex; justify-content: space-between; }
+        .detail-label { color: #666; }
+        .detail-value { font-weight: bold; color: #333; }
+        .key-factors { margin-top: 10px; }
+        .key-factors ul { margin: 5px 0; padding-left: 20px; }
+        .hidden { display: none; }
+        .text-success { color: #28a745; }
+        .text-danger { color: #dc3545; }
+        .photo-thumbnails { display: flex; gap: 5px; margin-top: 10px; }
+        .photo-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+        .photo-thumb:hover { border-color: #667eea; transform: scale(1.1); }
+        .photo-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
+        .photo-modal img { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 90%; max-height: 90%; border-radius: 8px; }
+        .photo-modal .close { position: absolute; top: 20px; right: 30px; color: white; font-size: 30px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 eBay Listing Assistant</h1>
+            <p>Track valuations and manage eBay submissions</p>
+        </header>
+
+        <!-- Upload & Analyze Section (Always Visible) -->
+        <div class="card">
+            <h2>📸 Upload & Analyze</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;">
+                <div>
+                    <div class="upload-section" id="uploadSection">
+                        <div style="font-size: 3em; margin-bottom: 10px;">📷</div>
+                        <p><strong>Click to upload</strong> or drag & drop</p>
+                        <p style="font-size: 0.9em; color: #999;">JPG, PNG, GIF, or WebP (Max 16MB)</p>
+                    </div>
+                    <input type="file" id="imageInput" accept="image/*">
+                    <img id="previewImg" class="preview-img" alt="Preview">
+                    <div class="error" id="errorMsg"></div>
+                    <button id="analyzeBtn" disabled onclick="analyzeImage()">Analyze Item</button>
+                    <div class="loading" id="loading">
+                        <div style="border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+                        <p>Analyzing item...</p>
+                    </div>
+                </div>
+                <div id="analysisResults" class="analysis-results" style="display: none;">
+                    <h3>Analysis Results</h3>
+                    <div id="itemResults"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('drafts')">📝 Draft Listings</button>
+            <button class="tab" onclick="showTab('live')">🔴 Live Listings</button>
+        </div>
+
+        <div class="tab-content">
+            <!-- Draft Listings Tab -->
+            <div id="draftsTab" class="tab-panel">
+                <h3 style="margin-bottom: 20px;">Draft Listings</h3>
+                <div class="valuations-grid" id="draftListings">
+                    <p style="color: #999; text-align: center;">No draft listings yet.</p>
+                </div>
+            </div>
+
+            <!-- Live Listings Tab -->
+            <div id="liveTab" class="tab-panel hidden">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 style="margin-bottom: 0;">Live eBay Listings</h3>
+                    <button class="btn btn-primary btn-sm" onclick="refreshLiveListings()" style="background: #667eea; border: none; padding: 8px 16px; border-radius: 4px; color: white; cursor: pointer;">
+                        🔄 Refresh
+                    </button>
+                </div>
+                <div class="valuations-grid" id="liveListings">
+                    <p style="color: #999; text-align: center;">No live listings yet.</p>
+                </div>
+                
+                <!-- Listing Editor for Updates -->
+                <div id="updateListingEditor" class="listing-editor hidden">
+                    <h3 style="margin: 30px 0 20px 0; border-top: 2px solid #667eea; padding-top: 20px;">Update eBay Listing</h3>
+                    <div class="listing-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Title (80 chars max)</label>
+                                <input type="text" id="updateTitle" maxlength="80" placeholder="Item title for eBay">
+                                <small class="char-count">0/80</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Price</label>
+                                <input type="number" id="updatePrice" step="0.01" min="0.99" placeholder="0.00">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="updateDescription" rows="6" placeholder="Detailed item description..."></textarea>
+                        </div>
+                        
+                        <!-- Dynamic Category Aspects for Updates -->
+                        <div id="updateCategoryAspects" class="category-aspects"></div>
+                        
+                        <div class="form-actions">
+                            <button id="updateListingBtn" class="submit-btn" onclick="updateEbayListing()" disabled>Update Listing</button>
+                            <button onclick="hideUpdateEditor()" class="cancel-btn">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- eBay Listing Editor -->
+        <div id="listingEditor" class="listing-editor hidden" style="margin-top: 30px;">
+            <h3 style="margin: 30px 0 20px 0; border-top: 2px solid #667eea; padding-top: 20px;">Create eBay Listing</h3>
+            <div class="listing-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Title (80 chars max)</label>
+                        <input type="text" id="listingTitle" maxlength="80" placeholder="Item title for eBay">
+                        <small class="char-count">0/80</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="listingCategory" onchange="loadCategoryAspects()">
+                            <option value="293">Electronics</option>
+                            <option value="1059">Men's Clothing</option>
+                            <option value="15724">Women's Clothing</option>
+                            <option value="20081">Collectibles</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Starting Price</label>
+                        <input type="number" id="listingPrice" step="0.01" min="0.99" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Condition</label>
+                        <select id="listingCondition">
+                            <option value="NEW">New</option>
+                            <option value="USED_EXCELLENT">Used - Excellent</option>
+                            <option value="USED_GOOD">Used - Good</option>
+                            <option value="USED_ACCEPTABLE">Used - Acceptable</option>
+                            <option value="FOR_PARTS">For Parts</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="listingDescription" rows="6" placeholder="Detailed item description..."></textarea>
+                </div>
+                
+                <!-- Dynamic Category Aspects -->
+                <div id="categoryAspects" class="category-aspects"></div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Brand</label>
+                        <input type="text" id="listingBrand" placeholder="Brand name">
+                    </div>
+                    <div class="form-group">
+                        <label>Model</label>
+                        <input type="text" id="listingModel" placeholder="Model number">
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button id="createDraftBtn" class="submit-btn" onclick="createDraftListing()" disabled>Create Draft</button>
+                    <button onclick="hideListingEditor()" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stats Dashboard -->
+        <div class="stats-grid" id="statsGrid" style="margin-top: 20px;">
+            <div class="stat-box" style="padding: 15px;">
+                <div class="stat-number" id="totalValuations" style="font-size: 1.5em;">0</div>
+                <div class="stat-label" style="font-size: 0.8em;">Total Valuations</div>
+            </div>
+            <div class="stat-box" style="padding: 15px;">
+                <div class="stat-number" id="worthListing" style="font-size: 1.5em;">0</div>
+                <div class="stat-label" style="font-size: 0.8em;">Worth Listing</div>
+            </div>
+            <div class="stat-box" style="padding: 15px;">
+                <div class="stat-number" id="avgValue" style="font-size: 1.5em;">$0</div>
+                <div class="stat-label" style="font-size: 0.8em;">Average Value</div>
+            </div>
+
+        </div>
+
+        <!-- API Usage Tracker -->
+        <div style="position: fixed; bottom: 20px; right: 20px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0; color: #856404;">💰 API Usage Tracker</h4>
+                <button onclick="resetApiCounters()" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">Reset</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; font-size: 0.85em;">
+                <div style="text-align: center;">
+                    <div style="font-weight: bold; color: #495057;">Vision API</div>
+                    <div id="visionCalls" style="color: #667eea;">0</div>
+                    <div id="visionCost" style="color: #856404; font-size: 0.8em;">FREE</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-weight: bold; color: #495057;">Gemini</div>
+                    <div id="geminiCalls" style="color: #667eea;">0</div>
+                    <div id="geminiCost" style="color: #856404; font-size: 0.8em;">$0.00</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-weight: bold; color: #495057;">eBay API</div>
+                    <div id="ebayCalls" style="color: #667eea;">0</div>
+                    <div style="color: #28a745; font-size: 0.8em;">FREE</div>
+                </div>
+            </div>
+            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #ffeaa7; text-align: center;">
+                <strong style="color: #856404;">Total: <span id="totalCost">$0.00</span></strong>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Usage Tracking with accurate pricing
+        const API_COSTS = {
+            VISION_FREE_TIER: 1000,
+            VISION_PAID_RATE: 0.0015,
+            GEMINI_FLASH_INPUT: 0.075 / 1000000,
+            GEMINI_FLASH_OUTPUT: 0.30 / 1000000,
+            GEMINI_PRO_INPUT: 1.25 / 1000000,
+            GEMINI_PRO_OUTPUT: 5.00 / 1000000,
+            TOKENS_PER_IMAGE: 258
+        };
+
+        function loadApiCounters() {
+            const counters = JSON.parse(localStorage.getItem('apiCounters') || '{"vision": 0, "gemini": 0, "ebay": 0, "geminiTokens": 0}');
+            updateApiDisplay(counters);
+            return counters;
+        }
+
+        function saveApiCounters(counters) {
+            localStorage.setItem('apiCounters', JSON.stringify(counters));
+        }
+
+        function trackApiCall(apiType, tokens = 0) {
+            const counters = loadApiCounters();
+            
+            switch(apiType) {
+                case 'vision':
+                    counters.vision++;
+                    break;
+                case 'gemini':
+                    counters.gemini++;
+                    counters.geminiTokens += tokens || API_COSTS.TOKENS_PER_IMAGE;
+                    break;
+                case 'ebay':
+                    counters.ebay++;
+                    break;
+            }
+            
+            saveApiCounters(counters);
+            updateApiDisplay(counters);
+        }
+
+        function calculateCosts(counters) {
+            let visionCost = 0;
+            let geminiCost = 0;
+            
+            if (counters.vision > API_COSTS.VISION_FREE_TIER) {
+                const paidCalls = counters.vision - API_COSTS.VISION_FREE_TIER;
+                visionCost = paidCalls * API_COSTS.VISION_PAID_RATE;
+            }
+            
+            geminiCost = counters.geminiTokens * API_COSTS.GEMINI_FLASH_INPUT;
+            
+            return { visionCost, geminiCost, totalCost: visionCost + geminiCost };
+        }
+
+        function updateApiDisplay(counters) {
+            const costs = calculateCosts(counters);
+            
+            document.getElementById('visionCalls').textContent = counters.vision;
+            document.getElementById('geminiCalls').textContent = counters.gemini;
+            document.getElementById('ebayCalls').textContent = counters.ebay;
+            
+            if (counters.vision <= API_COSTS.VISION_FREE_TIER) {
+                document.getElementById('visionCost').textContent = `FREE (${API_COSTS.VISION_FREE_TIER - counters.vision} left)`;
+                document.getElementById('visionCost').style.color = '#28a745';
+            } else {
+                document.getElementById('visionCost').textContent = `$${costs.visionCost.toFixed(4)}`;
+                document.getElementById('visionCost').style.color = '#856404';
+            }
+            
+            document.getElementById('geminiCost').textContent = `$${costs.geminiCost.toFixed(4)}`;
+            document.getElementById('totalCost').textContent = `$${costs.totalCost.toFixed(4)}`;
+            
+            const totalElement = document.getElementById('totalCost');
+            if (costs.totalCost > 1.0) {
+                totalElement.style.color = '#dc3545';
+            } else if (costs.totalCost > 0.1) {
+                totalElement.style.color = '#fd7e14';
+            } else {
+                totalElement.style.color = '#856404';
+            }
+        }
+
+        function resetApiCounters() {
+            if (confirm('Reset all API usage counters?')) {
+                localStorage.removeItem('apiCounters');
+                updateApiDisplay({vision: 0, gemini: 0, ebay: 0, geminiTokens: 0});
+            }
+        }
+
+    <script>
+        let currentValuationId = null;
+        let currentListingId = null;
+        let selectedFile = null;
+        
+        async function editLiveListing(ebayListingId) {
+            currentListingId = ebayListingId;
+            
+            try {
+                const response = await fetch(`/api/ebay/listing/${ebayListingId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const listing = data.listing;
+                    
+                    // Pre-populate update form
+                    document.getElementById('updateTitle').value = listing.title || '';
+                    document.getElementById('updatePrice').value = listing.price || '';
+                    document.getElementById('updateDescription').value = listing.description || '';
+                    
+                    // Load current aspects for editing
+                    if (listing.category_id) {
+                        await loadUpdateCategoryAspects(listing.category_id, listing.aspects);
+                    }
+                    
+                    // Show update editor
+                    document.getElementById('updateListingEditor').classList.remove('hidden');
+                    document.getElementById('updateListingEditor').scrollIntoView({ behavior: 'smooth' });
+                    
+                    validateUpdateForm();
+                }
+            } catch (err) {
+                showError('Error loading listing data: ' + err.message);
+            }
+        }
+        
+        async function loadUpdateCategoryAspects(categoryId, currentAspects = {}) {
+            const aspectsContainer = document.getElementById('updateCategoryAspects');
+            
+            try {
+                const response = await fetch(`/api/category/${categoryId}/aspects`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    aspectsContainer.innerHTML = generateUpdateAspectsHTML(data.aspects, currentAspects);
+                    validateUpdateForm();
+                }
+            } catch (err) {
+                console.error('Error loading aspects:', err);
+            }
+        }
+        
+        function generateUpdateAspectsHTML(aspects, currentAspects) {
+            let html = '<h4 style="margin-bottom: 15px;">Update Category Fields</h4>';
+            
+            // Required aspects
+            if (aspects.required && aspects.required.length > 0) {
+                html += '<div class="aspect-required"><strong>Required Fields:</strong></div>';
+                aspects.required.forEach(aspect => {
+                    const currentValue = currentAspects[aspect.name] || '';
+                    html += `<div class="aspect-group">
+                        <label>${aspect.name} *</label>`;
+                    
+                    if (aspect.mode === 'SELECT' && aspect.values.length > 0) {
+                        html += `<select id="update_aspect_${aspect.name.replace(/\s+/g, '_')}" required>`;
+                        aspect.values.forEach(value => {
+                            const selected = value === currentValue ? 'selected' : '';
+                            html += `<option value="${value}" ${selected}>${value}</option>`;
+                        });
+                        html += '</select>';
+                    } else {
+                        html += `<input type="text" id="update_aspect_${aspect.name.replace(/\s+/g, '_')}" value="${currentValue}" placeholder="Enter ${aspect.name}" required>`;
+                    }
+                    html += '</div>';
+                });
+            }
+            
+            return html;
+        }
+        
+        function validateUpdateForm() {
+            const title = document.getElementById('updateTitle').value;
+            const price = document.getElementById('updatePrice').value;
+            
+            const isValid = title.length > 0 && price > 0;
+            document.getElementById('updateListingBtn').disabled = !isValid;
+        }
+        
+        async function updateEbayListing() {
+            if (!currentListingId) return;
+            
+            // Collect updated aspects
+            const aspects = {};
+            const aspectInputs = document.querySelectorAll('#updateCategoryAspects input, #updateCategoryAspects select');
+            aspectInputs.forEach(input => {
+                if (input.value) {
+                    const aspectName = input.id.replace('update_aspect_', '').replace(/_/g, ' ');
+                    aspects[aspectName] = input.value;
+                }
+            });
+            
+            const updateData = {
+                ebay_listing_id: currentListingId,
+                title: document.getElementById('updateTitle').value,
+                price: parseFloat(document.getElementById('updatePrice').value),
+                description: document.getElementById('updateDescription').value,
+                aspects: aspects
+            };
+            
+            try {
+                document.getElementById('updateListingBtn').disabled = true;
+                document.getElementById('updateListingBtn').textContent = 'Updating...';
+                
+                const response = await fetch('/api/ebay/update-listing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Listing updated successfully!');
+                    hideUpdateEditor();
+                    loadLiveListings();
+                } else {
+                    showError(data.error || 'Failed to update listing');
+                }
+            } catch (err) {
+                showError('Error updating listing: ' + err.message);
+            } finally {
+                document.getElementById('updateListingBtn').disabled = false;
+                document.getElementById('updateListingBtn').textContent = 'Update Listing';
+            }
+        }
+        
+        async function endListing(ebayListingId) {
+            if (!confirm('Are you sure you want to end this listing?')) return;
+            
+            try {
+                const response = await fetch('/api/ebay/end-listing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ebay_listing_id: ebayListingId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Listing ended successfully!');
+                    loadLiveListings();
+                } else {
+                    showError(data.error || 'Failed to end listing');
+                }
+            } catch (err) {
+                showError('Error ending listing: ' + err.message);
+            }
+        }
+        
+        function hideUpdateEditor() {
+            document.getElementById('updateListingEditor').classList.add('hidden');
+            currentListingId = null;
+        }
+
+        async function loadCategoryAspects() {
+            const categoryId = document.getElementById('listingCategory').value;
+            const aspectsContainer = document.getElementById('categoryAspects');
+
+            try {
+                const response = await fetch(`/api/category/${categoryId}/aspects`);
+                const data = await response.json();
+
+                if (data.success) {
+                    aspectsContainer.innerHTML = generateAspectsHTML(data.aspects);
+                    validateForm();
+                }
+            } catch (err) {
+                console.error('Error loading aspects:', err);
+            }
+        }
+        
+        function generateAspectsHTML(aspects) {
+            let html = '<h4 style="margin-bottom: 15px;">Category-Specific Fields</h4>';
+            
+            // Required aspects
+            if (aspects.required && aspects.required.length > 0) {
+                html += '<div class="aspect-required"><strong>Required Fields:</strong></div>';
+                aspects.required.forEach(aspect => {
+                    html += `<div class="aspect-group">
+                        <label>${aspect.name} *</label>`;
+                    
+                    if (aspect.mode === 'SELECT' && aspect.values.length > 0) {
+                        html += `<select id="aspect_${aspect.name.replace(/\s+/g, '_')}" required>
+                            <option value="">Select ${aspect.name}</option>`;
+                        aspect.values.forEach(value => {
+                            html += `<option value="${value}">${value}</option>`;
+                        });
+                        html += '</select>';
+                    } else {
+                        html += `<input type="text" id="aspect_${aspect.name.replace(/\s+/g, '_')}" placeholder="Enter ${aspect.name}" required>`;
+                    }
+                    html += '</div>';
+                });
+            }
+            
+            // Recommended aspects
+            if (aspects.recommended && aspects.recommended.length > 0) {
+                html += '<div class="aspect-recommended"><strong>Recommended Fields:</strong></div>';
+                aspects.recommended.forEach(aspect => {
+                    html += `<div class="aspect-group">
+                        <label>${aspect.name}</label>`;
+                    
+                    if (aspect.mode === 'SELECT' && aspect.values.length > 0) {
+                        html += `<select id="aspect_${aspect.name.replace(/\s+/g, '_')}">
+                            <option value="">Select ${aspect.name}</option>`;
+                        aspect.values.forEach(value => {
+                            html += `<option value="${value}">${value}</option>`;
+                        });
+                        html += '</select>';
+                    } else {
+                        html += `<input type="text" id="aspect_${aspect.name.replace(/\s+/g, '_')}" placeholder="Enter ${aspect.name}">`;
+                    }
+                    html += '</div>';
+                });
+            }
+            
+            return html;
+        }
+
+        async function createListing(itemId) {
+            try {
+                // Get the item data from analysis results
+                const itemData = getCurrentItemData(itemId);
+                if (!itemData) {
+                    showError('Item data not found');
+                    return;
+                }
+                
+                // Start conversation to gather missing details
+                const response = await fetch('/api/conversation/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        item_id: itemId,
+                        initial_data: {
+                            item_name: itemData.item_name,
+                            brand: itemData.brand,
+                            estimated_value: itemData.estimated_value
+                        }
+                    })
+                });
+                
+                const conversationData = await response.json();
+                
+                if (conversationData.success) {
+                    if (conversationData.is_complete) {
+                        // Skip conversation if we have enough data
+                        proceedToCreateDraft(itemId, itemData);
+                    } else {
+                        // Show conversation modal
+                        showConversationModal(conversationData.session_id, conversationData.question, itemData);
+                    }
+                } else {
+                    showError(conversationData.error || 'Failed to start conversation');
+                }
+                
+            } catch (err) {
+                showError('Error creating listing: ' + err.message);
+            }
+        }
+        
+        function showConversationModal(sessionId, question, itemData) {
+            const modal = document.createElement('div');
+            modal.id = 'conversationModal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
+                align-items: center; justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 8px; padding: 30px; max-width: 500px; width: 90%;">
+                    <h3>📝 Listing Details for ${itemData.item_name}</h3>
+                    <p id="conversationQuestion" style="margin: 20px 0; font-size: 1.1em;">${question}</p>
+                    <input type="text" id="answerInput" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;" placeholder="Your answer...">
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button onclick="submitAnswer('${sessionId}', '${itemData.item_id}')" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px;">Submit</button>
+                        <button onclick="skipConversation('${itemData.item_id}')" style="background: #ccc; border: none; padding: 10px 20px; border-radius: 4px;">Skip</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            document.getElementById('answerInput').focus();
+            
+            // Allow Enter key to submit
+            document.getElementById('answerInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    submitAnswer(sessionId, itemData.item_id);
+                }
+            });
+        }
+        
+        async function submitAnswer(sessionId, itemId) {
+            const answer = document.getElementById('answerInput').value.trim();
+            if (!answer) return;
+            
+            try {
+                const response = await fetch('/api/conversation/answer', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        answer: answer
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.is_complete) {
+                        // Conversation complete, create draft
+                        document.getElementById('conversationModal').remove();
+                        const itemData = getCurrentItemData(itemId);
+                        proceedToCreateDraft(itemId, itemData, data.known_fields);
+                    } else {
+                        // Show next question
+                        document.getElementById('conversationQuestion').textContent = data.question;
+                        document.getElementById('answerInput').value = '';
+                        document.getElementById('answerInput').focus();
+                    }
+                } else {
+                    showError(data.error || 'Failed to process answer');
+                }
+            } catch (err) {
+                showError('Error submitting answer: ' + err.message);
+            }
+        }
+        
+        function skipConversation(itemId) {
+            document.getElementById('conversationModal').remove();
+            const itemData = getCurrentItemData(itemId);
+            proceedToCreateDraft(itemId, itemData);
+        }
+        
+        async function proceedToCreateDraft(itemId, itemData, conversationData = {}) {
+            try {
+                // Get category suggestions from Gemini
+                const categoryResponse = await fetch('/api/category/suggest', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        item_name: itemData.item_name,
+                        brand: itemData.brand || '',
+                        description: itemData.description || ''
+                    })
+                });
+                
+                const categoryData = await categoryResponse.json();
+                let suggestedCategoryId = '293'; // Default to Electronics
+                
+                if (categoryData.success && categoryData.suggestions.length > 0) {
+                    suggestedCategoryId = categoryData.suggestions[0].category_id;
+                }
+                
+                // Merge conversation data with item data
+                const finalData = { ...itemData, ...conversationData };
+                
+                // Create draft listing
+                const draftData = {
+                    item_id: itemId,
+                    title: generateTitle(finalData),
+                    category_id: suggestedCategoryId,
+                    price: finalData.price || (itemData.estimated_value * 0.95).toFixed(2),
+                    condition: mapCondition(finalData.condition_score || 7),
+                    description: generateDescription(finalData),
+                    brand: finalData.brand || '',
+                    aspects: {}
+                };
+                
+                const response = await fetch('/api/listing/create-draft', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(draftData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Refresh draft listings
+                    loadDraftListings();
+                    
+                    // Show category selection popup
+                    showCategorySelector(result.listing_id, suggestedCategoryId, finalData);
+                } else {
+                    showError(result.error || 'Failed to create draft listing');
+                }
+                
+            } catch (err) {
+                showError('Error creating draft: ' + err.message);
+            }
+        }
+        
+        function getCurrentItemData(itemId) {
+            // Get item data from the last analysis results
+            const analysisResults = document.getElementById('itemResults');
+            if (!analysisResults || !window.lastAnalysisData) return null;
+            
+            return window.lastAnalysisData.items.find(item => item.item_id === itemId);
+        }
+        
+        function generateTitle(itemData) {
+            let title = '';
+            if (itemData.brand) title += itemData.brand + ' ';
+            title += itemData.item_name;
+            return title.substring(0, 80);
+        }
+        
+        function mapCondition(score) {
+            const conditionMap = {
+                10: 'NEW', 9: 'NEW', 8: 'USED_EXCELLENT', 7: 'USED_EXCELLENT',
+                6: 'USED_GOOD', 5: 'USED_GOOD', 4: 'USED_ACCEPTABLE', 3: 'USED_ACCEPTABLE',
+                2: 'FOR_PARTS', 1: 'FOR_PARTS'
+            };
+            return conditionMap[score] || 'USED_GOOD';
+        }
+        
+        function generateDescription(itemData) {
+            let desc = `<h2>${itemData.item_name}</h2>\n`;
+            if (itemData.key_factors && itemData.key_factors.length > 0) {
+                desc += '<ul>\n';
+                itemData.key_factors.forEach(factor => {
+                    desc += `  <li>${factor}</li>\n`;
+                });
+                desc += '</ul>\n';
+            }
+            if (itemData.condition_notes) {
+                desc += `<p><strong>Condition:</strong> ${itemData.condition_notes}</p>`;
+            }
+            return desc;
+        }
+        
+        function showCategorySelector(listingId, suggestedCategoryId, itemData) {
+            const modal = document.createElement('div');
+            modal.id = 'categoryModal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
+                align-items: center; justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 8px; padding: 30px; max-width: 600px; width: 90%;">
+                    <h3>Select Category for ${itemData.item_name}</h3>
+                    <div style="margin: 20px 0;">
+                        <label>eBay Category:</label>
+                        <select id="categorySelect" onchange="loadCategoryFields()" style="width: 100%; padding: 10px; margin-top: 5px;">
+                            <option value="293" ${suggestedCategoryId === '293' ? 'selected' : ''}>Electronics</option>
+                            <option value="1059" ${suggestedCategoryId === '1059' ? 'selected' : ''}>Men's Clothing</option>
+                            <option value="15724" ${suggestedCategoryId === '15724' ? 'selected' : ''}>Women's Clothing</option>
+                            <option value="20081" ${suggestedCategoryId === '20081' ? 'selected' : ''}>Collectibles</option>
+                            <option value="6024" ${suggestedCategoryId === '6024' ? 'selected' : ''}>Auto Parts</option>
+                        </select>
+                    </div>
+                    <div id="categoryFieldsTable"></div>
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button onclick="closeCategoryModal()" style="margin-right: 10px; padding: 10px 20px; background: #ccc; border: none; border-radius: 4px;">Cancel</button>
+                        <button onclick="saveCategorySelection('${listingId}')" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 4px;">Save</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Load initial category fields
+            window.currentListingId = listingId;
+            window.currentItemData = itemData;
+            loadCategoryFields();
+        }
+        
+        async function loadCategoryFields() {
+            const categoryId = document.getElementById('categorySelect').value;
+            const tableContainer = document.getElementById('categoryFieldsTable');
+            
+            try {
+                const response = await fetch(`/api/category/${categoryId}/fields`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayCategoryFieldsTable(data.required_fields);
+                } else {
+                    tableContainer.innerHTML = '<p>Error loading category fields</p>';
+                }
+            } catch (err) {
+                tableContainer.innerHTML = '<p>Error loading category fields</p>';
+            }
+        }
+        
+        function displayCategoryFieldsTable(fields) {
+            const tableContainer = document.getElementById('categoryFieldsTable');
+            
+            if (fields.length === 0) {
+                tableContainer.innerHTML = '<p>No required fields for this category</p>';
+                return;
+            }
+            
+            let tableHTML = `
+                <h4>Required Fields for this Category:</h4>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <thead>
+                        <tr style="background: #f8f9ff;">
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Field</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Type</th>
+                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            fields.forEach(field => {
+                const fieldId = `field_${field.name.replace(/\s+/g, '_')}`;
+                let inputHTML = '';
+                
+                if (field.input_mode === 'SELECT' && field.allowed_values.length > 0) {
+                    inputHTML = `<select id="${fieldId}" style="width: 100%; padding: 5px;">`;
+                    inputHTML += '<option value="">Select...</option>';
+                    field.allowed_values.forEach(value => {
+                        inputHTML += `<option value="${value}">${value}</option>`;
+                    });
+                    inputHTML += '</select>';
+                } else {
+                    const suggestedValue = getSuggestedValue(field.name, window.currentItemData);
+                    inputHTML = `<input type="text" id="${fieldId}" value="${suggestedValue}" style="width: 100%; padding: 5px;" placeholder="Enter ${field.name}">`;
+                }
+                
+                tableHTML += `
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${field.name}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${field.input_mode}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${inputHTML}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += '</tbody></table>';
+            tableContainer.innerHTML = tableHTML;
+        }
+        
+        function getSuggestedValue(fieldName, itemData) {
+            const name = fieldName.toLowerCase();
+            
+            if (name.includes('brand')) return itemData.brand || '';
+            if (name.includes('type')) return itemData.item_name.split(' ')[0] || '';
+            if (name.includes('color')) return '';
+            if (name.includes('model')) return itemData.model || '';
+            
+            return '';
+        }
+        
+        async function saveCategorySelection(listingId) {
+            const categoryId = document.getElementById('categorySelect').value;
+            const aspects = {};
+            
+            // Collect field values
+            const inputs = document.querySelectorAll('#categoryFieldsTable input, #categoryFieldsTable select');
+            inputs.forEach(input => {
+                if (input.value) {
+                    const fieldName = input.id.replace('field_', '').replace(/_/g, ' ');
+                    aspects[fieldName] = input.value;
+                }
+            });
+            
+            try {
+                const response = await fetch('/api/listing/update-draft', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        listing_id: listingId,
+                        category_id: categoryId,
+                        aspects: aspects
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeCategoryModal();
+                    loadDraftListings();
+                } else {
+                    showError(result.error || 'Failed to update draft');
+                }
+            } catch (err) {
+                showError('Error saving category: ' + err.message);
+            }
+        }
+        
+        function closeCategoryModal() {
+            const modal = document.getElementById('categoryModal');
+            if (modal) modal.remove();
+        }
+        
+        function validateForm() {
+            const title = document.getElementById('listingTitle').value;
+            const price = document.getElementById('listingPrice').value;
+            const description = document.getElementById('listingDescription').value;
+            
+            const isValid = title.length > 0 && price > 0 && description.length > 0;
+            document.getElementById('createDraftBtn').disabled = !isValid;
+        }
+        
+        async function createDraftListing() {
+            if (!currentValuationId) return;
+            
+            // Collect category aspects
+            const aspects = {};
+            const aspectInputs = document.querySelectorAll('#categoryAspects input, #categoryAspects select');
+            aspectInputs.forEach(input => {
+                if (input.value) {
+                    const aspectName = input.id.replace('aspect_', '').replace(/_/g, ' ');
+                    aspects[aspectName] = input.value;
+                }
+            });
+            
+            const listingData = {
+                valuation_id: currentValuationId,
+                title: document.getElementById('listingTitle').value,
+                category_id: document.getElementById('listingCategory').value,
+                price: parseFloat(document.getElementById('listingPrice').value),
+                condition: document.getElementById('listingCondition').value,
+                description: document.getElementById('listingDescription').value,
+                brand: document.getElementById('listingBrand').value,
+                model: document.getElementById('listingModel').value,
+                aspects: aspects
+            };
+            
+            try {
+                document.getElementById('createDraftBtn').disabled = true;
+                document.getElementById('createDraftBtn').textContent = 'Creating...';
+                
+                const response = await fetch('/api/listing/create-draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(listingData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Draft listing created successfully!');
+                    hideListingEditor();
+                    loadDraftListings();
+                } else {
+                    showError(data.error || 'Failed to create draft listing');
+                }
+            } catch (err) {
+                showError('Error creating draft: ' + err.message);
+            } finally {
+                document.getElementById('createDraftBtn').disabled = false;
+                document.getElementById('createDraftBtn').textContent = 'Create Draft';
+            }
+        }
+        
+        async function loadDraftListings() {
+            try {
+                const response = await fetch('/api/listings/drafts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayDraftListings(data.drafts);
+                }
+            } catch (err) {
+                console.error('Error loading draft listings:', err);
+            }
+        }
+        
+        function displayDraftListings(drafts) {
+            const container = document.getElementById('draftListings');
+            
+            if (drafts.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">No draft listings yet.</p>';
+                return;
+            }
+
+            container.innerHTML = drafts.map(draft => {
+                const photos = draft.listing_data.photos || [draft.image_filename];
+                const thumbnails = photos.map(photo => 
+                    `<img src="/uploads/${photo}" class="photo-thumb" onclick="showFullImage('/uploads/${photo}')" alt="Photo">`
+                ).join('');
+                
+                return `
+                    <div class="valuation-item">
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <img src="/uploads/${photos[0]}" class="item-image" alt="${draft.item_name}" onclick="showFullImage('/uploads/${photos[0]})" style="cursor: pointer;">
+                            ${photos.length > 1 ? `<div class="photo-thumbnails">${thumbnails}</div>` : ''}
+                        </div>
+                        <div class="item-details">
+                            <h4>${draft.listing_data.title || draft.item_name}</h4>
+                            <p><strong>$${draft.listing_data.price?.toFixed(2) || draft.estimated_value?.toFixed(2)}</strong> • Draft</p>
+                            <p>Created: ${new Date(draft.upload_timestamp).toLocaleDateString()}</p>
+                            <span class="status-badge status-draft">DRAFT</span>
+                        </div>
+                        <div class="item-actions">
+                            <button class="submit-btn" onclick="submitDraftToEbay('${draft.id}')">Submit to eBay</button>
+                            <button class="cancel-btn" onclick="deleteDraft('${draft.id}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        async function submitDraftToEbay(draftId) {
+            // Use existing eBay submission logic
+            try {
+                const response = await fetch('/api/ebay/submit-listing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ valuation_id: draftId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Listing submitted to eBay successfully!');
+                    loadDraftListings();
+                    loadLiveListings();
+                } else {
+                    showError(data.error || 'Failed to submit listing');
+                }
+            } catch (err) {
+                showError('Error submitting to eBay: ' + err.message);
+            }
+        }
+        
+        async function submitToEbay() {
+            if (!currentValuationId) return;
+            
+            // Collect category aspects
+            const aspects = {};
+            const aspectInputs = document.querySelectorAll('#categoryAspects input, #categoryAspects select');
+            aspectInputs.forEach(input => {
+                if (input.value) {
+                    const aspectName = input.id.replace('aspect_', '').replace(/_/g, ' ');
+                    aspects[aspectName] = input.value;
+                }
+            });
+            
+            const listingData = {
+                valuation_id: currentValuationId,
+                title: document.getElementById('listingTitle').value,
+                category_id: document.getElementById('listingCategory').value,
+                price: parseFloat(document.getElementById('listingPrice').value),
+                condition: document.getElementById('listingCondition').value,
+                description: document.getElementById('listingDescription').value,
+                brand: document.getElementById('listingBrand').value,
+                model: document.getElementById('listingModel').value,
+                aspects: aspects
+            };
+            
+            try {
+                document.getElementById('submitToEbay').disabled = true;
+                document.getElementById('submitToEbay').textContent = 'Submitting...';
+                
+                const response = await fetch('/api/ebay/submit-listing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(listingData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Listing submitted to eBay successfully!');
+                    hideListingEditor();
+                    loadRecentValuations();
+                    loadApprovedValuations();
+                } else {
+                    showError(data.error || 'Failed to submit listing');
+                }
+            } catch (err) {
+                showError('Error submitting to eBay: ' + err.message);
+            } finally {
+                document.getElementById('submitToEbay').disabled = false;
+                document.getElementById('submitToEbay').textContent = 'Submit to eBay';
+            }
+        }
+        
+        function hideListingEditor() {
+            document.getElementById('listingEditor').classList.add('hidden');
+            currentValuationId = null;
+        }
+        
+        // Add event listeners for form validation
+        document.addEventListener('DOMContentLoaded', function() {
+            ['listingTitle', 'listingPrice', 'listingDescription'].forEach(id => {
+                document.getElementById(id).addEventListener('input', validateForm);
+            });
+            
+            // Character counter for title
+            document.getElementById('listingTitle').addEventListener('input', function() {
+                const count = this.value.length;
+                document.querySelector('.char-count').textContent = `${count}/80`;
+            });
+        });
+
+        // Upload area click
+        document.getElementById('uploadSection').addEventListener('click', () => {
+            document.getElementById('imageInput').click();
+        });
+
+        // File selection
+        document.getElementById('imageInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        // Drag and drop
+        const uploadSection = document.getElementById('uploadSection');
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showError('Please select a valid image file');
+                return;
+            }
+            if (file.size > 16 * 1024 * 1024) {
+                showError('File too large. Maximum 16MB');
+                return;
+            }
+
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const preview = document.getElementById('previewImg');
+                preview.src = e.target.result;
+                preview.classList.add('show');
+            };
+            reader.readAsDataURL(file);
+
+            document.getElementById('analyzeBtn').disabled = false;
+            hideError();
+        }
+
+        async function analyzeImage() {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('analysisResults').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.vision_used) trackApiCall('vision');
+                    if (data.gemini_used) {
+                        const tokens = data.usage_metadata?.totalTokens || API_COSTS.TOKENS_PER_IMAGE;
+                        trackApiCall('gemini', tokens);
+                    }
+                    
+                    displayAnalysisResults(data);
+                    loadDraftListings();
+                    loadStats();
+                } else {
+                    showError(data.error || 'Analysis failed');
+                }
+            } catch (err) {
+                showError('Error: ' + err.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+        
+        function displayAnalysisResults(data) {
+            const resultsContainer = document.getElementById('itemResults');
+            const analysisSection = document.getElementById('analysisResults');
+            
+            // Store analysis data globally for later use
+            window.lastAnalysisData = data;
+            
+            if (data.items && data.items.length > 0) {
+                resultsContainer.innerHTML = data.items.map(item => `
+                    <div class="item-result ${item.worth_listing ? 'worth-listing' : 'not-worth'}">
+                        <div class="item-header">
+                            <h4 class="item-name">${item.item_name}</h4>
+                            <span class="item-value">$${item.estimated_value.toFixed(2)}</span>
+                        </div>
+                        <div class="item-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Worth Listing:</span>
+                                <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
+                                    ${item.worth_listing ? 'Yes' : 'No'}
+                                </span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Profitability:</span>
+                                <span class="detail-value">${item.profitability.toUpperCase()}</span>
+                            </div>
+                        </div>
+                        ${item.worth_listing ? `
+                            <button class="create-listing-btn" onclick="createListing('${item.item_id}')" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Create Listing
+                            </button>
+                        ` : ''}
+                    </div>
+                `).join('');
+                
+                analysisSection.style.display = 'block';
+            } else {
+                resultsContainer.innerHTML = '<p style="color: #999;">No items detected in the image.</p>';
+                analysisSection.style.display = 'block';
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.stats;
+                    document.getElementById('totalValuations').textContent = stats.total_valuations;
+                    document.getElementById('worthListing').textContent = stats.worth_listing;
+                    document.getElementById('avgValue').textContent = '$' + stats.average_value;
+                }
+            } catch (err) {
+                console.error('Error loading stats:', err);
+            }
+        }
+
+        async function loadRecentValuations() {
+            try {
+                const response = await fetch('/api/valuations/recent');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayValuations(data.valuations, 'recentValuations', true);
+                }
+            } catch (err) {
+                console.error('Error loading recent valuations:', err);
+            }
+        }
+
+        async function refreshLiveListings() {
+            try {
+                const response = await fetch('/api/ebay/refresh-listings', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    displayLiveListings(data.listings);
+                } else {
+                    showError(data.error || 'Failed to refresh listings');
+                }
+            } catch (err) {
+                showError('Error refreshing listings: ' + err.message);
+            }
+        }
+        
+        async function loadLiveListings() {
+            try {
+                const response = await fetch('/api/ebay/live-listings');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayLiveListings(data.listings);
+                }
+            } catch (err) {
+                console.error('Error loading live listings:', err);
+            }
+        }
+        
+        function displayLiveListings(listings) {
+            const container = document.getElementById('liveListings');
+            
+            if (listings.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">No live listings found.</p>';
+                return;
+            }
+
+            container.innerHTML = listings.map(listing => `
+                <div class="valuation-item">
+                    <img src="/uploads/${listing.image_filename}" class="item-image" alt="${listing.listing_title}">
+                    <div class="item-details">
+                        <h4>${listing.listing_title}</h4>
+                        <p><strong>$${listing.listing_price?.toFixed(2)}</strong> • eBay ID: ${listing.ebay_listing_id}</p>
+                        <p>Status: ${listing.listing_status?.toUpperCase()} • ${new Date(listing.submission_timestamp).toLocaleDateString()}</p>
+                        <span class="status-badge status-${listing.listing_status}">${listing.listing_status?.toUpperCase()}</span>
+                    </div>
+                    <div class="item-actions">
+                        <button class="create-listing-btn" onclick="editLiveListing('${listing.ebay_listing_id}')">Edit Listing</button>
+                        <button class="cancel-btn" onclick="endListing('${listing.ebay_listing_id}')">End Listing</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayValuations(valuations, containerId, showApproveBtn) {
+            const container = document.getElementById(containerId);
+            
+            if (valuations.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">No items found.</p>';
+                return;
+            }
+
+            container.innerHTML = valuations.map(item => `
+                <div class="valuation-item ${item.worth_listing ? 'worth-listing' : 'not-worth'}">
+                    <img src="/uploads/${item.image_filename}" class="item-image" alt="${item.item_name}">
+                    <div class="item-details">
+                        <h4>${item.item_name || 'Unknown Item'}</h4>
+                        <p><strong>$${item.estimated_value?.toFixed(2) || '0.00'}</strong> • Condition: ${item.condition_score || 0}/10</p>
+                        <p>Profit: ${item.profitability?.toUpperCase() || 'UNKNOWN'} • ${new Date(item.upload_timestamp).toLocaleDateString()}</p>
+                        <span class="status-badge status-${item.status}">${item.status?.toUpperCase() || 'ANALYZED'}</span>
+                    </div>
+                    <div class="item-actions">
+                        ${showApproveBtn && item.worth_listing && item.status === 'analyzed' ? 
+                            `<button class="create-listing-btn" onclick="createListing('${item.id}')">Create Listing</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function approveValuation(valuationId) {
+            try {
+                const response = await fetch(`/api/valuations/${valuationId}/approve`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    loadRecentValuations();
+                    loadApprovedValuations();
+                    loadStats();
+                } else {
+                    showError(data.error || 'Failed to approve valuation');
+                }
+            } catch (err) {
+                showError('Error: ' + err.message);
+            }
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+            document.getElementById(tabName + 'Tab').classList.remove('hidden');
+
+            if (tabName === 'drafts') loadDraftListings();
+            if (tabName === 'live') loadLiveListings();
+        }
+
+        function showError(msg) {
+            const errorEl = document.getElementById('errorMsg');
+            errorEl.textContent = msg;
+            errorEl.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('errorMsg').classList.remove('show');
+        }
+
+        // Load initial data
+        loadStats();
+        loadDraftListings();
+        loadApiCounters();
+        
+        // Modal functions
+        function showFullImage(imageSrc) {
+            const modal = document.getElementById('photoModal') || createPhotoModal();
+            modal.querySelector('img').src = imageSrc;
+            modal.style.display = 'block';
+        }
+        
+        function createPhotoModal() {
+            const modal = document.createElement('div');
+            modal.id = 'photoModal';
+            modal.className = 'photo-modal';
+            modal.innerHTML = `
+                <span class="close" onclick="hideFullImage()">&times;</span>
+                <img src="" alt="Full size photo">
+            `;
+            modal.onclick = (e) => { if (e.target === modal) hideFullImage(); };
+            document.body.appendChild(modal);
+            return modal;
+        }
+        
+        function hideFullImage() {
+            document.getElementById('photoModal').style.display = 'none';
+        }
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') hideFullImage();
+        });
+
+        // CSS animation
+        const style = document.createElement('style');
+        style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

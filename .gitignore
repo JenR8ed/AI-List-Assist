@@ -1,0 +1,64 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+listings.db
+valuations.db
+
+# Uploads
+uploads/
+valuations/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# eBay API tokens (if stored locally)
+ebay_tokens.json
+.ebay_token.json
+
+# IDE specific
+.cursor/
+
+# Test data with potentially sensitive info
+test_data/
+
+# Postman collections (may contain tokens)
+*.postman_collection.json
+*.postman_environment.json

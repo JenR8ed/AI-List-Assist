@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Item Valuation - Reseller Helper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8e5ff;
+        }
+
+        .upload-area p {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-area .icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .preview-img.show {
+            display: block;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .valuation-result {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .valuation-result.show {
+            display: block;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .result-value {
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .profitability-high {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .profitability-medium {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .profitability-low {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .profitability-not_recommended {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .score-bar {
+            background: #e0e0e0;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .score-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .history-item {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .history-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .history-item h4 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .history-item .price {
+            font-size: 1.3em;
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .history-item .meta {
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .history-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📸 AI Item Valuation</h1>
+            <p>Professional AI-powered item pricing for resellers</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- Upload Section -->
+            <div class="card">
+                <h2>📤 Upload Item Photo</h2>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div class="icon">📷</div>
+                    <p><strong>Click to upload</strong> or drag & drop</p>
+                    <p style="font-size: 0.9em; color: #999;">JPG, PNG, GIF, or WebP (Max 16MB)</p>
+                </div>
+
+                <input type="file" id="imageInput" accept="image/*">
+                <img id="previewImg" class="preview-img" alt="Preview">
+
+                <div class="error" id="errorMsg"></div>
+
+                <button id="submitBtn" disabled>Analyze Item</button>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing item...</p>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="card">
+                <h2>📊 Valuation Results</h2>
+                
+                <div class="valuation-result" id="results">
+                    <div class="result-row">
+                        <span class="result-label">Item:</span>
+                        <span class="result-value" id="itemName">-</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Brand:</span>
+                        <span class="result-value" id="brand">-</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Estimated Age:</span>
+                        <span class="result-value" id="age">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">💰 Value:</span>
+                        <span class="result-value" id="value">-</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Range:</span>
+                        <span class="result-value" id="range">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">Condition:</span>
+                        <span class="result-value" id="condition">-/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <div class="score-fill" id="conditionBar" style="width: 0%"></div>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">Profitability:</span>
+                        <span class="result-value" id="profitability">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">Resale Score:</span>
+                        <span class="result-value" id="resaleScore">-/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <div class="score-fill" id="resaleBar" style="width: 0%"></div>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">Best Platforms:</span>
+                        <span class="result-value" id="platforms">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="card">
+            <h2>📈 Your Statistics</h2>
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-box">
+                    <div class="stat-number" id="statTotal">0</div>
+                    <div class="stat-label">Total Valuations</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="statAvgValue">$0</div>
+                    <div class="stat-label">Average Value</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="statAvgCondition">0</div>
+                    <div class="stat-label">Average Condition</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="card">
+            <h2>📋 Recent Valuations</h2>
+            <div class="history-grid" id="historyGrid">
+                <p style="color: #999;">No valuations yet. Upload an item photo to start!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const imageInput = document.getElementById('imageInput');
+        const previewImg = document.getElementById('previewImg');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const errorMsg = document.getElementById('errorMsg');
+        const results = document.getElementById('results');
+
+        let selectedFile = null;
+
+        // Upload area click
+        uploadArea.addEventListener('click', () => imageInput.click());
+
+        // File selection
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showError('Please select a valid image file');
+                return;
+            }
+
+            // Check file size
+            if (file.size > 16 * 1024 * 1024) {
+                showError('File too large. Maximum 16MB');
+                return;
+            }
+
+            selectedFile = file;
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                previewImg.classList.add('show');
+            };
+            reader.readAsDataURL(file);
+
+            submitBtn.disabled = false;
+            hideError();
+        }
+
+        submitBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+
+            loading.style.display = 'block';
+            submitBtn.disabled = true;
+            results.classList.remove('show');
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.items && data.items.length > 0) {
+                    // Use the first item for display
+                    const firstItem = data.items[0];
+                    
+                    // Get the actual valuation data from the session
+                    const sessionId = data.session_id;
+                    
+                    // For now, display what we have from the analyze response
+                    displayResults({
+                        item_name: firstItem.item_name,
+                        brand: firstItem.brand || '-',
+                        estimated_age: firstItem.estimated_age || '-',
+                        estimated_value: firstItem.estimated_value,
+                        value_range: firstItem.value_range || { low: firstItem.estimated_value * 0.8, high: firstItem.estimated_value * 1.2 },
+                        condition_score: firstItem.condition_score || 7,
+                        condition_notes: firstItem.condition_notes || '',
+                        profitability: firstItem.profitability,
+                        resale_score: firstItem.resale_score || 7,
+                        recommended_platforms: firstItem.recommended_platforms || ['eBay'],
+                        key_factors: firstItem.key_factors || [],
+                        risks: firstItem.risks || [],
+                        listing_tips: firstItem.listing_tips || [],
+                        confidence: firstItem.confidence || 0.7
+                    });
+                    loadHistory();
+                    loadStats();
+                } else {
+                    showError(data.error || 'No items detected in image');
+                }
+            } catch (err) {
+                showError('Error processing image: ' + err.message);
+            } finally {
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+
+        function displayResults(valuation) {
+            document.getElementById('itemName').textContent = valuation.item_name || '-';
+            document.getElementById('brand').textContent = valuation.brand || '-';
+            document.getElementById('age').textContent = valuation.estimated_age || '-';
+            document.getElementById('value').textContent = '$' + (valuation.estimated_value || 0).toFixed(2);
+
+            const range = valuation.value_range;
+            document.getElementById('range').textContent = 
+                `$${(range?.low || 0).toFixed(2)} - $${(range?.high || 0).toFixed(2)}`;
+
+            const condition = valuation.condition_score || 0;
+            document.getElementById('condition').textContent = condition + '/10';
+            document.getElementById('conditionBar').style.width = (condition * 10) + '%';
+
+            const profitClass = 'profitability-' + (valuation.profitability || 'unknown');
+            document.getElementById('profitability').textContent = (valuation.profitability || '-').toUpperCase();
+            document.getElementById('profitability').className = 'result-value ' + profitClass;
+
+            const resaleScore = valuation.resale_score || 0;
+            document.getElementById('resaleScore').textContent = resaleScore + '/10';
+            document.getElementById('resaleBar').style.width = (resaleScore * 10) + '%';
+
+            const platforms = (valuation.recommended_platforms || []).join(', ') || '-';
+            document.getElementById('platforms').textContent = platforms;
+
+            results.classList.add('show');
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history?limit=9');
+                const data = await response.json();
+
+                if (data.success) {
+                    const grid = document.getElementById('historyGrid');
+                    if (data.data.length === 0) {
+                        grid.innerHTML = '<p style="color: #999;">No valuations yet.</p>';
+                        return;
+                    }
+
+                    grid.innerHTML = data.data.map(item => `
+                        <div class="history-item">
+                            <h4>${item.item_name}</h4>
+                            <div class="price">$${(item.estimated_value || 0).toFixed(2)}</div>
+                            <div class="meta">
+                                Condition: ${item.condition_score}/10<br>
+                                ${item.profitability.toUpperCase()}<br>
+                                <small>${new Date(item.timestamp).toLocaleDateString()}</small>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error('Error loading history:', err);
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+
+                if (data.success) {
+                    const stats = data.stats;
+                    document.getElementById('statTotal').textContent = stats.total_valuations;
+                    document.getElementById('statAvgValue').textContent = '$' + stats.average_value.toFixed(2);
+                    document.getElementById('statAvgCondition').textContent = stats.average_condition.toFixed(1);
+                }
+            } catch (err) {
+                console.error('Error loading stats:', err);
+            }
+        }
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.add('show');
+        }
+
+        function hideError() {
+            errorMsg.classList.remove('show');
+        }
+
+        // Load initial data
+        loadHistory();
+        loadStats();
+    </script>
+</body>
+</html>
