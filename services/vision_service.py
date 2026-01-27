@@ -5,11 +5,16 @@ Detects multiple items in images using Google Cloud Vision API and Gemini Vision
 
 import json
 import os
+import re
 from typing import List, Dict, Any, Optional
 from shared.models import DetectedItem, BoundingBox
 from services.gemini_rest_client import GeminiRestClient
 import requests
 import base64
+
+# Model pattern: at least 2 uppercase letters, optional separator, at least 3 digits
+MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}')
+
 
 class VisionService:
     """Service for multi-item detection and OCR using Google Vision APIs."""
@@ -135,10 +140,9 @@ class VisionService:
     
     def _extract_model(self, texts: List[str]) -> Optional[str]:
         """Extract model from detected text."""
-        import re
         for text in texts:
             # Look for model patterns (letters + numbers)
-            model_match = re.search(r'[A-Z]{2,}[-\s]?\d{3,}', text)
+            model_match = MODEL_PATTERN.search(text)
             if model_match:
                 return model_match.group()
         return None
