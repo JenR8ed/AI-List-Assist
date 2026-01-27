@@ -241,16 +241,11 @@ class ConversationOrchestrator:
             if price_match:
                 extracted["price"] = float(price_match.group(1))
         
-        return extracted"dimension" in question.lower():
+        # Dimensions (fallback/alternative)
+        if "dimension" in question.lower() and "dimensions" not in extracted:
             # Try to extract numbers (simple pattern)
             numbers = re.findall(r'\d+\.?\d*', answer)
             if len(numbers) >= 2:
                 extracted["dimensions"] = " x ".join(numbers[:3])
-        
-        # Price
-        if "price" in question.lower():
-            price_match = re.search(r'\$?(\d+\.?\d*)', answer)
-            if price_match:
-                extracted["price"] = float(price_match.group(1))
         
         return extracted
