@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional, List
 import os
 import requests
 from shared.models import ListingDraft, ItemCondition
+from services.ebay_token_manager import EBayTokenManager
 
 
 class eBayIntegration:
@@ -32,13 +33,24 @@ class eBayIntegration:
             dev_id: eBay Developer ID
             use_sandbox: Use sandbox environment
         """
-        self.app_id = app_id or os.getenv('EBAY_APP_ID')
-        self.cert_id = cert_id or os.getenv('EBAY_CERT_ID')
+        # Support both naming conventions for environment variables
+        self.app_id = app_id or os.getenv('EBAY_APP_ID') or os.getenv('EBAY_CLIENT_ID')
+        self.cert_id = cert_id or os.getenv('EBAY_CERT_ID') or os.getenv('EBAY_CLIENT_SECRET')
         self.dev_id = dev_id or os.getenv('EBAY_DEV_ID')
         self.use_sandbox = use_sandbox
         
         self.base_url = self.SANDBOX_BASE_URL if use_sandbox else self.PRODUCTION_BASE_URL
-        self.access_token: Optional[str] = None
+
+        # Initialize token manager for persistence and lifecycle handling
+        self.token_manager = EBayTokenManager(
+            client_id=self.app_id,
+            client_secret=self.cert_id,
+            use_sandbox=use_sandbox
+        )
+
+        # Load initial tokens if available
+        self.access_token: Optional[str] = os.getenv('EBAY_ACCESS_TOKEN')
+        self.refresh_token: Optional[str] = os.getenv('EBAY_REFRESH_TOKEN')
     
     def authenticate(self, auth_code: str, redirect_uri: str) -> bool:
         """
@@ -51,15 +63,28 @@ class eBayIntegration:
         Returns:
             True if authentication successful
         """
-        # This is a placeholder - full OAuth implementation would go here
-        # For now, we'll use a token-based approach
-        token_url = f"{self.base_url}/identity/v1/oauth2/token"
+        token_data = self.token_manager.exchange_code_for_token(auth_code, redirect_uri)
+        if token_data:
+            self.access_token = token_data.get("access_token")
+            self.refresh_token = token_data.get("refresh_token")
+            return True
+        return False
+
+    def refresh_access_token(self) -> bool:
+        """
+        Refresh the access token using the refresh token.
         
-        # In production, this would exchange auth_code for access_token
-        # For now, we'll assume token is provided via environment variable
-        self.access_token = os.getenv('EBAY_ACCESS_TOKEN')
-        
-        return self.access_token is not None
+        Returns:
+            True if refresh successful
+        """
+        # The token manager handles the refresh logic internally using stored refresh token
+        token_data = self.token_manager._refresh_token()
+        if token_data:
+            self.access_token = token_data.get("access_token")
+            if token_data.get("refresh_token"):
+                self.refresh_token = token_data.get("refresh_token")
+            return True
+        return False
     
     def create_listing(self, listing_draft: ListingDraft) -> Dict[str, Any]:
         """
