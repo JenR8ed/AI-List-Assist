@@ -23,6 +23,7 @@ class VisionService:
 
         self.api_key = api_key
         self.last_usage_metadata = {}
+        self.session = requests.Session()
         
         # Initialize Gemini client
         try:
@@ -56,7 +57,7 @@ class VisionService:
             }]
         }
         
-        response = requests.post(url, json=payload, timeout=30)
+        response = self.session.post(url, json=payload, timeout=30)
         response.raise_for_status()
         
         data = response.json()
@@ -219,7 +220,7 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
                 }]
             }
             
-            response = requests.post(url, json=payload, timeout=30)
+            response = self.session.post(url, json=payload, timeout=30)
             response.raise_for_status()
             
             data = response.json()
