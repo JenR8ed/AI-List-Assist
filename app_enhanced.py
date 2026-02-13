@@ -14,6 +14,7 @@ import sqlite3
 import uuid
 
 # Import services
+from shared.models import ListingDraft, ItemCondition
 from services.vision_service import VisionService
 from services.conversation_orchestrator import ConversationOrchestrator
 from services.listing_synthesis import ListingSynthesisEngine
@@ -100,6 +101,7 @@ def init_db():
         price REAL,
         status TEXT,
         ebay_listing_id TEXT,
+        draft_data TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     ''')
@@ -362,14 +364,15 @@ def create_listing():
         conn = sqlite3.connect('listings.db')
         c = conn.cursor()
         c.execute('''
-            INSERT INTO listings (listing_id, item_id, title, price, status)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO listings (listing_id, item_id, title, price, status, draft_data)
+            VALUES (?, ?, ?, ?, ?, ?)
         ''', (
             listing_draft.listing_id,
             item_id,
             listing_draft.title,
             listing_draft.price,
-            "draft"
+            "draft",
+            json.dumps(listing_draft.to_dict())
         ))
         conn.commit()
         conn.close()
@@ -398,21 +401,59 @@ def publish_listing():
         # Get listing from database
         conn = sqlite3.connect('listings.db')
         c = conn.cursor()
-        c.execute('SELECT * FROM listings WHERE listing_id = ?', (listing_id,))
+        c.execute('SELECT draft_data FROM listings WHERE listing_id = ?', (listing_id,))
         row = c.fetchone()
         conn.close()
         
-        if not row:
-            return jsonify({"error": "Listing not found"}), 404
+        if not row or not row[0]:
+            return jsonify({"error": "Listing draft data not found"}), 404
         
-        # In production, would reconstruct ListingDraft from DB
-        # For now, return success
-        return jsonify({
-            "success": True,
-            "message": "Listing published successfully",
-            "listing_id": listing_id,
-            "note": "eBay API integration requires OAuth setup"
-        })
+        # Reconstruct ListingDraft from DB
+        draft_dict = json.loads(row[0])
+
+        # Handle datetime conversion
+        if 'created_at' in draft_dict:
+            draft_dict['created_at'] = datetime.fromisoformat(draft_dict['created_at'])
+
+        # Handle condition Enum conversion
+        if 'condition' in draft_dict:
+            draft_dict['condition'] = ItemCondition(draft_dict['condition'])
+
+        listing_draft = ListingDraft(**draft_dict)
+
+        # Ensure we have a valid eBay token
+        token = ebay_integration.token_manager.get_valid_token()
+        if token:
+            ebay_integration.access_token = token
+
+        # Publish to eBay
+        try:
+            ebay_result = ebay_integration.create_listing(listing_draft)
+            ebay_listing_id = ebay_result.get("listing_id")
+
+            # Update database status
+            conn = sqlite3.connect('listings.db')
+            c = conn.cursor()
+            c.execute('''
+                UPDATE listings
+                SET status = ?, ebay_listing_id = ?
+                WHERE listing_id = ?
+            ''', ("active", ebay_listing_id, listing_id))
+            conn.commit()
+            conn.close()
+
+            return jsonify({
+                "success": True,
+                "message": "Listing published successfully to eBay",
+                "listing_id": listing_id,
+                "ebay_listing_id": ebay_listing_id,
+                "url": ebay_result.get("url")
+            })
+        except Exception as ebay_err:
+            return jsonify({
+                "error": f"eBay publishing failed: {str(ebay_err)}",
+                "note": "Make sure you have completed the eBay OAuth flow"
+            }), 401
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500
