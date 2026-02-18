@@ -5,6 +5,7 @@ Database service for tracking valuations and eBay submissions
 import sqlite3
 import json
 import uuid
+import threading
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from shared.models import ItemValuation
@@ -14,11 +15,23 @@ class ValuationDatabase:
     
     def __init__(self, db_path: str = "valuations.db"):
         self.db_path = db_path
+        self._local = threading.local()
         self.init_database()
     
+    @property
+    def conn(self) -> sqlite3.Connection:
+        """Get per-thread database connection."""
+        if not hasattr(self._local, 'conn'):
+            self._local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            # Enable WAL mode for better performance with concurrent access
+            self._local.conn.execute("PRAGMA journal_mode=WAL")
+            # Set a longer timeout for busy database
+            self._local.conn.execute("PRAGMA busy_timeout=5000")
+        return self._local.conn
+
     def init_database(self):
         """Initialize database tables."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         # Valuations table - tracks all image analyses
@@ -56,13 +69,12 @@ class ValuationDatabase:
         ''')
         
         conn.commit()
-        conn.close()
     
     def save_valuation(self, image_filename: str, image_hash: str, valuation: ItemValuation) -> str:
         """Save a new valuation to database."""
         valuation_id = str(uuid.uuid4())
         
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         c.execute('''
@@ -86,13 +98,12 @@ class ValuationDatabase:
         ))
         
         conn.commit()
-        conn.close()
         
         return valuation_id
     
     def get_recent_valuations(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Get recent valuations ordered by timestamp."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         c.execute('''
@@ -104,7 +115,6 @@ class ValuationDatabase:
         ''', (limit,))
         
         rows = c.fetchall()
-        conn.close()
         
         return [
             {
@@ -124,7 +134,7 @@ class ValuationDatabase:
     
     def get_approved_valuations(self) -> List[Dict[str, Any]]:
         """Get valuations approved for eBay listing."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         c.execute('''
@@ -136,7 +146,6 @@ class ValuationDatabase:
         ''')
         
         rows = c.fetchall()
-        conn.close()
         
         return [
             {
@@ -155,7 +164,7 @@ class ValuationDatabase:
     
     def approve_valuation(self, valuation_id: str) -> bool:
         """Mark valuation as approved for eBay listing."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         c.execute('''
@@ -166,7 +175,6 @@ class ValuationDatabase:
         
         success = c.rowcount > 0
         conn.commit()
-        conn.close()
         
         return success
     
@@ -176,7 +184,7 @@ class ValuationDatabase:
         """Record eBay submission."""
         submission_id = str(uuid.uuid4())
         
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         # Update valuation status
@@ -203,13 +211,12 @@ class ValuationDatabase:
         ))
         
         conn.commit()
-        conn.close()
         
         return submission_id
     
     def get_ebay_submissions(self) -> List[Dict[str, Any]]:
         """Get all eBay submissions with valuation data."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         c.execute('''
@@ -222,7 +229,6 @@ class ValuationDatabase:
         ''')
         
         rows = c.fetchall()
-        conn.close()
         
         return [
             {
@@ -241,7 +247,7 @@ class ValuationDatabase:
     
     def get_valuation_stats(self) -> Dict[str, Any]:
         """Get summary statistics."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         # Total valuations
@@ -264,8 +270,6 @@ class ValuationDatabase:
         c.execute('SELECT COUNT(*) FROM ebay_submissions')
         ebay_submissions = c.fetchone()[0]
         
-        conn.close()
-        
         return {
             "total_valuations": total_valuations,
             "worth_listing": worth_listing,
@@ -279,7 +283,7 @@ class ValuationDatabase:
         """Create draft listing from valuation."""
         listing_id = str(uuid.uuid4())
         
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         # Update valuation status
@@ -290,12 +294,11 @@ class ValuationDatabase:
                   (json.dumps(listing_data), valuation_id))
         
         conn.commit()
-        conn.close()
         return listing_id
     
     def get_draft_listings(self) -> List[Dict[str, Any]]:
         """Get draft listings ready for eBay submission."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         c.execute('''
@@ -305,7 +308,6 @@ class ValuationDatabase:
         ''')
         
         rows = c.fetchall()
-        conn.close()
         
         return [
             {
@@ -321,7 +323,7 @@ class ValuationDatabase:
     
     def update_draft_listing(self, listing_id: str, update_data: Dict[str, Any]) -> bool:
         """Update draft listing with new data."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.conn
         c = conn.cursor()
         
         # Get current listing data
@@ -329,7 +331,6 @@ class ValuationDatabase:
         row = c.fetchone()
         
         if not row:
-            conn.close()
             return False
         
         # Merge update data with existing data
@@ -342,6 +343,5 @@ class ValuationDatabase:
         
         success = c.rowcount > 0
         conn.commit()
-        conn.close()
         
         return success
