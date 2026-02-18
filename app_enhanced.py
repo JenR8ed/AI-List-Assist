@@ -793,26 +793,12 @@ def refresh_token():
 @app.route('/api/ebay/refresh-listings', methods=['POST'])
 def refresh_live_listings():
     """Refresh live listings from eBay account."""
+    if not ebay_integration:
+        return jsonify({"error": "eBay integration not initialized"}), 500
+
     try:
-        # Mock eBay API call to get active listings
-        active_listings = [
-            {
-                "ebay_listing_id": "123456789",
-                "title": "Sony WH-1000XM4 Headphones",
-                "price": 249.99,
-                "status": "Active",
-                "views": 45,
-                "watchers": 3
-            },
-            {
-                "ebay_listing_id": "987654321", 
-                "title": "Apple iPhone 13 Pro",
-                "price": 899.99,
-                "status": "Active",
-                "views": 128,
-                "watchers": 12
-            }
-        ]
+        # Real eBay API call to get active listings
+        active_listings = ebay_integration.get_active_listings()
         
         return jsonify({
             "success": True,
