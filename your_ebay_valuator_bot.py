@@ -29,7 +29,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         photo_base64 = base64.b64encode(photo_data).decode('utf-8')
         
         # Get valuation using existing service
-        detected_items = valuation_service.detect_items(photo_base64, "image/jpeg")
+        detected_items = await valuation_service.detect_items_async(photo_base64, "image/jpeg")
         
         # Format response
         if not detected_items:
