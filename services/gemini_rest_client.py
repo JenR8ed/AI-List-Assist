@@ -34,6 +34,7 @@ class GeminiRestClient:
         self.api_base = api_base.rstrip("/")
         self.api_version = api_version
         self.timeout_s = timeout_s
+        self.session = requests.Session()
 
     def count_tokens(
         self,
@@ -70,7 +71,7 @@ class GeminiRestClient:
             ]
         }
 
-        resp = requests.post(url, json=payload, timeout=self.timeout_s)
+        resp = self.session.post(url, json=payload, timeout=self.timeout_s)
         resp.raise_for_status()
         data = resp.json()
         
@@ -116,7 +117,7 @@ class GeminiRestClient:
             },
         }
 
-        resp = requests.post(url, json=payload, timeout=self.timeout_s)
+        resp = self.session.post(url, json=payload, timeout=self.timeout_s)
         resp.raise_for_status()
         data = resp.json()
 
