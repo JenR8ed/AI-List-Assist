@@ -6,6 +6,7 @@ Handles OAuth, listing creation, and eBay Sell APIs.
 from typing import Dict, Any, Optional, List
 import os
 import requests
+from datetime import datetime
 from shared.models import ListingDraft, ItemCondition
 from services.ebay_token_manager import EBayTokenManager
 
@@ -265,3 +266,73 @@ class eBayIntegration:
 
         query_string = "&".join([f"{k}={v}" for k, v in params.items()])
         return f"{base_url}/oauth2/authorize?{query_string}"
+
+    def get_active_listings(self) -> List[Dict[str, Any]]:
+        """
+        Fetch active listings (published offers) from eBay.
+
+        Returns:
+            List of dictionaries containing listing details
+        """
+        if not self.access_token:
+            # Try to get valid token from token manager
+            self.access_token = self.token_manager.get_valid_token()
+
+        if not self.access_token:
+            print("Warning: No access token available for eBay API")
+            return []
+
+        url = f"{self.base_url}/sell/inventory/v1/offer"
+        params = {
+            "marketplace_id": "EBAY_US",
+            "limit": 100
+        }
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+        }
+
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            if response.status_code == 401:
+                # Token might have expired, try to refresh once
+                if self.refresh_access_token():
+                    # Retry with new token
+                    headers["Authorization"] = f"Bearer {self.access_token}"
+                    response = requests.get(url, headers=headers, params=params)
+
+            if response.status_code == 200:
+                return self._parse_ebay_offers(response.json())
+            else:
+                print(f"Error fetching eBay listings: {response.status_code} - {response.text}")
+                return []
+        except Exception as e:
+            print(f"Exception fetching eBay listings: {e}")
+            return []
+
+    def _parse_ebay_offers(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Parse eBay Inventory API offers response into application format."""
+        offers = data.get("offers", [])
+        active_listings = []
+
+        for offer in offers:
+            # Only include published offers (active listings)
+            if offer.get("status") == "PUBLISHED":
+                title = offer.get("listing", {}).get("title") or offer.get("sku")
+                price = float(offer.get("pricingSummary", {}).get("price", {}).get("value", 0))
+
+                active_listings.append({
+                    "ebay_listing_id": offer.get("listingId"),
+                    "title": title,                   # Original mock field
+                    "listing_title": title,           # Frontend expected field
+                    "price": price,                   # Original mock field
+                    "listing_price": price,           # Frontend expected field
+                    "status": "Active",               # Original mock field
+                    "listing_status": "active",       # Frontend expected field
+                    "submission_timestamp": datetime.now().isoformat(),
+                    "image_filename": "",             # Placeholder
+                    "views": 0,
+                    "watchers": 0
+                })
+        return active_listings
