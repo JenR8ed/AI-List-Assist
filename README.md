@@ -52,8 +52,6 @@ cd ai-list-assist
 
 # Install dependencies
 pip install -r requirements.txt
-# Note: httpx is also required for async features
-pip install httpx
 ```
 
 ### 3. Configuration
@@ -80,7 +78,7 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 python app_enhanced.py
 
 # Start the Telegram bot (in a separate terminal)
-python valuator_bot.py
+python your_ebay_valuator_bot.py
 ```
 Visit: **http://localhost:5000**
 
