@@ -80,7 +80,7 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 python app_enhanced.py
 
 # Start the Telegram bot (in a separate terminal)
-python your_ebay_valuator_bot.py
+python valuator_bot.py
 ```
 Visit: **http://localhost:5000**
 
