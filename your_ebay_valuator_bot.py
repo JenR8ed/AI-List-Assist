@@ -4,14 +4,13 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import os
 from dotenv import load_dotenv
-from services.vision_service import VisionService
 from services.mock_valuation_service import MockValuationService
 
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
 # Initialize valuation service
-valuation_service = VisionService()
+valuation_service = MockValuationService()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
@@ -29,22 +28,19 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         photo_base64 = base64.b64encode(photo_data).decode('utf-8')
         
         # Get valuation using existing service
-        detected_items = await valuation_service.detect_items_async(photo_base64, "image/jpeg")
+        valuation = valuation_service.evaluate_item(photo_base64, "image/jpeg")
         
         # Format response
-        if not detected_items:
-            await update.message.reply_text("🚫 No items detected in the image.")
-            return
-
-        response_parts = ["*Detected Items:*\n"]
-        for item in detected_items:
-            response_parts.append(
-                f" Probable Category: *{item.probable_category}*\n"
-                f" Brand: *{item.brand or 'N/A'}*\n"
-                f" Model: *{item.model or 'N/A'}*\n"
-            )
-        
-        response = "\n".join(response_parts)
+        response = (
+            f"💰 **{valuation.item_name}**\n"
+            f"Value: **${valuation.estimated_value:.2f}**\n"
+            f"Range: ${valuation.value_range['low']:.2f} - ${valuation.value_range['high']:.2f}\n"
+            f"Condition: {valuation.condition_score}/10\n"
+            f"Profit: **{valuation.profitability.value.upper()}**\n"
+            f"Worth listing: {'✅ YES' if valuation.worth_listing else '❌ NO'}\n\n"
+            f"📊 Resale Score: {valuation.resale_score}/10\n"
+            f"🏪 Best platforms: {', '.join(valuation.recommended_platforms)}"
+        )
         
         await update.message.reply_text(response, parse_mode='Markdown')
         
@@ -66,7 +62,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         parse_mode='Markdown'
     )
 
-def main():
+async def main():
     if not TELEGRAM_TOKEN:
         print("[ERROR] TELEGRAM_BOT_TOKEN not found in .env file")
         return
@@ -79,7 +75,7 @@ def main():
     
     print("[BOT] eBay Valuator Bot started!")
     print("Send photos to get instant valuations")
-    app.run_polling()
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
