@@ -3,6 +3,7 @@ Integrates all services: vision, valuation, conversation, listing synthesis, eBa
 """
 
 from flask import Flask, render_template, request, jsonify
+from werkzeug.utils import secure_filename
 import base64
 import json
 import os
@@ -144,7 +145,8 @@ def analyze_image():
         image_base64 = base64.b64encode(image_data).decode('utf-8')
 
         # Save uploaded file
-        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        safe_filename = secure_filename(file.filename)
+        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_filename}"
         filepath = Path(app.config['UPLOAD_FOLDER']) / filename
         with open(filepath, 'wb') as f:
             f.write(image_data)
