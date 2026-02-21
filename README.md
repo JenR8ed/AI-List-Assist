@@ -1,90 +1,64 @@
-# AI List Assist: AI-Powered eBay Listing System
+# AI List Assist: The Ultimate eBay Reselling Copilot
 
-AI List Assist is a comprehensive, end-to-end system designed to automate the lifecycle of online reselling. By leveraging Google's Gemini Vision and eBay's Sell APIs, the system transforms unstructured photos into structured, marketplace-ready listings with accurate valuations.
-
----
-
-## 🎯 Key Features
-
-### 🤖 Smart Analysis & Valuation
-- **Multi-Item Detection**: Automatically identifies multiple items within a single photograph using Google Vision.
-- **AI-Powered OCR**: Extracts brands, model numbers, and specific item details from labels and packaging.
-- **Decision Gate Valuation**: Provides instant market value estimates, condition assessments (1-10), and profitability ratings (High/Medium/Low) to help you decide what's worth listing.
-
-### 💬 Conversational Listing Assistant
-- **Progressive Questioning**: A guided web interface that asks only the necessary questions to fill in missing details for an eBay listing.
-- **Natural Language Processing**: Context-aware interactions to refine item specifics.
-
-### 🔌 Robust eBay Integration
-- **OAuth 2.0 Security**: Full implementation of eBay's OAuth 2.0 lifecycle for secure user authentication.
-- **Category-Specific Aspects**: Automatically maps AI-detected data to eBay's required and recommended item specifics using the Taxonomy API.
-- **Direct Publishing**: Publish listings directly to eBay via the modern Inventory and Offer APIs.
-- **Live Management**: View and manage active listings directly from the dashboard.
-
-### 📱 Telegram Valuator Bot
-- **On-the-Go Valuations**: Send a photo to the dedicated Telegram bot for instant valuation results while sourcing items in the field.
+AI List Assist is a powerful, end-to-end system designed to automate the lifecycle of online reselling. By combining Google's Gemini Vision AI with eBay's modern Sell APIs, the system transforms unstructured photos into structured, marketplace-ready listings with high-accuracy valuations.
 
 ---
 
-## 🏗️ Architecture & Tech Stack
+## 🚀 System Overview
 
-- **Backend**: Python 3.12 / Flask
-- **Frontend**: Responsive Dashboard (HTML5, JavaScript, Tailwind-style CSS)
-- **AI Services**: Google Vision API & Gemini 1.5 Pro/Flash (via REST)
-- **Marketplace**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics)
-- **Persistence**: Dual SQLite strategy (`valuations.db` for analysis history, `listings.db` for workflow state)
-- **Asynchronous Processing**: `httpx` for non-blocking API interactions
+AI List Assist eliminates the friction of manual listing. Whether you're a professional reseller or just clearing out your garage, our system helps you decide **what's worth listing** and gets it live on eBay in seconds.
+
+### 🌟 Key Features
+
+*   **🤖 Multi-Item AI Detection**: Snap one photo of multiple items; our Vision Service (Google Cloud Vision + Gemini 1.5 Flash) identifies and separates them automatically.
+*   **⚖️ Decision Gate Valuation**: Instant market analysis provides estimated values, condition scores (1-10), and a "Worth Listing" recommendation.
+*   **💬 Conversational Listing Assistant**: A guided, AI-driven interface asks only the necessary questions to fill in missing eBay item specifics.
+*   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern Inventory and Offer APIs for one-click publishing.
+*   **📱 Mobile Valuator Bot**: A dedicated Telegram bot for on-the-go valuations while sourcing at thrift stores or garage sales.
+*   **📊 Live Dashboard**: Manage your active listings, view sales performance, and track your valuation history in one place.
 
 ---
 
-## 🚀 Quick Start
+## 🔄 Core Workflow
 
-### 1. Prerequisites
-- Python 3.12+
-- Google Cloud Project with Vision and Gemini APIs enabled
-- eBay Developer Account
-
-### 2. Installation
-```bash
-# Clone the repository
-git clone <repository-url>
-cd ai-list-assist
-
-# Install dependencies
-pip install -r requirements.txt
+```mermaid
+graph TD
+    A[Capture Image] --> B{Vision Service}
+    B -->|Object Detection| C[Identify Items]
+    B -->|OCR| D[Extract Brand/Model]
+    C & D --> E{Decision Gate}
+    E -->|Analyze Market| F[Valuation Report]
+    F -->|Worth Listing?| G[Conversational Refinement]
+    G -->|User Feedback| H[Listing Synthesis]
+    H -->|Submit| I[eBay Marketplace]
 ```
 
-### 3. Configuration
-Create a `.env` file in the root directory and add your credentials:
-```env
-# Flask Configuration
-SECRET_KEY=your_flask_secret_key
-
-# Google AI Keys
-GOOGLE_API_KEY=your_google_api_key
-
-# eBay API Keys
-EBAY_CLIENT_ID=your_ebay_client_id
-EBAY_CLIENT_SECRET=your_ebay_client_secret
-EBAY_RU_NAME=your_ebay_redirect_uri_name
-
-# Telegram Bot (Optional)
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-```
-
-### 4. Running the Application
-```bash
-# Start the main web application
-python app_enhanced.py
-
-# Start the Telegram bot (in a separate terminal)
-python your_ebay_valuator_bot.py
-```
-Visit: **http://localhost:5000**
+1.  **Capture**: Upload a photo of one or more items.
+2.  **Analyze**: AI detects items, extracts text, and evaluates market potential.
+3.  **Decide**: The "Decision Gate" filters high-potential items based on profitability.
+4.  **Refine**: Answer a few guided questions to perfect the listing details.
+5.  **Publish**: One-click upload to your eBay store.
 
 ---
 
-## 📁 Project Structure
+## ⚖️ The "Decision Gate" Logic
+
+Our proprietary valuation engine helps you maximize ROI by calculating profitability before you spend time listing:
+
+| Profitability | Criteria | Recommendation |
+| :--- | :--- | :--- |
+| **High** | >$50 value, >30% sell-through | **List Immediately** |
+| **Medium** | >$20 value, >20% sell-through | **Worth Listing** |
+| **Low** | >$10 value | **Consider Bundling** |
+| **None** | <$10 or no demand | **Donate/Discard** |
+
+---
+
+## 🏗️ Technical Architecture
+
+AI List Assist is built with a service-oriented architecture for scale and resilience:
+
+### 📁 Project Structure
 
 ```
 ai-list-assist/
@@ -107,32 +81,85 @@ ai-list-assist/
 └── EBAY_LISTING_MAPPING.md   # eBay field mapping guide
 ```
 
+*   **Backend**: Python 3.12+ / Flask
+*   **AI Services**: Google Cloud Vision API & Gemini 1.5 Flash (via direct REST integration)
+*   **Marketplace Integration**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics)
+*   **Persistence**: Dual SQLite strategy
+    *   `valuations.db`: Tracks analysis history and AI performance.
+    *   `listings.db`: Manages the state of active listing workflows.
+*   **Frontend**: Responsive Dashboard (HTML5, JavaScript, Tailwind-style CSS)
+*   **Mobile Interface**: Telegram Bot (via `python-telegram-bot`)
+
 ---
 
-## 📊 Workflow
+## 🛠️ Getting Started
 
-1. **Capture**: Take a photo of one or more items.
-2. **Analyze**: AI detects items and generates a valuation report.
-3. **Decide**: The "Decision Gate" highlights items with high resale potential.
-4. **Refine**: Answer guided questions to complete the listing details.
-5. **Publish**: One-click publishing to your eBay store.
+### 1. Prerequisites
+- Python 3.12+
+- Google Cloud Project with Vision and Gemini APIs enabled.
+- eBay Developer Account (Production or Sandbox).
 
----
-
-## 🧪 Testing
-
-The system includes a suite of unit and integration tests.
+### 2. Installation
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd ai-list-assist
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Configuration
+Create a `.env` file in the root directory:
+```env
+# Flask Configuration
+SECRET_KEY=your_flask_secret_key
+
+# Google AI Keys
+GOOGLE_API_KEY=your_google_api_key
+
+# eBay API Keys
+EBAY_CLIENT_ID=your_ebay_client_id
+EBAY_CLIENT_SECRET=your_ebay_client_secret
+EBAY_RU_NAME=your_ebay_redirect_uri_name
+
+# Telegram Bot (Optional)
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+```
+
+### 4. Running the Application
+```bash
+# 1. Initialize databases and start the web server
+python app_enhanced.py
+
+# 2. Start the Telegram bot (in a separate terminal)
+python your_ebay_valuator_bot.py
+```
+Access the dashboard at: **http://localhost:5000**
+
+---
+
+## 🧪 Development & Testing
+
+We maintain high code quality through comprehensive testing:
+
+```bash
+# Run the full test suite
 python -m unittest discover tests
 ```
+
+**Key Test Areas:**
+- `tests/test_ebay_oauth_logic.py`: Verifies secure authentication.
+- `tests/test_valuation_database.py`: Ensures data persistence.
+- `tests/test_listing_reconstruction.py`: Validates listing generation.
 
 ---
 
 ## 📖 Related Documentation
 
-- **[Setup Guide](SETUP_GUIDE.md)**: Detailed environment and API setup.
-- **[Valuation Guide](VALUATION_DATA_GUIDE.md)**: Deep dive into the AI valuation logic.
-- **[eBay Mapping](EBAY_LISTING_MAPPING.md)**: How data translates to eBay fields.
+- [Setup Guide](SETUP_GUIDE.md): Detailed environment and API setup instructions.
+- [Valuation Guide](VALUATION_DATA_GUIDE.md): Deep dive into the AI valuation and decision logic.
+- [eBay Mapping](EBAY_LISTING_MAPPING.md): Detailed breakdown of how AI data maps to eBay fields.
 
 ---
 
