@@ -201,42 +201,6 @@ class eBayIntegration:
             "status": "published"
         }
 
-    def get_active_listings(self) -> List[Dict[str, Any]]:
-        """
-        Fetch active listings from the eBay seller account.
-
-        Returns:
-            List of active listing dicts with basic details.
-        """
-        if not self.access_token:
-            raise ValueError("Not authenticated. Call authenticate() first.")
-
-        url = f"{self.base_url}/sell/inventory/v1/inventory_item"
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
-        }
-
-        try:
-            response = requests.get(url, headers=headers, params={"limit": 200})
-            response.raise_for_status()
-            data = response.json()
-            items = data.get("inventoryItems", [])
-            return [
-                {
-                    "sku": item.get("sku"),
-                    "title": item.get("product", {}).get("title"),
-                    "condition": item.get("condition"),
-                    "quantity": item.get("availability", {})
-                              .get("shipToLocationAvailability", {})
-                              .get("quantity")
-                }
-                for item in items
-            ]
-        except requests.HTTPError as e:
-            raise RuntimeError(f"eBay API error fetching listings: {e.response.text}") from e
-
     def get_oauth_url(self, redirect_uri: str, scopes: List[str] = None) -> str:
         """
         Generate eBay OAuth authorization URL.

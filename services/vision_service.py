@@ -12,8 +12,9 @@ from services.gemini_rest_client import GeminiRestClient
 import requests
 import base64
 
-# Model pattern: e.g., AB-123, XY1234, WH-1000XM4
-MODEL_PATTERN = re.compile(r'\b[A-Z]{2,}[-\s]?\d{3,}[A-Z0-9-]*\b')
+# Model pattern: at least 2 uppercase letters, optional separator, at least 3 digits
+MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}')
+COMMON_BRANDS = ["Sony", "Apple", "Samsung", "Nike", "Adidas", "Canon", "Nikon"]
 
 
 class VisionService:
@@ -88,6 +89,10 @@ class VisionService:
         if texts:
             detected_texts = [text["description"] for text in texts[1:]]  # Skip first (full text)
         
+        # Extract brand and model once (optimization: don't repeat in loop)
+        brand = self._extract_brand(detected_texts)
+        model = self._extract_model(detected_texts)
+
         # Create items from detected objects
         for idx, obj in enumerate(objects):
             vertices = obj.get("boundingPoly", {}).get("normalizedVertices", [])
@@ -109,8 +114,8 @@ class VisionService:
                 confidence=obj.get("score", 0.5),
                 probable_category=obj.get("name", "Unknown"),
                 detected_text=detected_texts,
-                brand=self._extract_brand(detected_texts),
-                model=self._extract_model(detected_texts)
+                brand=brand,
+                model=model
             )
             items.append(item)
         
@@ -131,10 +136,10 @@ class VisionService:
     
     def _extract_brand(self, texts: List[str]) -> Optional[str]:
         """Extract brand from detected text."""
-        common_brands = ["Sony", "Apple", "Samsung", "Nike", "Adidas", "Canon", "Nikon"]
         for text in texts:
-            for brand in common_brands:
-                if brand.lower() in text.lower():
+            text_lower = text.lower()
+            for brand in COMMON_BRANDS:
+                if brand.lower() in text_lower:
                     return brand
         return None
     
