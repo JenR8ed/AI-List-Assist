@@ -4,6 +4,7 @@ Integrates all services: vision, valuation, conversation, listing synthesis, eBa
 """
 
 from flask import Flask, render_template, request, jsonify
+from werkzeug.utils import secure_filename
 import base64
 import json
 import os
@@ -53,6 +54,10 @@ category_generator = CategoryDetailGenerator()
 draft_image_manager = DraftImageManager()
 print("Database and services initialized")
 
+conversation_orchestrator = None
+listing_engine = None
+ebay_integration = None
+
 try:
     conversation_orchestrator = ConversationOrchestrator()
     listing_engine = ListingSynthesisEngine()
@@ -69,7 +74,7 @@ def init_db():
     """Initialize SQLite database."""
     conn = sqlite3.connect('listings.db')
     c = conn.cursor()
-    
+
     # Sessions table
     c.execute('''
     CREATE TABLE IF NOT EXISTS sessions (
@@ -79,7 +84,7 @@ def init_db():
         session_data TEXT
     )
     ''')
-    
+
     # Items table
     c.execute('''
     CREATE TABLE IF NOT EXISTS items (
@@ -90,7 +95,7 @@ def init_db():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     ''')
-    
+
     # Listings table
     c.execute('''
     CREATE TABLE IF NOT EXISTS listings (
@@ -103,7 +108,7 @@ def init_db():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     ''')
-    
+
     conn.commit()
     conn.close()
 
@@ -128,44 +133,45 @@ def analyze_image():
     """
     if 'image' not in request.files:
         return jsonify({"error": "No image provided"}), 400
-    
+
     file = request.files['image']
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
-    
+
     try:
         # Read and encode image
         image_data = file.read()
         image_base64 = base64.b64encode(image_data).decode('utf-8')
-        
+
         # Save uploaded file
-        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        safe_filename = secure_filename(file.filename)
+        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_filename}"
         filepath = Path(app.config['UPLOAD_FOLDER']) / filename
         with open(filepath, 'wb') as f:
             f.write(image_data)
-        
+
         # Create session
         session_id = str(uuid.uuid4())
-        
+
         # Step 1: Detect items
         print(f"DEBUG: Processing image, size: {len(image_base64)} chars, content_type: {file.content_type}")
         if not vision_service:
             return jsonify({"error": "Vision service not available"}), 500
-            
+
         vision_used = False
         gemini_used = False
         usage_metadata = {}
-        
+
         try:
             content_type = file.content_type or 'image/jpeg'  # Default if None
             detected_items = vision_service.detect_items(image_base64, content_type)
-            
+
             # Check which APIs were used
             vision_used = True  # Cloud Vision always tried first
             usage_metadata = vision_service.get_usage_metadata()
             if usage_metadata:  # If we have Gemini usage data, it was used
                 gemini_used = True
-            
+
             print(f"DEBUG: Detected {len(detected_items)} items")
             for i, item in enumerate(detected_items):
                 print(f"DEBUG: Item {i}: brand={item.brand}, category={item.probable_category}, text={item.detected_text}")
@@ -188,16 +194,16 @@ def analyze_image():
             except Exception as val_error:
                 print(f"DEBUG: Valuation error for {item.item_id}: {val_error}")
                 # Continue with other items
-        
+
         # Step 3: Filter items worth listing
         worth_listing = [v for v in valuations if v.worth_listing]
-        
+
         # Save valuations to database
         for valuation in valuations:
             image_hash = str(hash(image_base64))
             valuation_id = db.save_valuation(filename, image_hash, valuation)
             print(f"Saved valuation {valuation_id} for {valuation.item_name}")
-        
+
         # Save to database
         conn = sqlite3.connect('listings.db')
         c = conn.cursor()
@@ -211,7 +217,7 @@ def analyze_image():
         })))
         conn.commit()
         conn.close()
-        
+
         return jsonify({
             "success": True,
             "session_id": session_id,
@@ -232,7 +238,7 @@ def analyze_image():
             ],
             "image_url": f"/uploads/{filename}"
         })
-    
+
     except Exception as e:
         return jsonify({"error": f"Error processing image: {str(e)}"}), 500
 
@@ -242,13 +248,13 @@ def start_conversation():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-        
+
     item_id = data.get('item_id')
     initial_data = data.get('initial_data', {})
-    
+
     if not item_id:
         return jsonify({"error": "item_id required"}), 400
-    
+
     try:
         state = conversation_orchestrator.start_conversation(item_id, initial_data)
         return jsonify({
@@ -267,13 +273,13 @@ def answer_question():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-        
+
     session_id = data.get('session_id')
     answer = data.get('answer')
-    
+
     if not session_id or not answer:
         return jsonify({"error": "session_id and answer required"}), 400
-    
+
     try:
         state = conversation_orchestrator.process_answer(session_id, answer)
         return jsonify({
@@ -292,33 +298,33 @@ def create_listing():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-        
+
     item_id = data.get('item_id')
     session_id = data.get('session_id')
-    
+
     if not item_id or not session_id:
         return jsonify({"error": "item_id and session_id required"}), 400
-    
+
     try:
         # Get conversation state
         conv_state = conversation_orchestrator.get_state(session_id)
         if not conv_state:
             return jsonify({"error": "Conversation session not found"}), 404
-        
+
         # Get original image path from session
         conn = sqlite3.connect('listings.db')
         c = conn.cursor()
         c.execute('SELECT session_data FROM sessions WHERE session_id = ?', (session_id,))
         session_row = c.fetchone()
         conn.close()
-        
+
         original_images = []
         if session_row:
             session_data = json.loads(session_row[0])
             image_filename = session_data.get('image_filename')
             if image_filename:
                 original_images = [os.path.join(app.config['UPLOAD_FOLDER'], image_filename)]
-        
+
         # Get valuation (would fetch from DB in production)
         # For now, create a basic valuation
         from shared.models import ItemValuation, Profitability
@@ -341,7 +347,7 @@ def create_listing():
             worth_listing=True,
             confidence=conv_state.confidence
         )
-        
+
         # Create listing draft
         listing_draft = listing_engine.create_listing_draft(
             item_id=item_id,
@@ -349,15 +355,15 @@ def create_listing():
             conversation_state=conv_state,
             images=original_images
         )
-        
+
         # Save images to draft storage
         if original_images:
             draft_images = draft_image_manager.save_draft_images(
-                listing_draft.listing_id, 
+                listing_draft.listing_id,
                 original_images
             )
             listing_draft.images = draft_images
-        
+
         # Save to database
         conn = sqlite3.connect('listings.db')
         c = conn.cursor()
@@ -373,27 +379,30 @@ def create_listing():
         ))
         conn.commit()
         conn.close()
-        
+
         return jsonify({
             "success": True,
             "listing": listing_draft.to_dict()
         })
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/listing/publish', methods=['POST'])
 def publish_listing():
     """Publish listing to eBay."""
+    if not ebay_integration:
+        return jsonify({"error": "eBay integration not initialized"}), 500
+
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-        
+
     listing_id = data.get('listing_id')
-    
+
     if not listing_id:
         return jsonify({"error": "listing_id required"}), 400
-    
+
     try:
         # Get listing from database
         conn = sqlite3.connect('listings.db')
@@ -401,27 +410,68 @@ def publish_listing():
         c.execute('SELECT * FROM listings WHERE listing_id = ?', (listing_id,))
         row = c.fetchone()
         conn.close()
-        
-        if not row:
-            return jsonify({"error": "Listing not found"}), 404
-        
-        # In production, would reconstruct ListingDraft from DB
-        # For now, return success
-        return jsonify({
-            "success": True,
-            "message": "Listing published successfully",
-            "listing_id": listing_id,
-            "note": "eBay API integration requires OAuth setup"
-        })
-    
+
+        if not row or not row[0]:
+            return jsonify({"error": "Listing draft data not found"}), 404
+
+        # Reconstruct ListingDraft from DB
+        draft_dict = json.loads(row[0])
+
+        # Handle datetime conversion
+        if 'created_at' in draft_dict:
+            draft_dict['created_at'] = datetime.fromisoformat(draft_dict['created_at'])
+
+        # Handle condition Enum conversion
+        if 'condition' in draft_dict:
+            draft_dict['condition'] = ItemCondition(draft_dict['condition'])
+
+        listing_draft = ListingDraft(**draft_dict)
+
+        # Ensure we have a valid eBay token
+        token = ebay_integration.token_manager.get_valid_token()
+        if token:
+            ebay_integration.access_token = token
+
+        # Publish to eBay
+        try:
+            ebay_result = ebay_integration.create_listing(listing_draft)
+            ebay_listing_id = ebay_result.get("listing_id")
+
+            # Update database status
+            conn = sqlite3.connect('listings.db')
+            c = conn.cursor()
+            c.execute('''
+                UPDATE listings
+                SET status = ?, ebay_listing_id = ?
+                WHERE listing_id = ?
+            ''', ("active", ebay_listing_id, listing_id))
+            conn.commit()
+            conn.close()
+
+            return jsonify({
+                "success": True,
+                "message": "Listing published successfully to eBay",
+                "listing_id": listing_id,
+                "ebay_listing_id": ebay_listing_id,
+                "url": ebay_result.get("url")
+            })
+        except Exception as ebay_err:
+            return jsonify({
+                "error": f"eBay publishing failed: {str(ebay_err)}",
+                "note": "Make sure you have completed the eBay OAuth flow"
+            }), 401
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/oauth/url', methods=['GET'])
 def get_ebay_oauth_url():
     """Get eBay OAuth authorization URL."""
+    if not ebay_integration:
+        return jsonify({"error": "eBay integration not initialized"}), 500
+
     redirect_uri = request.args.get('redirect_uri', 'http://localhost:5000/api/ebay/oauth/callback')
-    
+
     try:
         oauth_url = ebay_integration.get_oauth_url(redirect_uri)
         return jsonify({
@@ -435,7 +485,7 @@ def get_ebay_oauth_url():
 def get_recent_valuations():
     """Get recent valuations."""
     limit = request.args.get('limit', 20, type=int)
-    
+
     try:
         valuations = db.get_recent_valuations(limit)
         return jsonify({
@@ -490,7 +540,7 @@ def get_valuation(valuation_id):
         c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
         row = c.fetchone()
         conn.close()
-        
+
         if row:
             valuation_data = json.loads(row[0])
             return jsonify({
@@ -521,12 +571,12 @@ def submit_listing_to_ebay():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-        
+
     valuation_id = data.get('valuation_id')
-    
+
     if not valuation_id:
         return jsonify({"error": "valuation_id required"}), 400
-    
+
     try:
         # Get valuation data for mapping
         conn = sqlite3.connect('valuations.db')
@@ -534,19 +584,19 @@ def submit_listing_to_ebay():
         c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
         row = c.fetchone()
         conn.close()
-        
+
         if not row:
             return jsonify({"error": "Valuation not found"}), 404
-        
+
         valuation_data = json.loads(row[0])
-        
+
         # Map valuation to category aspects
         category_id = data.get('category_id', '293')
         mapped_aspects = category_service.map_valuation_to_aspects(valuation_data, category_id)
-        
+
         # Validate aspects
         validation = category_service.validate_aspects(mapped_aspects, category_id)
-        
+
         # Build complete listing data
         listing_data = {
             "title": data.get('title'),
@@ -559,7 +609,7 @@ def submit_listing_to_ebay():
         }
         # For now, simulate eBay submission
         ebay_listing_id = f"ebay_{valuation_id[:8]}"
-        
+
         # Record submission in database
         submission_id = db.submit_to_ebay(
             valuation_id=valuation_id,
@@ -568,12 +618,12 @@ def submit_listing_to_ebay():
             listing_price=data.get('price'),
             ebay_response={"status": "success", "listing_id": ebay_listing_id}
         )
-        
+
         # Cleanup draft images after successful submission
         listing_id = data.get('listing_id')
         if listing_id:
             draft_image_manager.cleanup_draft_images(listing_id)
-        
+
         return jsonify({
             "success": True,
             "ebay_listing_id": ebay_listing_id,
@@ -590,20 +640,20 @@ def update_draft_listing():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-    
+
     listing_id = data.get('listing_id')
     category_id = data.get('category_id')
     aspects = data.get('aspects', {})
-    
+
     if not listing_id:
         return jsonify({"error": "listing_id required"}), 400
-    
+
     try:
         success = db.update_draft_listing(listing_id, {
             'category_id': category_id,
             'aspects': aspects
         })
-        
+
         if success:
             return jsonify({"success": True, "message": "Draft updated successfully"})
         else:
@@ -617,11 +667,11 @@ def create_draft_listing():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-    
+
     valuation_id = data.get('valuation_id')
     if not valuation_id:
         return jsonify({"error": "valuation_id required"}), 400
-    
+
     listing_data = {
         "title": data.get('title'),
         "price": data.get('price'),
@@ -630,7 +680,7 @@ def create_draft_listing():
         "condition": data.get('condition'),
         "aspects": data.get('aspects', {})
     }
-    
+
     try:
         listing_id = db.create_draft_listing(valuation_id, listing_data)
         return jsonify({"success": True, "listing_id": listing_id})
@@ -664,16 +714,16 @@ def get_category_questions():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-    
+
     category_id = data.get('category_id', '293')
     known_data = data.get('known_data', {})
-    
+
     try:
         # Get exact required fields from eBay API
         required_fields = category_generator.get_required_fields(category_id)
         questions = category_generator.generate_questions(category_id, known_data)
         validation = category_generator.validate_data(category_id, known_data)
-        
+
         return jsonify({
             "success": True,
             "category_id": category_id,
@@ -690,10 +740,10 @@ def suggest_category():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-    
+
     try:
         suggestions = category_generator.suggest_category_from_data(data)
-        
+
         return jsonify({
             "success": True,
             "suggestions": suggestions
@@ -721,7 +771,7 @@ def get_token_status():
         from services.ebay_token_manager import EBayTokenManager
         token_manager = EBayTokenManager()
         token = token_manager.get_valid_token()
-        
+
         return jsonify({
             "success": True,
             "has_token": bool(token),
@@ -737,7 +787,7 @@ def refresh_token():
         from services.ebay_token_manager import EBayTokenManager
         token_manager = EBayTokenManager()
         token_data = token_manager._refresh_token()
-        
+
         if token_data:
             return jsonify({
                 "success": True,
@@ -753,26 +803,9 @@ def refresh_token():
 def refresh_live_listings():
     """Refresh live listings from eBay account."""
     try:
-        # Mock eBay API call to get active listings
-        active_listings = [
-            {
-                "ebay_listing_id": "123456789",
-                "title": "Sony WH-1000XM4 Headphones",
-                "price": 249.99,
-                "status": "Active",
-                "views": 45,
-                "watchers": 3
-            },
-            {
-                "ebay_listing_id": "987654321",
-                "title": "Apple iPhone 13 Pro",
-                "price": 899.99,
-                "status": "Active",
-                "views": 128,
-                "watchers": 12
-            }
-        ]
-        
+        # Real eBay API call to get active listings
+        active_listings = ebay_integration.get_active_listings()
+
         return jsonify({
             "success": True,
             "message": f"Refreshed {len(active_listings)} listings",
@@ -806,12 +839,12 @@ def update_ebay_listing():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-        
+
     ebay_listing_id = data.get('ebay_listing_id')
-    
+
     if not ebay_listing_id:
         return jsonify({"error": "ebay_listing_id required"}), 400
-    
+
     try:
         # Mock eBay API update call
         update_response = {
@@ -819,7 +852,7 @@ def update_ebay_listing():
             "ebay_listing_id": ebay_listing_id,
             "updated_fields": list(data.keys())
         }
-        
+
         return jsonify({
             "success": True,
             "message": "Listing updated successfully",
@@ -834,12 +867,12 @@ def end_ebay_listing():
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
-        
+
     ebay_listing_id = data.get('ebay_listing_id')
-    
+
     if not ebay_listing_id:
         return jsonify({"error": "ebay_listing_id required"}), 400
-    
+
     try:
         # Mock eBay API end listing call
         return jsonify({
