@@ -12,8 +12,8 @@ from services.gemini_rest_client import GeminiRestClient
 import requests
 import base64
 
-# Model pattern: at least 2 uppercase letters, optional separator, at least 3 digits
-MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}')
+# Model pattern: e.g., AB-123, XY1234, WH-1000XM4
+MODEL_PATTERN = re.compile(r'\b[A-Z]{2,}[-\s]?\d{3,}[A-Z0-9-]*\b')
 
 
 class VisionService:
