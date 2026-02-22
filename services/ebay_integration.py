@@ -159,16 +159,29 @@ class eBayIntegration:
 
     def _create_inventory_item(self, inventory_item: Dict[str, Any]) -> Dict[str, Any]:
         """Create inventory item via eBay Inventory API."""
-        url = f"{self.base_url}/sell/inventory/v1/inventory_item"
+        sku = inventory_item.get("sku")
+        url = f"{self.base_url}/sell/inventory/v1/inventory_item/{sku}"
         headers = {
+            "Authorization": f"Bearer [REDACTED]",
+            "Content-Type": "application/json",
+            "Content-Language": "en-US",
+            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+        }
+        print(f"DEBUG: HTTP POST {url} \\nHeaders: {headers} \\nPayload: {inventory_item}")
+
+        # Real headers with actual token
+        real_headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
+            "Content-Language": "en-US",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
 
-        # Placeholder - would make actual API call
+        response = requests.post(url, headers=real_headers, json=inventory_item)
+        response.raise_for_status()
+
         return {
-            "sku": inventory_item["sku"],
+            "sku": sku,
             "status": "created"
         }
 
@@ -176,31 +189,47 @@ class eBayIntegration:
         """Create offer via eBay Offer API."""
         url = f"{self.base_url}/sell/offer/v1/offer"
         headers = {
+            "Authorization": f"Bearer [REDACTED]",
+            "Content-Type": "application/json",
+            "Content-Language": "en-US",
+            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+        }
+        print(f"DEBUG: HTTP POST {url} \\nHeaders: {headers} \\nPayload: {offer}")
+
+        real_headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
+            "Content-Language": "en-US",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
 
-        # Placeholder - would make actual API call
-        return {
-            "offerId": f"offer_{offer['sku']}",
-            "status": "created"
-        }
+        response = requests.post(url, headers=real_headers, json=offer)
+        response.raise_for_status()
+
+        return response.json()
 
     def _publish_listing(self, offer_id: str) -> Dict[str, Any]:
         """Publish listing via eBay Offer API."""
         url = f"{self.base_url}/sell/offer/v1/offer/{offer_id}/publish"
         headers = {
+            "Authorization": f"Bearer [REDACTED]",
+            "Content-Type": "application/json",
+            "Content-Language": "en-US",
+            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+        }
+        print(f"DEBUG: HTTP POST {url} \\nHeaders: {headers} \\nPayload: <empty>")
+
+        real_headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
+            "Content-Language": "en-US",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
 
-        # Placeholder - would make actual API call
-        return {
-            "listingId": f"listing_{offer_id}",
-            "status": "published"
-        }
+        response = requests.post(url, headers=real_headers)
+        response.raise_for_status()
+
+        return response.json()
 
     def get_active_listings(self) -> List[Dict[str, Any]]:
         """

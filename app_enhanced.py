@@ -21,7 +21,7 @@ from services.conversation_orchestrator import ConversationOrchestrator
 from services.listing_synthesis import ListingSynthesisEngine
 from services.ebay_integration import eBayIntegration
 from services.valuation_database import ValuationDatabase
-from services.mock_valuation_service import MockValuationService
+from services.valuation_service import ValuationService
 from services.ebay_category_service import EBayCategoryService
 from services.draft_image_manager import DraftImageManager
 from services.category_detail_generator import CategoryDetailGenerator
@@ -49,7 +49,7 @@ except Exception as e:
 
 # Initialize database and services
 db = ValuationDatabase()
-valuation_service = MockValuationService()
+valuation_service = ValuationService(use_sandbox=True)
 category_service = EBayCategoryService()
 category_generator = CategoryDetailGenerator()
 draft_image_manager = DraftImageManager()
