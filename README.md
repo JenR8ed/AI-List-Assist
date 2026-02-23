@@ -72,18 +72,19 @@ ai-list-assist/
 │   ├── listing_synthesis.py  # Listing generation engine
 │   ├── ebay_integration.py   # eBay API client (Inventory/Offer)
 │   ├── valuation_service.py  # Market analysis logic
-│   └── valuation_database.py # Persistent storage
-├── shared/                   # Shared data models & schemas
+│   ├── ebay_token_manager.py # OAuth 2.0 lifecycle management
+│   └── valuation_database.py # Persistent storage (SQLite)
+├── shared/                   # Shared data models & dataclasses
 ├── templates/                # Web UI (Dashboard & Index)
 ├── tests/                    # Comprehensive test suite
 ├── ebayCategories/           # Category-specific mapping data
-└── docs/                     # Detailed architecture documentation
+└── .env                      # Configuration (Secrets)
 ```
 
 *   **Backend**: Python 3.12+ / Flask
 *   **AI Stack**: Google Cloud Vision & Gemini 1.5 Flash (via direct REST integration)
 *   **Marketplace**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics)
-*   **Persistence**: SQLite (Dual-database strategy for valuations and listing states)
+*   **Persistence**: Dual-database strategy (`valuations.db` and `listings.db`) using SQLite.
 *   **Mobile**: Python Telegram Bot API
 
 ---
@@ -94,8 +95,11 @@ ai-list-assist/
 - Python 3.12+
 - Google Cloud Project with Vision and Gemini APIs enabled.
 - eBay Developer Account.
+- Telegram Bot Token (via @BotFather).
 
 ### 2. Installation
+
+#### Local Setup
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -103,6 +107,12 @@ cd ai-list-assist
 
 # Install dependencies
 pip install -r requirements.txt
+```
+
+#### Docker Setup
+```bash
+# Run the full stack in development mode
+docker-compose -f docker-compose.dev.yml up --build
 ```
 
 ### 3. Configuration
@@ -128,15 +138,33 @@ Access the dashboard at: **http://localhost:5000**
 
 ---
 
+## 📱 How to Use
+
+### Web Dashboard
+1.  **Analyze**: Upload an image to the dashboard. The system will detect items and provide valuations.
+2.  **Refine**: For items worth listing, start the "Conversational Refinement" to fill in missing eBay specifics.
+3.  **Publish**: Once the listing draft is synthesized, click "Publish" to send it to eBay.
+
+### Telegram Bot
+1.  **Start**: Send `/start` to your bot.
+2.  **Snap**: Send a photo of an item while sourcing.
+3.  **Evaluate**: Receive instant valuation and "Worth Listing" feedback on your mobile device.
+
+---
+
 ## 🧪 Development & Testing
 
 We maintain high code quality through automated testing:
 
 ```bash
-# Run the full test suite
-export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test
+# Run the full test suite with dummy credentials
+export SECRET_KEY=test_secret EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test
 python -m unittest discover tests
 ```
+
+### 🔒 Operational Boundaries
+- **Strict Credential Policy**: Never hardcode API credentials. Use `.env` or environment variables.
+- **REST APIs**: Always utilize the modern eBay REST/JSON Inventory API model over legacy Trading APIs.
 
 ---
 
