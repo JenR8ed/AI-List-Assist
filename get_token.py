@@ -8,9 +8,6 @@ load_dotenv()
 client_id = os.getenv('EBAY_CLIENT_ID')
 client_secret = os.getenv('EBAY_CLIENT_SECRET')
 
-print(f"Client ID: {client_id}")
-print(f"Client Secret: {client_secret[:10]}...")
-
 credentials = f"{client_id}:{client_secret}"
 encoded = base64.b64encode(credentials.encode()).decode()
 
@@ -26,12 +23,10 @@ response = requests.post(
     }
 )
 
-print(f"Response: {response.status_code}")
-print(f"Body: {response.text}")
+print(f"Response Status Code: {response.status_code}")
 
 if response.status_code == 200:
     token = response.json()['access_token']
-    print(f"Token: {token}")
     
     # Update .env file
     with open('.env', 'r') as f:
