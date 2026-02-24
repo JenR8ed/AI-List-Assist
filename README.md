@@ -83,7 +83,7 @@ ai-list-assist/
 ```
 
 ### 🛠️ Tech Stack
-- **Backend**: Python 3.12 / Flask
+- **Backend**: Python 3.12+ / Flask
 - **AI Stack**: Google Cloud Vision & Gemini 1.5 Flash (via direct REST integration)
 - **Marketplace**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics)
 - **Persistence**: Dual-database strategy (`valuations.db` for analysis history and `listings.db` for workflow state) using SQLite.
