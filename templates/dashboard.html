@@ -1078,7 +1078,7 @@
             container.innerHTML = drafts.map(draft => {
                 const photos = draft.listing_data.photos || [draft.image_filename];
                 const thumbnails = photos.map(photo => 
-                    `<img src="/uploads/${escapeHTML(photo)}" class="photo-thumb" onclick="showFullImage('/uploads/${escapeHTML(photo)}')" alt="Photo">`
+                    `<img src="/uploads/${encodeURIComponent(photo)}" class="photo-thumb" data-url="/uploads/${encodeURIComponent(photo)}" onclick="showFullImage(this.dataset.url)" alt="Photo">`
                 ).join('');
                 
                 return `
