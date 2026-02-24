@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 from shared.models import DetectedItem, BoundingBox
 from services.gemini_rest_client import GeminiRestClient
 import requests
+import httpx
 import base64
 
 class VisionService:
@@ -39,6 +40,16 @@ class VisionService:
         except Exception as e:
             print(f"Cloud Vision failed: {e}, falling back to Gemini")
             return self._detect_with_gemini(image_base64, media_type)
+
+    async def detect_items_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
+        """Detect items using Google Cloud Vision API first, fallback to Gemini, asynchronously."""
+
+        # Try Google Cloud Vision API first
+        try:
+            return await self._detect_with_cloud_vision_async(image_base64)
+        except Exception as e:
+            print(f"Cloud Vision failed: {e}, falling back to Gemini")
+            return await self._detect_with_gemini_async(image_base64, media_type)
     
     def _detect_with_cloud_vision(self, image_base64: str) -> List[DetectedItem]:
         """Use Google Cloud Vision API for object detection."""
@@ -60,6 +71,29 @@ class VisionService:
         response.raise_for_status()
         
         data = response.json()
+        return self._parse_cloud_vision_response(data)
+
+    async def _detect_with_cloud_vision_async(self, image_base64: str) -> List[DetectedItem]:
+        """Use Google Cloud Vision API for object detection asynchronously."""
+
+        url = f"https://vision.googleapis.com/v1/images:annotate?key={self.api_key}"
+
+        payload = {
+            "requests": [{
+                "image": {"content": image_base64},
+                "features": [
+                    {"type": "OBJECT_LOCALIZATION", "maxResults": 10},
+                    {"type": "TEXT_DETECTION", "maxResults": 10},
+                    {"type": "LABEL_DETECTION", "maxResults": 10}
+                ]
+            }]
+        }
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
         return self._parse_cloud_vision_response(data)
     
     def _parse_cloud_vision_response(self, data: Dict) -> List[DetectedItem]:
@@ -143,6 +177,33 @@ class VisionService:
                 return model_match.group()
         return None
     
+    def _parse_gemini_response(self, response_text: str) -> List[DetectedItem]:
+        """Parse Gemini JSON response."""
+        json_start = response_text.find("{")
+        json_end = response_text.rfind("}") + 1
+
+        if json_start >= 0 and json_end > json_start:
+            json_str = response_text[json_start:json_end]
+            try:
+                data = json.loads(json_str)
+                items = []
+                for idx, item_data in enumerate(data.get("items", [])):
+                    item = DetectedItem(
+                        item_id=item_data.get("item_id", f"item_{idx + 1}"),
+                        bbox=BoundingBox(x=0, y=0, width=0, height=0),
+                        confidence=0.7,
+                        probable_category=item_data.get("probable_category"),
+                        detected_text=item_data.get("detected_text", []),
+                        brand=item_data.get("brand"),
+                        model=item_data.get("model")
+                    )
+                    items.append(item)
+                return items if items else [self._create_default_item()]
+            except json.JSONDecodeError:
+                pass
+
+        return [self._create_default_item()]
+
     def _detect_with_gemini(self, image_base64: str, media_type: str) -> List[DetectedItem]:
         """Fallback to Gemini Vision API."""
         
@@ -167,31 +228,37 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
             
             # Store usage metadata for tracking
             self.last_usage_metadata = usage_metadata
-            
-            json_start = response_text.find("{")
-            json_end = response_text.rfind("}") + 1
+            return self._parse_gemini_response(response_text)
 
-            if json_start >= 0 and json_end > json_start:
-                json_str = response_text[json_start:json_end]
-                try:
-                    data = json.loads(json_str)
-                    items = []
-                    for idx, item_data in enumerate(data.get("items", [])):
-                        item = DetectedItem(
-                            item_id=item_data.get("item_id", f"item_{idx + 1}"),
-                            bbox=BoundingBox(x=0, y=0, width=0, height=0),
-                            confidence=0.7,
-                            probable_category=item_data.get("probable_category"),
-                            detected_text=item_data.get("detected_text", []),
-                            brand=item_data.get("brand"),
-                            model=item_data.get("model")
-                        )
-                        items.append(item)
-                    return items if items else [self._create_default_item()]
-                except json.JSONDecodeError:
-                    pass
-            
+        except Exception as e:
+            print(f"Gemini Vision error: {e}")
             return [self._create_default_item()]
+
+    async def _detect_with_gemini_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
+        """Fallback to Gemini Vision API asynchronously."""
+
+        prompt = """Analyze this image and detect ALL distinct items visible.
+
+For each item, provide:
+1. Item category/type
+2. Any visible text (brand names, model numbers)
+3. Brand name if visible
+4. Model number if visible
+
+Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics", "detected_text": ["Sony"], "brand": "Sony", "model": "WH-1000XM4"}]}"""
+
+        try:
+            response_text, usage_metadata = await self.gemini_client.generate_content_async(
+                prompt,
+                inline_image_base64=image_base64,
+                inline_image_mime_type=media_type,
+                temperature=0.2,
+                max_output_tokens=1024,
+            )
+            
+            # Store usage metadata for tracking
+            self.last_usage_metadata = usage_metadata
+            return self._parse_gemini_response(response_text)
         
         except Exception as e:
             print(f"Gemini Vision error: {e}")
