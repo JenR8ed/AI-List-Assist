@@ -6,7 +6,97 @@ import os
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition, ItemValuation, Profitability, ConversationState
+from services.listing_synthesis import ListingSynthesisEngine
 from app_enhanced import app, init_db
+
+class TestListingSynthesisEngine(unittest.TestCase):
+    def setUp(self):
+        self.engine = ListingSynthesisEngine()
+
+    def test_generate_title_full_data(self):
+        """Test title generation with all fields provided."""
+        data = {
+            "brand": "Nikon",
+            "model": "D850",
+            "item_name": "DSLR Camera",
+            "condition": "Used",
+            "is_complete": True,
+            "has_box": True
+        }
+        title = self.engine._generate_title(data)
+        self.assertEqual(title, "Nikon D850 DSLR Camera Used w/ Box")
+
+    def test_generate_title_minimal_data(self):
+        """Test title generation with minimal data."""
+        data = {"item_name": "Widget"}
+        title = self.engine._generate_title(data)
+        self.assertEqual(title, "Widget")
+
+    def test_generate_title_missing_item_name(self):
+        """Test title generation when item_name is missing (should default to 'Item')."""
+        data = {"brand": "Generic"}
+        title = self.engine._generate_title(data)
+        self.assertEqual(title, "Generic Item")
+
+    def test_generate_title_item_name_deduplication(self):
+        """Test that item_name is not added if already in brand or model."""
+        data = {
+            "brand": "Nikon Camera",
+            "item_name": "Camera"
+        }
+        title = self.engine._generate_title(data)
+        self.assertEqual(title, "Nikon Camera")
+
+        data = {
+            "model": "D850 Camera",
+            "item_name": "Camera"
+        }
+        title = self.engine._generate_title(data)
+        self.assertEqual(title, "D850 Camera")
+
+    def test_generate_title_model_deduplication(self):
+        """Test that model is not added if already in brand."""
+        data = {
+            "brand": "Nikon D850",
+            "model": "D850"
+        }
+        title = self.engine._generate_title(data)
+        self.assertEqual(title, "Nikon D850 Item")
+
+    def test_generate_title_condition_new(self):
+        """Test that 'New' condition is excluded from the title."""
+        data = {
+            "item_name": "Camera",
+            "condition": "New"
+        }
+        title = self.engine._generate_title(data)
+        self.assertEqual(title, "Camera")
+
+    def test_generate_title_incomplete_item(self):
+        """Test that 'Incomplete' is added when is_complete is False."""
+        data = {
+            "item_name": "Lego Set",
+            "is_complete": False
+        }
+        title = self.engine._generate_title(data)
+        self.assertEqual(title, "Lego Set Incomplete")
+
+    def test_generate_title_truncation(self):
+        """Test that title is truncated to exactly 80 characters."""
+        data = {
+            "brand": "A" * 40,
+            "model": "B" * 40,
+            "item_name": "C" * 10
+        }
+        title = self.engine._generate_title(data)
+        self.assertEqual(len(title), 80)
+        self.assertEqual(title, ("A" * 40 + " " + "B" * 40 + " " + "C" * 10)[:80])
+
+    def test_generate_title_empty_data(self):
+        """Test title generation with empty data."""
+        data = {}
+        title = self.engine._generate_title(data)
+        self.assertEqual(title, "Item")
 
 class TestListingReconstruction(unittest.TestCase):
     def setUp(self):
