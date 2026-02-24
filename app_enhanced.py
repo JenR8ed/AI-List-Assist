@@ -1,8 +1,10 @@
+"""
 Enhanced Flask App - End-to-End eBay Listing Assistant
 Integrates all services: vision, valuation, conversation, listing synthesis, eBay API
 """
 
 from flask import Flask, render_template, request, jsonify
+from werkzeug.utils import secure_filename
 import base64
 import json
 import os
@@ -143,8 +145,9 @@ def analyze_image():
         image_data = file.read()
         image_base64 = base64.b64encode(image_data).decode('utf-8')
 
-        # Save uploaded file
-        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        # Sanitize and save uploaded file
+        safe_filename = secure_filename(file.filename)
+        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_filename}"
         filepath = Path(app.config['UPLOAD_FOLDER']) / filename
         with open(filepath, 'wb') as f:
             f.write(image_data)
@@ -891,6 +894,15 @@ def download_file(filename):
     """Serve uploaded images."""
     from flask import send_from_directory
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    return response
 
 # ============================================================================
 # INITIALIZATION

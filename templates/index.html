@@ -432,6 +432,17 @@
     </div>
 
     <script>
+        // Security helper to prevent XSS
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return "";
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         const uploadArea = document.getElementById('uploadArea');
         const imageInput = document.getElementById('imageInput');
         const previewImg = document.getElementById('previewImg');
@@ -595,11 +606,11 @@
 
                     grid.innerHTML = data.data.map(item => `
                         <div class="history-item">
-                            <h4>${item.item_name}</h4>
+                            <h4>${escapeHTML(item.item_name)}</h4>
                             <div class="price">$${(item.estimated_value || 0).toFixed(2)}</div>
                             <div class="meta">
                                 Condition: ${item.condition_score}/10<br>
-                                ${item.profitability.toUpperCase()}<br>
+                                ${escapeHTML(item.profitability.toUpperCase())}<br>
                                 <small>${new Date(item.timestamp).toLocaleDateString()}</small>
                             </div>
                         </div>
