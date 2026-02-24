@@ -678,8 +678,8 @@
                     <p id="conversationQuestion" style="margin: 20px 0; font-size: 1.1em;">${escapeHTML(question)}</p>
                     <input type="text" id="answerInput" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;" placeholder="Your answer...">
                     <div style="margin-top: 20px; text-align: right;">
-                        <button onclick="submitAnswer('${escapeHTML(sessionId)}', '${escapeHTML(itemData.item_id)}')" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px;">Submit</button>
-                        <button onclick="skipConversation('${escapeHTML(itemData.item_id)}')" style="background: #ccc; border: none; padding: 10px 20px; border-radius: 4px;">Skip</button>
+                        <button data-session-id="${escapeHTML(sessionId)}" data-item-id="${escapeHTML(itemData.item_id)}" onclick="submitAnswerFromData(this)" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px;">Submit</button>
+                        <button data-item-id="${escapeHTML(itemData.item_id)}" onclick="skipConversationFromData(this)" style="background: #ccc; border: none; padding: 10px 20px; border-radius: 4px;">Skip</button>
                     </div>
                 </div>
             `;
