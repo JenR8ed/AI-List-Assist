@@ -81,11 +81,13 @@ class ListingSynthesisEngine:
         
         # Model
         if data.get("model"):
-            parts.append(data["model"])
+            model = data["model"]
+            if not any(model.lower() in p.lower() for p in parts):
+                parts.append(model)
         
         # Item name
         item_name = data.get("item_name", "Item")
-        if item_name not in parts:
+        if not any(item_name.lower() in p.lower() for p in parts):
             parts.append(item_name)
         
         # Condition
