@@ -152,7 +152,7 @@ Access the dashboard at: **http://localhost:5000**
 ### Telegram Bot
 1.  **Start**: Send `/start` to your bot.
 2.  **Snap**: Send a photo of an item while sourcing (e.g., at a thrift store).
-3.  **Evaluate**: Receive an instant "Worth Listing" verdict and valuation range.
+3.  **Evaluate**: Receive item identification (Brand, Model, Category) on your mobile device.
 
 ---
 
