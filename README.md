@@ -77,7 +77,7 @@ ai-list-assist/
 │   └── valuation_database.py # Persistent storage for valuations
 ├── shared/                   # Shared data models (ListingDraft, ItemValuation)
 ├── templates/                # Web UI (Professional Dashboard)
-├── tests/                    # Comprehensive test suite (unittest)
+├── tests/                    # Comprehensive test suite
 ├── ebayCategories/           # Category-specific mapping data & documentation
 └── .env                      # Configuration (Secrets)
 ```
