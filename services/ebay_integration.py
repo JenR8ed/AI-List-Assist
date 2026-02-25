@@ -265,7 +265,11 @@ class eBayIntegration:
                 for item in items
             ]
         except requests.HTTPError as e:
-            raise RuntimeError(f"eBay API error fetching listings: {e.response.text}") from e
+            try:
+                error_msg = e.response.json().get('errors', [{}])[0].get('message', 'Unknown error')
+                raise RuntimeError(f"eBay API error fetching listings: {e.response.status_code} - {error_msg}") from e
+            except:
+                raise RuntimeError(f"eBay API error fetching listings: {e.response.status_code} - [REDACTED]") from e
 
     def get_oauth_url(self, redirect_uri: str, scopes: List[str] = None) -> str:
         """
@@ -334,7 +338,11 @@ class eBayIntegration:
             if response.status_code == 200:
                 return self._parse_ebay_offers(response.json())
             else:
-                print(f"Error fetching eBay listings: {response.status_code} - {response.text}")
+                try:
+                    error_msg = response.json().get('errors', [{}])[0].get('message', 'Unknown error')
+                    print(f"Error fetching eBay listings: {response.status_code} - {error_msg}")
+                except:
+                    print(f"Error fetching eBay listings: {response.status_code} - [REDACTED]")
                 return []
         except Exception as e:
             print(f"Exception fetching eBay listings: {e}")

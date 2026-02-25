@@ -81,7 +81,12 @@ class EBayTokenManager:
                 self._update_env(token_data['access_token'], token_data.get('refresh_token'))
                 return token_data
             else:
-                print(f"Token exchange failed: {response.status_code} - {response.text}")
+                try:
+                    error_data = response.json()
+                    error_desc = error_data.get('error_description', 'No description')
+                    print(f"Token exchange failed: {response.status_code} - {error_desc}")
+                except:
+                    print(f"Token exchange failed: {response.status_code} - [REDACTED]")
         except Exception as e:
             print(f"Error exchanging code: {e}")
 
