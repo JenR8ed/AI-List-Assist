@@ -6,7 +6,9 @@
 
 ## 🚀 System Overview
 
-AI List Assist eliminates the manual friction of reselling. From the moment you source an item at a thrift store to the final click of "Publish on eBay," our system orchestrates the entire lifecycle: detection, valuation, refinement, and submission.
+AI List Assist is an enterprise-grade orchestration layer designed to transform unstructured visual data into optimized e-commerce assets. By bridging the gap between raw photos and structured marketplace requirements, it eliminates the manual friction of reselling.
+
+From the moment you source an item at a thrift store or manage a high-volume consignment intake, the system orchestrates the entire lifecycle: **Detection, Valuation, Taxonomy Validation, and Automated Submission.**
 
 ### 🌟 Key Features
 
@@ -16,8 +18,8 @@ AI List Assist eliminates the manual friction of reselling. From the moment you 
 *   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern **Inventory and Offer APIs** for seamless one-click publishing and active listing management.
 *   **📱 Omnichannel Interfaces**:
     *   **Professional Dashboard**: A rich web interface for bulk management, live listing updates, and performance tracking.
-    *   **Mobile Valuator Bot**: A dedicated Telegram bot for on-the-go sourcing and instant valuations in the field.
-*   **📦 Consignment & Asset Tracking**: (New) Professional-grade system for managing participants, assets, commissions, and document provenance for consignment-based reselling.
+    *   **Mobile Valuator Bot**: A dedicated Telegram bot (`your_ebay_valuator_bot.py`) for on-the-go sourcing. Snap a photo in the field to get instant Brand, Model, and Category identification.
+*   **📦 Consignment & Asset Tracking**: A professional-grade system (`services/consignment_database.py`) for managing reselling at scale. Tracks participants (with KYC status and tax nexus codes), assets, commissions, and document provenance (GSA-compliant filenames).
 *   **💰 API Usage & Cost Tracker**: Real-time monitoring of Vision, Gemini, and eBay API calls with accurate cost estimation for transparent operations.
 
 ---
@@ -76,7 +78,12 @@ ai-list-assist/
 │   ├── ebay_integration.py   # eBay API client (Inventory/Offer/Account)
 │   ├── consignment_database.py # Consignment & Asset management
 │   ├── ebay_token_manager.py # OAuth 2.0 lifecycle management
-│   └── valuation_database.py # Persistent storage for analysis history
+│   ├── valuation_database.py # Persistent storage for analysis history
+│   ├── ebay_category_service.py # eBay taxonomy & category-specific aspects
+│   ├── conversation_orchestrator.py # Multi-turn dialogue for listing refinement
+│   ├── category_detail_generator.py # AI-driven required field identification
+│   ├── draft_image_manager.py # Management of listing draft photos
+│   └── gemini_rest_client.py  # Direct REST interface for Google Gemini
 ├── shared/                   # Shared data models (ListingDraft, ItemValuation)
 ├── templates/                # Professional Web UI (Dashboard)
 ├── tests/                    # Comprehensive test suite
@@ -95,12 +102,14 @@ ai-list-assist/
 ## 🛠️ Getting Started
 
 ### 1. Prerequisites
-- Python 3.12+
+- **Python 3.12 - 3.14.2**: The core stack is tested on 3.12, while utilizing async features optimized for the upcoming 3.14 lifecycle.
 - Google Cloud Project (Vision and Gemini APIs enabled).
 - eBay Developer Account (Sandbox or Production).
 - Telegram Bot Token (from @BotFather).
 
 ### 2. Installation
+
+#### Standard Setup
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -109,6 +118,14 @@ cd ai-list-assist
 # Install dependencies
 pip install -r requirements.txt
 ```
+
+#### Quick Start with Docker
+The project includes a multi-container Docker setup for development.
+```bash
+# Build and start all services (App + Redis + DBs)
+docker-compose -f docker-compose.dev.yml up --build
+```
+This will launch the Flask app on port 5000 and ensure all persistence layers are correctly initialized.
 
 ### 3. Configuration
 Create a `.env` file in the root directory:
@@ -147,6 +164,23 @@ Access the dashboard at: **http://localhost:5000**
 1.  **Start**: Send `/start` to your bot.
 2.  **Snap**: Send a photo of an item while sourcing.
 3.  **Evaluate**: Receive instant Brand, Model, and Category identification on your phone.
+
+---
+
+## 📅 Project Roadmap
+
+### Phase 1: Automation & Refinement (Current)
+- [x] **Project Refactor**: Transitioned to modular service architecture.
+- [x] **Business Policy Integration**: Dynamic shipping and return policy handling.
+- [ ] **Return Window Lock**: Automated logic to prevent ending listings within active return windows.
+
+### Phase 2: Professional Reporting & Analytics
+- [ ] **Consignment Payout Dashboard**: Automated commission calculation and reporting for partners.
+- [ ] **Market Trend Analysis**: Historical sold data visualization.
+
+### Phase 3: Scaling & Omnichannel Expansion
+- [ ] **Multi-Marketplace Support**: Pushing listings to Mercari and Poshmark.
+- [ ] **Studio Mode**: High-speed bulk photo intake for commercial warehouses.
 
 ---
 
