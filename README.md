@@ -10,7 +10,7 @@ AI List Assist eliminates the manual friction of reselling. From the moment you 
 
 ### 🌟 Key Features
 
-*   **🤖 Multi-Item Hybrid Vision**: Snap one photo of multiple items; our Vision Service (Gemini 1.5 Flash) identifies and separates them automatically, extracting brand, model, and condition.
+*   **🤖 Multi-Item Hybrid Vision**: Snap one photo of multiple items; our Vision Service (Google Cloud Vision + Gemini 1.5 Flash) identifies and separates them automatically, extracting brand, model, and condition.
 *   **⚖️ Decision Gate Valuation Engine**: Instant market analysis providing estimated values, resale scores (1-10), and a "Worth Listing" recommendation based on real-time profitability metrics.
 *   **💬 Conversational Listing Assistant**: An AI-driven state machine that guides you through filling in missing eBay item specifics, resolving ambiguities through natural dialogue.
 *   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern **Inventory and Offer APIs** for seamless one-click publishing and active listing management.
