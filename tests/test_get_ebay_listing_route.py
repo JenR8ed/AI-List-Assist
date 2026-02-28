@@ -4,6 +4,7 @@ import json
 import sqlite3
 import os
 import sys
+import tempfile
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -28,13 +29,28 @@ class TestGetEBayListingRoute(unittest.TestCase):
         self.app = app.test_client()
         self.app.testing = True
 
-        # Setup test databases
-        if os.path.exists('listings.db'):
-            os.rename('listings.db', 'listings.db.bak')
-        if os.path.exists('valuations.db'):
-            os.rename('valuations.db', 'valuations.db.bak')
+        # Use temporary directory for test databases to avoid touching real ones
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.test_listings_db = os.path.join(self.temp_dir.name, 'test_listings.db')
+        self.test_valuations_db = os.path.join(self.temp_dir.name, 'test_valuations.db')
 
-        conn = sqlite3.connect('listings.db')
+        # Patch sqlite3.connect globally in app_enhanced
+        # Save original connect to avoid infinite recursion
+        original_connect = sqlite3.connect
+        self.sqlite_patcher = patch('app_enhanced.sqlite3.connect')
+        self.mock_connect = self.sqlite_patcher.start()
+
+        def mock_sqlite_connect(database, *args, **kwargs):
+            if database == 'listings.db':
+                return original_connect(self.test_listings_db, *args, **kwargs)
+            if database == 'valuations.db':
+                return original_connect(self.test_valuations_db, *args, **kwargs)
+            return original_connect(database, *args, **kwargs)
+
+        self.mock_connect.side_effect = mock_sqlite_connect
+
+        # Initialize test databases
+        conn = sqlite3.connect(self.test_listings_db)
         c = conn.cursor()
         c.execute('CREATE TABLE listings (listing_id TEXT, draft_data TEXT, ebay_listing_id TEXT)')
         c.execute('INSERT INTO listings (listing_id, draft_data, ebay_listing_id) VALUES (?, ?, ?)',
@@ -42,7 +58,7 @@ class TestGetEBayListingRoute(unittest.TestCase):
         conn.commit()
         conn.close()
 
-        conn = sqlite3.connect('valuations.db')
+        conn = sqlite3.connect(self.test_valuations_db)
         c = conn.cursor()
         c.execute('CREATE TABLE ebay_submissions (valuation_id TEXT, ebay_listing_id TEXT)')
         c.execute('CREATE TABLE valuations (id TEXT, valuation_data TEXT)')
@@ -50,14 +66,8 @@ class TestGetEBayListingRoute(unittest.TestCase):
         conn.close()
 
     def tearDown(self):
-        if os.path.exists('listings.db'):
-            os.remove('listings.db')
-        if os.path.exists('valuations.db'):
-            os.remove('valuations.db')
-        if os.path.exists('listings.db.bak'):
-            os.rename('listings.db.bak', 'listings.db')
-        if os.path.exists('valuations.db.bak'):
-            os.rename('valuations.db.bak', 'valuations.db')
+        self.sqlite_patcher.stop()
+        self.temp_dir.cleanup()
 
     @patch('app_enhanced.ebay_integration')
     def test_get_ebay_listing_success(self, mock_ebay):
