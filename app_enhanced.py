@@ -822,20 +822,76 @@ def refresh_live_listings():
 
 @app.route('/api/ebay/listing/<ebay_listing_id>', methods=['GET'])
 def get_ebay_listing(ebay_listing_id):
-    """Get specific eBay listing details."""
+    """Get specific eBay listing details from real eBay data with fallback."""
+    if not ebay_integration:
+        return jsonify({"error": "eBay integration not initialized"}), 500
+
     try:
-        # Mock listing data for now
-        listing = {
-            "title": "Sample eBay Listing",
-            "price": 99.99,
-            "description": "Sample description",
-            "category_id": "293",
-            "aspects": {"Brand": "Sony", "Type": "Headphones"}
-        }
-        return jsonify({
-            "success": True,
-            "listing": listing
-        })
+        # 1. Resolve ebay_listing_id to internal SKU (listing_id) via local database
+        conn = sqlite3.connect('listings.db')
+        c = conn.cursor()
+        c.execute('SELECT listing_id, draft_data FROM listings WHERE ebay_listing_id = ?', (ebay_listing_id,))
+        row = c.fetchone()
+        conn.close()
+
+        sku = row[0] if row else None
+        local_draft_data = json.loads(row[1]) if row and row[1] else None
+
+        if not sku:
+            # If not in listings.db, might be in valuations.db (ebay_submissions table)
+            with sqlite3.connect('valuations.db') as conn:
+                c = conn.cursor()
+                c.execute('SELECT valuation_id FROM ebay_submissions WHERE ebay_listing_id = ?', (ebay_listing_id,))
+                sub_row = c.fetchone()
+                if sub_row:
+                    # Resolve further to get draft data if needed
+                    valuation_id = sub_row[0]
+                    c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
+                    val_row = c.fetchone()
+                    sku = valuation_id
+                    local_draft_data = json.loads(val_row[0]) if val_row and val_row[0] else None
+
+        if not sku:
+            return jsonify({"error": f"Listing {ebay_listing_id} not found in local records"}), 404
+
+        # 2. Fetch real data from eBay API
+        try:
+            force_refresh = request.args.get('refresh', 'false').lower() == 'true'
+            ebay_details = ebay_integration.get_listing_details(sku, force_refresh=force_refresh)
+
+            return jsonify({
+                "success": True,
+                "listing": ebay_details,
+                "is_cached_fallback": False
+            })
+
+        except Exception as ebay_err:
+            print(f"DEBUG: eBay API error for {ebay_listing_id}: {ebay_err}")
+
+            # 3. Graceful fallback to local data (Offline-First Resilience)
+            if local_draft_data:
+                # Map local data to a format consistent with API response
+                fallback_details = {
+                    "sku": sku,
+                    "title": local_draft_data.get("title") or local_draft_data.get("item_name"),
+                    "description": local_draft_data.get("description"),
+                    "aspects": local_draft_data.get("aspects") or local_draft_data.get("item_specifics", {}),
+                    "price": local_draft_data.get("price") or local_draft_data.get("estimated_value", 0.0),
+                    "category_id": local_draft_data.get("category_id"),
+                    "listing_id": ebay_listing_id,
+                    "status": "OFFLINE_FALLBACK",
+                    "images": local_draft_data.get("images") or []
+                }
+
+                return jsonify({
+                    "success": True,
+                    "listing": fallback_details,
+                    "is_cached_fallback": True,
+                    "warning": "Displaying stale local data due to eBay API connectivity issues"
+                })
+            else:
+                return jsonify({"error": f"Failed to fetch eBay data and no local fallback available: {str(ebay_err)}"}), 503
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -6,6 +6,7 @@ Handles OAuth, listing creation, and eBay Sell APIs.
 from typing import Dict, Any, Optional, List
 import os
 import requests
+import time
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition
 from services.ebay_token_manager import EBayTokenManager
@@ -52,6 +53,10 @@ class eBayIntegration:
         # Load initial tokens if available
         self.access_token: Optional[str] = os.getenv('EBAY_ACCESS_TOKEN')
         self.refresh_token: Optional[str] = os.getenv('EBAY_REFRESH_TOKEN')
+
+        # Caching for listing details
+        self.listing_cache = {}
+        self.cache_ttl = 900  # 15 minutes
 
     def authenticate(self, auth_code: str, redirect_uri: str) -> bool:
         """
@@ -231,45 +236,94 @@ class eBayIntegration:
 
         return response.json()
 
-    def get_active_listings(self) -> List[Dict[str, Any]]:
-        """
-        Fetch active listings from the eBay seller account.
+    def get_inventory_item(self, sku: str) -> Dict[str, Any]:
+        """Fetch inventory item details from eBay."""
+        if not self.access_token:
+            self.access_token = self.token_manager.get_valid_token()
 
-        Returns:
-            List of active listing dicts with basic details.
-        """
         if not self.access_token:
             raise ValueError("Not authenticated. Call authenticate() first.")
 
-        url = f"{self.base_url}/sell/inventory/v1/inventory_item"
+        url = f"{self.base_url}/sell/inventory/v1/inventory_item/{sku}"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
 
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    def get_offers_by_sku(self, sku: str) -> List[Dict[str, Any]]:
+        """Fetch offers for a given SKU from eBay."""
+        if not self.access_token:
+            self.access_token = self.token_manager.get_valid_token()
+
+        if not self.access_token:
+            raise ValueError("Not authenticated. Call authenticate() first.")
+
+        url = f"{self.base_url}/sell/inventory/v1/offer"
+        params = {"sku": sku, "marketplace_id": "EBAY_US"}
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json().get("offers", [])
+
+    def get_listing_details(self, sku: str, force_refresh: bool = False) -> Dict[str, Any]:
+        """Get consolidated listing details with caching."""
+        now = time.time()
+
+        if not force_refresh and sku in self.listing_cache:
+            cache_data, expiry = self.listing_cache[sku]
+            if now < expiry:
+                print(f"Using cached details for SKU {sku}")
+                return cache_data
+
+        # Fetch token once for this operation
+        self.access_token = self.token_manager.get_valid_token()
+        if not self.access_token:
+            raise ValueError("Not authenticated. Call authenticate() first.")
+
         try:
-            response = requests.get(url, headers=headers, params={"limit": 200})
-            response.raise_for_status()
-            data = response.json()
-            items = data.get("inventoryItems", [])
-            return [
-                {
-                    "sku": item.get("sku"),
-                    "title": item.get("product", {}).get("title"),
-                    "condition": item.get("condition"),
-                    "quantity": item.get("availability", {})
+            inventory_item = self.get_inventory_item(sku)
+            offers = self.get_offers_by_sku(sku)
+
+            # Find the active/published offer
+            active_offer = next((o for o in offers if o.get("status") == "PUBLISHED"), None)
+            if not active_offer and offers:
+                active_offer = offers[0] # Fallback to first offer if none published
+
+            details = {
+                "sku": sku,
+                "title": inventory_item.get("product", {}).get("title"),
+                "description": inventory_item.get("product", {}).get("description"),
+                "aspects": inventory_item.get("product", {}).get("aspects", {}),
+                "images": inventory_item.get("product", {}).get("imageUrls", []),
+                "condition": inventory_item.get("condition"),
+                "quantity": inventory_item.get("availability", {})
                               .get("shipToLocationAvailability", {})
-                              .get("quantity")
-                }
-                for item in items
-            ]
-        except requests.HTTPError as e:
-            try:
-                error_msg = e.response.json().get('errors', [{}])[0].get('message', 'Unknown error')
-                raise RuntimeError(f"eBay API error fetching listings: {e.response.status_code} - {error_msg}") from e
-            except:
-                raise RuntimeError(f"eBay API error fetching listings: {e.response.status_code} - [REDACTED]") from e
+                              .get("quantity"),
+                "price": float(active_offer.get("pricingSummary", {}).get("price", {}).get("value", 0)) if active_offer else 0.0,
+                "currency": active_offer.get("pricingSummary", {}).get("price", {}).get("currency", "USD") if active_offer else "USD",
+                "category_id": active_offer.get("categoryId") if active_offer else None,
+                "listing_id": active_offer.get("listingId") if active_offer else None,
+                "offer_id": active_offer.get("offerId") if active_offer else None,
+                "shipping_details": active_offer.get("listingPolicies", {}) if active_offer else {},
+                "status": active_offer.get("status") if active_offer else "UNKNOWN",
+                "last_fetched": datetime.now().isoformat()
+            }
+
+            self.listing_cache[sku] = (details, now + self.cache_ttl)
+            return details
+
+        except Exception as e:
+            print(f"Error fetching listing details for {sku}: {e}")
+            raise
 
     def get_oauth_url(self, redirect_uri: str, scopes: List[str] = None) -> str:
         """
