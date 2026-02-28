@@ -51,8 +51,8 @@ def test_save_draft_images_success(image_manager, dummy_images, temp_drafts_dir)
     expected_dir = Path(temp_drafts_dir) / listing_id
     assert expected_dir.exists()
 
-    assert Path(saved_paths[0]).exists()
-    assert Path(saved_paths[1]).exists()
+    for path_str in saved_paths:
+        assert Path(path_str).exists()
 
     assert saved_paths[0].endswith(".jpg")
     assert saved_paths[1].endswith(".png")
