@@ -450,13 +450,10 @@ class eBayIntegration:
                         current_offer['listingPolicies']['returnPolicyId'] = update_data['returnPolicyId']
 
                 # Remove read-only fields
-                for field in ['listingId', 'offerId', 'status', 'marketplaceId', 'format']:
-                    # Some of these might be needed, but usually listingId and status are read-only on update
-                    pass
-
                 # The Inventory API PUT offer documentation says we need to provide the full offer.
                 # Remove fields that the API doesn't accept in the PUT body.
-                body = {k: v for k, v in current_offer.items() if k not in ['listingId', 'status']}
+                read_only_fields = ['listingId', 'offerId', 'status']
+                body = {k: v for k, v in current_offer.items() if k not in read_only_fields}
 
                 offer_response = self._update_offer(offer_id, body)
                 if offer_response and 'warnings' in offer_response:
