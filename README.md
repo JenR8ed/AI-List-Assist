@@ -16,12 +16,13 @@ AI List Assist is a programmatic orchestration layer designed to transform raw v
 *   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern **Inventory and Offer APIs** for seamless one-click publishing.
 *   **📦 Consignment & Asset Tracking**: Manage participants with KYC status, tax nexus codes, and commission tracking at scale.
 *   **💰 API Usage & Cost Tracker**: Real-time monitoring of AI and marketplace API calls with accurate cost estimation for transparent operations.
+*   **💾 Offline-First Resilience**: Local caching and state reconciliation ensure work continues even when network signals drop.
 
 ---
 
 ## 🎮 Operational Modes
 
-AI List Assist adapts to your specific reselling workflow through dedicated modes:
+AI List Assist adapts to your specific reselling workflow through four dedicated modes:
 
 | Mode | Purpose | Target User |
 | :--- | :--- | :--- |
@@ -63,19 +64,34 @@ graph TD
 - **Marketplace**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics)
 - **Persistence**: SQLite (Dual-DB strategy: `valuations.db` and `listings.db`)
 - **Mobile**: Python Telegram Bot API (Async)
+- **Containerization**: Docker & Docker Compose
 
-### 📁 Project Structure
-- `app_enhanced.py`: Main Flask application and Web API.
-- `your_ebay_valuator_bot.py`: Telegram bot for mobile sourcing.
-- `services/`: Modular business logic (Vision, Valuation, Listing, eBay Integration).
-- `shared/`: Canonical data models (ListingDraft, ItemValuation).
-- `templates/`: Professional Dashboard UI.
+### 📁 Modular Service System
+The platform is built on 13 specialized services:
+- `VisionService`: Hybrid OCR and object detection.
+- `ValuationService`: Real-time market analysis and profitability scoring.
+- `ConversationOrchestrator`: Multi-turn dialogue for listing detail gathering.
+- `ListingSynthesisEngine`: SEO-optimized title and description generation.
+- `eBayIntegration`: Modern REST Inventory/Offer API management.
+- `EBayCategoryService`: Parameterized category tree and aspect mapping.
+- `EBayTokenManager`: OAuth 2.0 lifecycle and in-memory token caching.
+- `CategoryDetailGenerator`: Dynamic question generation based on eBay taxonomy.
+- `DraftImageManager`: Local management and cleanup of listing visual assets.
+- `ConsignmentDatabase`: Participant KYC and asset tracking.
+- `ValuationDatabase`: Thread-local SQLite persistence with WAL.
+- `GeminiRestClient`: Direct integration with Gemini 1.5 Flash.
+- `MockValuationService`: High-fidelity simulation for development and testing.
 
 ---
 
 ## ⚙️ Getting Started
 
-### 1. Installation
+### 1. Prerequisites
+- Python 3.12+ (Optimized for 3.14.2)
+- Google Cloud API Key (Vision + Gemini)
+- eBay Developer Account (Client ID + Secret)
+
+### 2. Installation
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -85,13 +101,13 @@ cd ai-list-assist
 pip install -r requirements.txt
 ```
 
-### 2. Quick Start with Docker
+### 3. Quick Start with Docker
 ```bash
 # Launch full stack (App + Redis + DBs)
 docker-compose -f docker-compose.dev.yml up --build
 ```
 
-### 3. Configuration
+### 4. Configuration
 Create a `.env` file with your credentials:
 ```env
 SECRET_KEY=...
@@ -100,6 +116,7 @@ EBAY_CLIENT_ID=...
 EBAY_CLIENT_SECRET=...
 TELEGRAM_BOT_TOKEN=...
 EBAY_USE_SANDBOX=True
+EBAY_CATEGORY_TREE_ID=0
 ```
 
 ---
@@ -107,34 +124,34 @@ EBAY_USE_SANDBOX=True
 ## 📱 Interface Guide
 
 ### Web Dashboard (http://localhost:5000)
-- **Analyze**: Upload images for instant AI valuation.
-- **Drafts**: Refine and prepare listings for eBay.
-- **Live**: Manage active eBay listings directly.
-- **Stats**: Track performance and API usage costs.
+- **Analyze**: Upload images for instant AI valuation and "Worth Listing" checks.
+- **Drafts**: Refine and prepare listings with guided category aspect resolution.
+- **Live**: Manage active eBay listings, refresh state, and end items.
+- **Stats**: Track performance, resale success, and API usage costs.
 
 ### Telegram Valuator Bot
 - **Snap**: Send a photo of an item while sourcing.
-- **Evaluate**: Receive instant Brand, Model, and Category identification.
+- **Evaluate**: Receive instant Brand, Model, and Category identification on the go.
 
 ---
 
 ## 📅 Roadmap
 
-- **Phase 1: Automation** (Current)
+- **Phase 1: Automation** (Complete)
   - [x] Modular service architecture.
+  - [x] Hybrid Vision/Valuation pipeline.
   - [x] Business Policy integration.
-  - [ ] Return Window Lock logic.
-- **Phase 2: Analytics**
+- **Phase 2: Analytics** (In Progress)
   - [ ] Consignment Payout Dashboard.
   - [ ] Market Trend Analysis.
-- **Phase 3: Scale**
+- **Phase 3: Scale** (Planned)
   - [ ] Multi-Marketplace Support (Mercari, Poshmark).
-  - [ ] Studio Mode high-speed intake.
+  - [ ] Studio Mode high-speed intake optimization.
 
 ---
 
 ## 📄 Documentation
-- [Setup Guide](SETUP_GUIDE.md)
-- [Valuation Data Guide](VALUATION_DATA_GUIDE.md)
-- [eBay Listing Mapping](EBAY_LISTING_MAPPING.md)
-- [Agent Guidelines](AGENTS.md)
+- [Setup Guide](SETUP_GUIDE.md) - Detailed installation and troubleshooting.
+- [Valuation Data Guide](VALUATION_DATA_GUIDE.md) - Deep dive into valuation models.
+- [eBay Listing Mapping](EBAY_LISTING_MAPPING.md) - Schema mappings for eBay Inventory API.
+- [Agent Guidelines](AGENTS.md) - Technical standards for contributing developers.
