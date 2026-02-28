@@ -238,7 +238,9 @@ class eBayIntegration:
 
     def get_inventory_item(self, sku: str) -> Dict[str, Any]:
         """Fetch inventory item details from eBay."""
-        self.access_token = self.token_manager.get_valid_token()
+        if not self.access_token:
+            self.access_token = self.token_manager.get_valid_token()
+
         if not self.access_token:
             raise ValueError("Not authenticated. Call authenticate() first.")
 
@@ -255,7 +257,9 @@ class eBayIntegration:
 
     def get_offers_by_sku(self, sku: str) -> List[Dict[str, Any]]:
         """Fetch offers for a given SKU from eBay."""
-        self.access_token = self.token_manager.get_valid_token()
+        if not self.access_token:
+            self.access_token = self.token_manager.get_valid_token()
+
         if not self.access_token:
             raise ValueError("Not authenticated. Call authenticate() first.")
 
@@ -279,6 +283,11 @@ class eBayIntegration:
             if now < expiry:
                 print(f"Using cached details for SKU {sku}")
                 return cache_data
+
+        # Fetch token once for this operation
+        self.access_token = self.token_manager.get_valid_token()
+        if not self.access_token:
+            raise ValueError("Not authenticated. Call authenticate() first.")
 
         try:
             inventory_item = self.get_inventory_item(sku)

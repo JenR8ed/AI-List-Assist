@@ -828,10 +828,11 @@ def get_ebay_listing(ebay_listing_id):
 
     try:
         # 1. Resolve ebay_listing_id to internal SKU (listing_id) via local database
-        with sqlite3.connect('listings.db') as conn:
-            c = conn.cursor()
-            c.execute('SELECT listing_id, draft_data FROM listings WHERE ebay_listing_id = ?', (ebay_listing_id,))
-            row = c.fetchone()
+        conn = sqlite3.connect('listings.db')
+        c = conn.cursor()
+        c.execute('SELECT listing_id, draft_data FROM listings WHERE ebay_listing_id = ?', (ebay_listing_id,))
+        row = c.fetchone()
+        conn.close()
 
         sku = row[0] if row else None
         local_draft_data = json.loads(row[1]) if row and row[1] else None
