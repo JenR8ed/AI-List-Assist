@@ -61,6 +61,7 @@ def test_save_draft_images_success(image_manager, dummy_images, temp_drafts_dir)
     assert Path(saved_paths[1]).name == "image_1.png"
 
     assert Path(saved_paths[0]).read_text() == "dummy image content 1"
+    assert Path(saved_paths[1]).read_text() == "dummy image content 2"
 
 def test_save_draft_images_missing_files(image_manager, dummy_images, tmp_path):
     """Test saving draft images when some source files don't exist."""
