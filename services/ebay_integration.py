@@ -6,6 +6,7 @@ Handles OAuth, listing creation, and eBay Sell APIs.
 from typing import Dict, Any, Optional, List
 import os
 import requests
+import time
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition
 from services.ebay_token_manager import EBayTokenManager
@@ -52,6 +53,10 @@ class eBayIntegration:
         # Load initial tokens if available
         self.access_token: Optional[str] = os.getenv('EBAY_ACCESS_TOKEN')
         self.refresh_token: Optional[str] = os.getenv('EBAY_REFRESH_TOKEN')
+
+        # Caching for listing details
+        self.listing_cache = {}
+        self.cache_ttl = 900  # 15 minutes
 
     def authenticate(self, auth_code: str, redirect_uri: str) -> bool:
         """
@@ -225,6 +230,44 @@ class eBayIntegration:
         url = f"{self.base_url}/sell/offer/v1/offer/{offer_id}/publish"
         headers = self._get_headers()
 
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    def get_offers_by_sku(self, sku: str) -> List[Dict[str, Any]]:
+        """Fetch offers for a given SKU from eBay."""
+        if not self.access_token:
+            self.access_token = self.token_manager.get_valid_token()
+
+        if not self.access_token:
+            raise ValueError("Not authenticated. Call authenticate() first.")
+
+        url = f"{self.base_url}/sell/inventory/v1/offer"
+        params = {"sku": sku, "marketplace_id": "EBAY_US"}
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json().get("offers", [])
+
+    def get_listing_details(self, sku: str, force_refresh: bool = False) -> Dict[str, Any]:
+        """Get consolidated listing details with caching."""
+        now = time.time()
+
+        if not force_refresh and sku in self.listing_cache:
+            cache_data, expiry = self.listing_cache[sku]
+            if now < expiry:
+                print(f"Using cached details for SKU {sku}")
+                return cache_data
+
+        # Fetch token once for this operation
+        self.access_token = self.token_manager.get_valid_token()
+        if not self.access_token:
+            raise ValueError("Not authenticated. Call authenticate() first.")
+
         try:
             response = requests.post(url, headers=headers)
             if response.status_code == 200:
@@ -359,3 +402,151 @@ class eBayIntegration:
                 "watchers": 0
             })
         return active_listings
+
+    def update_listing(self, sku: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update an existing eBay listing.
+
+        Args:
+            sku: The SKU of the item to update
+            update_data: Dictionary containing fields to update (title, price, description, aspects, images, policies)
+
+        Returns:
+            Dictionary with results and warnings
+        """
+        if not self.access_token:
+            self.access_token = self.token_manager.get_valid_token()
+
+        if not self.access_token:
+            raise ValueError("No access token available for eBay API")
+
+        results = {"success": True, "warnings": []}
+
+        # 1. Update Inventory Item if product details changed
+        inventory_fields = ['title', 'description', 'aspects', 'images', 'condition']
+        if any(k in update_data for k in inventory_fields):
+            try:
+                current_item = self._get_inventory_item(sku)
+
+                # Merge product data
+                if 'title' in update_data: current_item["product"]["title"] = update_data['title']
+                if 'description' in update_data: current_item["product"]["description"] = update_data['description']
+
+                if 'aspects' in update_data:
+                    if "aspects" not in current_item["product"]:
+                        current_item["product"]["aspects"] = {}
+                    current_item["product"]["aspects"].update(update_data['aspects'])
+
+                if 'images' in update_data: current_item["product"]["imageUrls"] = update_data['images']
+                if 'condition' in update_data: current_item["condition"] = update_data['condition']
+
+                # SKU must not be in the body for the PUT
+                if "sku" in current_item: del current_item["sku"]
+
+                self._update_inventory_item(sku, current_item)
+            except Exception as e:
+                results["success"] = False
+                results["error"] = f"Inventory update failed: {str(e)}"
+                return results
+
+        # 2. Update Offer if price or policies changed
+        offer_fields = ['price', 'fulfillmentPolicyId', 'paymentPolicyId', 'returnPolicyId']
+        if any(k in update_data for k in offer_fields):
+            offer_id = self._get_offer_id_by_sku(sku)
+            if not offer_id:
+                results["success"] = False
+                results["error"] = f"Could not find offer for SKU: {sku}"
+                return results
+
+            try:
+                current_offer = self._get_offer(offer_id)
+
+                if 'price' in update_data:
+                    current_offer["pricingSummary"]["price"] = {
+                        "value": str(update_data['price']),
+                        "currency": "USD"
+                    }
+
+                if any(k in update_data for k in ['fulfillmentPolicyId', 'paymentPolicyId', 'returnPolicyId']):
+                    if "listingPolicies" not in current_offer:
+                        current_offer["listingPolicies"] = {}
+
+                    if 'fulfillmentPolicyId' in update_data:
+                        current_offer['listingPolicies']['fulfillmentPolicyId'] = update_data['fulfillmentPolicyId']
+                    if 'paymentPolicyId' in update_data:
+                        current_offer['listingPolicies']['paymentPolicyId'] = update_data['paymentPolicyId']
+                    if 'returnPolicyId' in update_data:
+                        current_offer['listingPolicies']['returnPolicyId'] = update_data['returnPolicyId']
+
+                # Remove read-only fields
+                # The Inventory API PUT offer documentation says we need to provide the full offer.
+                # Remove fields that the API doesn't accept in the PUT body.
+                read_only_fields = ['listingId', 'offerId', 'status']
+                body = {k: v for k, v in current_offer.items() if k not in read_only_fields}
+
+                offer_response = self._update_offer(offer_id, body)
+                if offer_response and 'warnings' in offer_response:
+                    results["warnings"].extend(offer_response['warnings'])
+            except Exception as e:
+                results["success"] = False
+                results["error"] = f"Offer update failed: {str(e)}"
+                return results
+
+        return results
+
+    def _get_inventory_item(self, sku: str) -> Dict[str, Any]:
+        """Fetch inventory item details."""
+        url = f"{self.base_url}/sell/inventory/v1/inventory_item/{sku}"
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    def _update_inventory_item(self, sku: str, inventory_item: Dict[str, Any]) -> bool:
+        """Update inventory item via eBay Inventory API (PUT)."""
+        url = f"{self.base_url}/sell/inventory/v1/inventory_item/{sku}"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+            "Content-Language": "en-US",
+            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+        }
+        response = requests.put(url, headers=headers, json=inventory_item)
+        response.raise_for_status()
+        return True
+
+    def _get_offer(self, offer_id: str) -> Dict[str, Any]:
+        """Fetch offer details."""
+        url = f"{self.base_url}/sell/offer/v1/offer/{offer_id}"
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    def _update_offer(self, offer_id: str, offer: Dict[str, Any]) -> Dict[str, Any]:
+        """Update offer via eBay Offer API (PUT)."""
+        url = f"{self.base_url}/sell/offer/v1/offer/{offer_id}"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+            "Content-Language": "en-US"
+        }
+        response = requests.put(url, headers=headers, json=offer)
+        response.raise_for_status()
+        return response.json() if response.content else {}
+
+    def _get_offer_id_by_sku(self, sku: str) -> Optional[str]:
+        """Get offer ID for a given SKU."""
+        url = f"{self.base_url}/sell/inventory/v1/offer"
+        params = {"sku": sku, "marketplace_id": "EBAY_US"}
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        data = response.json()
+        offers = data.get("offers", [])
+        if offers:
+            return offers[0].get("offerId")
+        return None
