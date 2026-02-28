@@ -203,7 +203,8 @@ class eBayIntegration:
                 raise RuntimeError(full_msg)
             else:
                 raise RuntimeError(f"eBay API error in {context}: {response.status_code} - [REDACTED]")
-            raise RuntimeError(f"eBay API error in {context}: {response.status_code} - {response.text}")
+        except (ValueError, KeyError):
+            raise RuntimeError(f"eBay API error in {context}: {response.status_code} - [REDACTED]")
 
     def _create_offer(self, offer: Dict[str, Any]) -> Dict[str, Any]:
         """Create offer via eBay Offer API."""
@@ -265,6 +266,7 @@ class eBayIntegration:
     def get_active_listings(self) -> List[Dict[str, Any]]:
         """
         Fetch active listings (published offers) from eBay, joined with inventory data.
+        Handles pagination for both offers and inventory items.
 
         Returns:
             List of dictionaries containing listing details
@@ -274,40 +276,52 @@ class eBayIntegration:
             print("Warning: No access token available for eBay API")
             return []
 
-        # 1. Fetch Offers (Active Listings)
+        # 1. Fetch Offers (Active Listings) with Pagination
+        published_offers = []
         offer_url = f"{self.base_url}/sell/inventory/v1/offer"
         offer_params = {"marketplace_id": "EBAY_US", "limit": 100}
 
         try:
-            offer_response = requests.get(offer_url, headers=headers, params=offer_params)
-            if offer_response.status_code == 401:
-                if self.refresh_access_token():
-                    headers = self._get_headers()
-                    offer_response = requests.get(offer_url, headers=headers, params=offer_params)
+            next_url = offer_url
+            params = offer_params
+            while next_url:
+                offer_response = requests.get(next_url, headers=headers, params=params)
+                if offer_response.status_code == 401:
+                    if self.refresh_access_token():
+                        headers = self._get_headers()
+                        offer_response = requests.get(next_url, headers=headers, params=params)
 
-            if offer_response.status_code != 200:
-                self._handle_api_error(offer_response, "get_active_listings_offers")
-                return []
+                if offer_response.status_code != 200:
+                    self._handle_api_error(offer_response, "get_active_listings_offers")
+                    break
 
-            offers_data = offer_response.json()
-            published_offers = [o for o in offers_data.get("offers", []) if o.get("status") == "PUBLISHED"]
+                offers_data = offer_response.json()
+                published_offers.extend([o for o in offers_data.get("offers", []) if o.get("status") == "PUBLISHED"])
+
+                next_url = offers_data.get("next")
+                params = None  # Subsequent calls use full URL from 'next'
 
             if not published_offers:
                 return []
 
-            # 2. Fetch Inventory Items to get images/details
-            # For efficiency, we could fetch individual items, but the bulk list is often easier if count is low
+            # 2. Fetch Inventory Items with Pagination to get images/details
+            inventory_map = {}
             inventory_url = f"{self.base_url}/sell/inventory/v1/inventory_item"
             inventory_params = {"limit": 100}
-            inventory_response = requests.get(inventory_url, headers=headers, params=inventory_params)
 
-            inventory_map = {}
-            if inventory_response.status_code == 200:
-                for item in inventory_response.json().get("inventoryItems", []):
-                    inventory_map[item.get("sku")] = item
-            else:
-                # Log but continue; we'll just have missing images/details
-                print(f"Warning: Failed to fetch inventory details: {inventory_response.status_code}")
+            next_inv_url = inventory_url
+            inv_params = inventory_params
+            while next_inv_url:
+                inventory_response = requests.get(next_inv_url, headers=headers, params=inv_params)
+                if inventory_response.status_code == 200:
+                    inv_data = inventory_response.json()
+                    for item in inv_data.get("inventoryItems", []):
+                        inventory_map[item.get("sku")] = item
+                    next_inv_url = inv_data.get("next")
+                    inv_params = None
+                else:
+                    print(f"Warning: Failed to fetch inventory page: {inventory_response.status_code}")
+                    break
 
             # 3. Join and Map
             return self._join_offer_inventory(published_offers, inventory_map)
@@ -339,7 +353,7 @@ class eBayIntegration:
                 "listing_price": price,
                 "status": "Active",
                 "listing_status": "active",
-                "submission_timestamp": offer.get("listing", {}).get("listingDate"),
+                "submission_timestamp": datetime.now().isoformat(),
                 "image_filename": image_filename,
                 "views": 0,
                 "watchers": 0
