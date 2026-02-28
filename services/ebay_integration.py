@@ -246,7 +246,7 @@ class eBayIntegration:
                         "listingId": listing_id,
                         "status": "published"
                     }
-            except Exception as e:
+            except requests.HTTPError as e:
                 logger.error(f"Failed to recover from 409 Conflict: {e}")
 
         # Handle errors
