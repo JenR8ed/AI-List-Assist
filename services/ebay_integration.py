@@ -3,6 +3,7 @@ eBay API Integration Layer
 Handles OAuth, listing creation, and eBay Sell APIs.
 """
 
+import logging
 from typing import Dict, Any, Optional, List
 import os
 import requests
@@ -10,6 +11,8 @@ import time
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition
 from services.ebay_token_manager import EBayTokenManager
+
+logger = logging.getLogger(__name__)
 
 
 class eBayIntegration:
@@ -118,10 +121,15 @@ class eBayIntegration:
         # Publish listing
         publish_response = self._publish_listing(offer_response.get("offerId"))
 
+        if publish_response.get("status") == "failed":
+            error_msg = (publish_response.get("errors") or [{}])[0].get("message", "Unknown error")
+            raise RuntimeError(f"eBay publishing failed: {error_msg}")
+
+        listing_id = publish_response.get("listingId")
         return {
-            "listing_id": publish_response.get("listingId"),
+            "listing_id": listing_id,
             "status": "published",
-            "url": f"https://www.ebay.com/itm/{publish_response.get('listingId')}"
+            "url": f"https://www.ebay.com/itm/{listing_id}" if listing_id else None
         }
 
     def _map_to_ebay_inventory(self, draft: ListingDraft) -> Dict[str, Any]:
