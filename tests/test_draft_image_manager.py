@@ -74,8 +74,8 @@ def test_save_draft_images_missing_files(image_manager, dummy_images, tmp_path):
 
     assert len(saved_paths) == 2
 
-    assert saved_paths[0].endswith("image_0.jpg")
-    assert saved_paths[1].endswith("image_2.png")
+    assert Path(saved_paths[0]).name == "image_0.jpg"
+    assert Path(saved_paths[1]).name == "image_2.png"
 
 def test_cleanup_draft_images_success(image_manager, dummy_images, temp_drafts_dir):
     """Test successful cleanup of a listing's draft images."""
