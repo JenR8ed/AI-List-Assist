@@ -340,7 +340,7 @@ class eBayIntegration:
                 "listing_price": price,
                 "status": "Active",
                 "listing_status": "active",
-                "submission_timestamp": datetime.now().isoformat(),
+                "submission_timestamp": offer.get("listing", {}).get("listingDate"),
                 "image_filename": image_filename,
                 "views": 0,
                 "watchers": 0
