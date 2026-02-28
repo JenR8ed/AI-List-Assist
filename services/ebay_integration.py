@@ -203,8 +203,7 @@ class eBayIntegration:
                 raise RuntimeError(full_msg)
             else:
                 raise RuntimeError(f"eBay API error in {context}: {response.status_code} - [REDACTED]")
-        except (ValueError, KeyError):
-            raise RuntimeError(f"eBay API error in {context}: {response.status_code} - [REDACTED]")
+            raise RuntimeError(f"eBay API error in {context}: {response.status_code} - {response.text}")
 
     def _create_offer(self, offer: Dict[str, Any]) -> Dict[str, Any]:
         """Create offer via eBay Offer API."""
