@@ -17,14 +17,19 @@ class EBayTokenManager:
         self.use_sandbox = use_sandbox
         self.token_file = '.ebay_token.json'
         self.base_url = "https://api.sandbox.ebay.com" if use_sandbox else "https://api.ebay.com"
-        
+        self._cached_token_data = None
+
     def get_valid_token(self):
         """Get valid token, refresh if needed."""
+        if self._cached_token_data and not self._is_expired(self._cached_token_data):
+            return self._cached_token_data.get('access_token')
+
         token_data = self._load_token()
-        
+
         if not token_data or self._is_expired(token_data):
             token_data = self._refresh_token()
-            
+
+        self._cached_token_data = token_data
         return token_data.get('access_token') if token_data else None
     
     def _load_token(self):
@@ -42,6 +47,7 @@ class EBayTokenManager:
         
         with open(self.token_file, 'w') as f:
             json.dump(token_data, f)
+        self._cached_token_data = token_data
     
     def _is_expired(self, token_data):
         """Check if token is expired."""
