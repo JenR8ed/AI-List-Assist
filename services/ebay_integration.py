@@ -259,7 +259,7 @@ class eBayIntegration:
         try:
             resp_json = response.json()
             error_data["errors"] = resp_json.get("errors", [])
-        except:
+        except requests.exceptions.JSONDecodeError:
             error_data["errors"] = [{"message": "[REDACTED]"}]
 
         if response.status_code == 400:
