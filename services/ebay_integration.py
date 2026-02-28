@@ -117,7 +117,7 @@ class eBayIntegration:
         publish_response = self._publish_listing(offer_response.get("offerId"))
 
         if publish_response.get("status") == "failed":
-            error_msg = publish_response.get("errors", [{}])[0].get("message", "Unknown error")
+            error_msg = (publish_response.get("errors") or [{}])[0].get("message", "Unknown error")
             raise RuntimeError(f"eBay publishing failed: {error_msg}")
 
         listing_id = publish_response.get("listingId")
