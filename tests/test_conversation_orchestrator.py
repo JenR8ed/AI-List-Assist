@@ -55,10 +55,10 @@ class TestConversationOrchestrator(unittest.TestCase):
 
     def test_extract_info_dimensions(self):
         tests = [
-            ("What are the dimensions?", "It is 12x8x3 inches", "12x8x3"),
-            ("What are the dimensions?", "12 x 8 x 3", "12x8x3"),
-            ("What are the dimensions?", "10x5x2", "10x5x2"),
-            ("What are the dimensions?", "About 10 x 5 x 2.", "10x5x2"),
+            ("What are the dimensions?", "It is 12x8x3 inches", "12 x 8 x 3"),
+            ("What are the dimensions?", "12 x 8 x 3", "12 x 8 x 3"),
+            ("What are the dimensions?", "10x5x2", "10 x 5 x 2"),
+            ("What are the dimensions?", "About 10 x 5 x 2.", "10 x 5 x 2"),
             # Fallback pattern
             ("What are the dimensions?", "It's 12 inches by 8 by 3", "12 x 8 x 3"),
             # Edge cases
