@@ -839,18 +839,17 @@ def get_ebay_listing(ebay_listing_id):
 
         if not sku:
             # If not in listings.db, might be in valuations.db (ebay_submissions table)
-            conn = sqlite3.connect('valuations.db')
-            c = conn.cursor()
-            c.execute('SELECT valuation_id FROM ebay_submissions WHERE ebay_listing_id = ?', (ebay_listing_id,))
-            sub_row = c.fetchone()
-            if sub_row:
-                # Resolve further to get draft data if needed
-                valuation_id = sub_row[0]
-                c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
-                val_row = c.fetchone()
-                sku = valuation_id
-                local_draft_data = json.loads(val_row[0]) if val_row and val_row[0] else None
-            conn.close()
+            with sqlite3.connect('valuations.db') as conn:
+                c = conn.cursor()
+                c.execute('SELECT valuation_id FROM ebay_submissions WHERE ebay_listing_id = ?', (ebay_listing_id,))
+                sub_row = c.fetchone()
+                if sub_row:
+                    # Resolve further to get draft data if needed
+                    valuation_id = sub_row[0]
+                    c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
+                    val_row = c.fetchone()
+                    sku = valuation_id
+                    local_draft_data = json.loads(val_row[0]) if val_row and val_row[0] else None
 
         if not sku:
             return jsonify({"error": f"Listing {ebay_listing_id} not found in local records"}), 404
