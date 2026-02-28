@@ -3,12 +3,15 @@ eBay API Integration Layer
 Handles OAuth, listing creation, and eBay Sell APIs.
 """
 
+import logging
 from typing import Dict, Any, Optional, List
 import os
 import requests
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition
 from services.ebay_token_manager import EBayTokenManager
+
+logger = logging.getLogger(__name__)
 
 
 class eBayIntegration:
@@ -113,10 +116,15 @@ class eBayIntegration:
         # Publish listing
         publish_response = self._publish_listing(offer_response.get("offerId"))
 
+        if publish_response.get("status") == "failed":
+            error_msg = publish_response.get("errors", [{}])[0].get("message", "Unknown error")
+            raise RuntimeError(f"eBay publishing failed: {error_msg}")
+
+        listing_id = publish_response.get("listingId")
         return {
-            "listing_id": publish_response.get("listingId"),
+            "listing_id": listing_id,
             "status": "published",
-            "url": f"https://www.ebay.com/itm/{publish_response.get('listingId')}"
+            "url": f"https://www.ebay.com/itm/{listing_id}" if listing_id else None
         }
 
     def _map_to_ebay_inventory(self, draft: ListingDraft) -> Dict[str, Any]:
@@ -161,23 +169,17 @@ class eBayIntegration:
         """Create inventory item via eBay Inventory API."""
         sku = inventory_item.get("sku")
         url = f"{self.base_url}/sell/inventory/v1/inventory_item/{sku}"
-        headers = {
-            "Authorization": f"Bearer [REDACTED]",
-            "Content-Type": "application/json",
-            "Content-Language": "en-US",
-            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
-        }
-        print(f"DEBUG: HTTP POST {url} \\nHeaders: {headers} \\nPayload: {inventory_item}")
 
-        # Real headers with actual token
-        real_headers = {
+        headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
             "Content-Language": "en-US",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
 
-        response = requests.post(url, headers=real_headers, json=inventory_item)
+        logger.debug(f"Creating inventory item: POST {url}")
+
+        response = requests.post(url, headers=headers, json=inventory_item)
         response.raise_for_status()
 
         return {
@@ -185,91 +187,91 @@ class eBayIntegration:
             "status": "created"
         }
 
-    def _create_offer(self, offer: Dict[str, Any]) -> Dict[str, Any]:
-        """Create offer via eBay Offer API."""
-        url = f"{self.base_url}/sell/offer/v1/offer"
+    def _get_offer(self, offer_id: str) -> Dict[str, Any]:
+        """Fetch offer details via eBay Inventory API."""
+        url = f"{self.base_url}/sell/inventory/v1/offer/{offer_id}"
         headers = {
-            "Authorization": f"Bearer [REDACTED]",
+            "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
-            "Content-Language": "en-US",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
-        print(f"DEBUG: HTTP POST {url} \\nHeaders: {headers} \\nPayload: {offer}")
 
-        real_headers = {
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    def _create_offer(self, offer: Dict[str, Any]) -> Dict[str, Any]:
+        """Create offer via eBay Inventory API."""
+        url = f"{self.base_url}/sell/inventory/v1/offer"
+
+        headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
             "Content-Language": "en-US",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
 
-        response = requests.post(url, headers=real_headers, json=offer)
+        logger.debug(f"Creating offer: POST {url}")
+
+        response = requests.post(url, headers=headers, json=offer)
         response.raise_for_status()
 
         return response.json()
 
     def _publish_listing(self, offer_id: str) -> Dict[str, Any]:
-        """Publish listing via eBay Offer API."""
-        url = f"{self.base_url}/sell/offer/v1/offer/{offer_id}/publish"
-        headers = {
-            "Authorization": f"Bearer [REDACTED]",
-            "Content-Type": "application/json",
-            "Content-Language": "en-US",
-            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
-        }
-        print(f"DEBUG: HTTP POST {url} \\nHeaders: {headers} \\nPayload: <empty>")
+        """Publish listing via eBay Inventory API."""
+        url = f"{self.base_url}/sell/inventory/v1/offer/{offer_id}/publish"
 
-        real_headers = {
+        headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
             "Content-Language": "en-US",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
 
-        response = requests.post(url, headers=real_headers)
-        response.raise_for_status()
+        logger.debug(f"Publishing offer: POST {url}")
 
-        return response.json()
+        response = requests.post(url, headers=headers)
 
-    def get_active_listings(self) -> List[Dict[str, Any]]:
-        """
-        Fetch active listings from the eBay seller account.
+        if response.status_code == 200:
+            return response.json()
 
-        Returns:
-            List of active listing dicts with basic details.
-        """
-        if not self.access_token:
-            raise ValueError("Not authenticated. Call authenticate() first.")
+        if response.status_code == 409:
+            logger.info(f"Offer {offer_id} already published. Fetching listing ID.")
+            try:
+                offer_details = self._get_offer(offer_id)
+                listing_id = offer_details.get("listingId")
+                if listing_id:
+                    return {
+                        "listingId": listing_id,
+                        "status": "published"
+                    }
+            except Exception as e:
+                logger.error(f"Failed to recover from 409 Conflict: {e}")
 
-        url = f"{self.base_url}/sell/inventory/v1/inventory_item"
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
+        # Handle errors
+        error_data = {
+            "status": "failed",
+            "error_code": response.status_code,
+            "errors": []
         }
 
         try:
-            response = requests.get(url, headers=headers, params={"limit": 200})
-            response.raise_for_status()
-            data = response.json()
-            items = data.get("inventoryItems", [])
-            return [
-                {
-                    "sku": item.get("sku"),
-                    "title": item.get("product", {}).get("title"),
-                    "condition": item.get("condition"),
-                    "quantity": item.get("availability", {})
-                              .get("shipToLocationAvailability", {})
-                              .get("quantity")
-                }
-                for item in items
-            ]
-        except requests.HTTPError as e:
-            try:
-                error_msg = e.response.json().get('errors', [{}])[0].get('message', 'Unknown error')
-                raise RuntimeError(f"eBay API error fetching listings: {e.response.status_code} - {error_msg}") from e
-            except:
-                raise RuntimeError(f"eBay API error fetching listings: {e.response.status_code} - [REDACTED]") from e
+            resp_json = response.json()
+            error_data["errors"] = resp_json.get("errors", [])
+        except:
+            error_data["errors"] = [{"message": "[REDACTED]"}]
+
+        if response.status_code == 400:
+            # Extract missing fields or specific error messages
+            missing_fields = []
+            for err in error_data["errors"]:
+                if err.get("parameter"):
+                    missing_fields.append(err.get("parameter"))
+            if missing_fields:
+                error_data["missing_fields"] = missing_fields
+
+        return error_data
 
     def get_oauth_url(self, redirect_uri: str, scopes: List[str] = None) -> str:
         """
