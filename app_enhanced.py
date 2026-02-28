@@ -841,7 +841,10 @@ def get_ebay_listing(ebay_listing_id):
 
 @app.route('/api/ebay/update-listing', methods=['POST'])
 def update_ebay_listing():
-    """Update eBay listing using ReviseItem API."""
+    """Update eBay listing using ReviseItem API (actually Inventory API)."""
+    if not ebay_integration:
+        return jsonify({"error": "eBay integration not initialized"}), 500
+
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
@@ -852,17 +855,115 @@ def update_ebay_listing():
         return jsonify({"error": "ebay_listing_id required"}), 400
 
     try:
-        # Mock eBay API update call
-        update_response = {
-            "success": True,
-            "ebay_listing_id": ebay_listing_id,
-            "updated_fields": list(data.keys())
-        }
+        # 1. Retrieve the SKU from the local listings.db using the ebay_listing_id
+        conn = sqlite3.connect('listings.db')
+        c = conn.cursor()
+        c.execute('SELECT listing_id, item_id FROM listings WHERE ebay_listing_id = ?', (ebay_listing_id,))
+        row = c.fetchone()
+        conn.close()
+
+        if not row:
+            # Try to find in valuations.db via ebay_submissions if not in listings.db
+            conn = sqlite3.connect('valuations.db')
+            c = conn.cursor()
+            c.execute('SELECT valuation_id FROM ebay_submissions WHERE ebay_listing_id = ?', (ebay_listing_id,))
+            sub_row = c.fetchone()
+            conn.close()
+
+            if not sub_row:
+                return jsonify({"error": f"Listing with eBay ID {ebay_listing_id} not found in local database"}), 404
+
+            valuation_id = sub_row[0]
+            sku = valuation_id # Fallback SKU
+            listing_id = None # May not have one if it came from valuations.db flow
+        else:
+            listing_id, valuation_id = row
+            sku = listing_id # listing_id is used as SKU in create_listing
+
+        # 2. Prepare update payload
+        update_payload = {k: v for k, v in data.items() if k != 'ebay_listing_id'}
+
+        # 3. Handle image synchronization via DraftImageManager
+        if 'images' in update_payload and listing_id:
+            new_images = update_payload['images']
+            if isinstance(new_images, list) and len(new_images) > 0:
+                # Ensure they are local paths before trying to save
+                local_images = [img for img in new_images if os.path.exists(img) or os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], img))]
+                processed_images = []
+                for img in local_images:
+                    if not os.path.exists(img):
+                        processed_images.append(os.path.join(app.config['UPLOAD_FOLDER'], img))
+                    else:
+                        processed_images.append(img)
+
+                if processed_images:
+                    draft_images = draft_image_manager.save_draft_images(listing_id, processed_images)
+                    update_payload['images'] = draft_images
+
+        # 4. Call real eBay API update
+        ebay_result = ebay_integration.update_listing(sku, update_payload)
+
+        if not ebay_result.get("success"):
+            return jsonify({
+                "error": ebay_result.get("error", "eBay update failed"),
+                "success": False
+            }), 400
+
+        # 5. State Reconciliation: Update local databases
+        # Update listings.db (including draft_data JSON)
+        conn = sqlite3.connect('listings.db')
+        c = conn.cursor()
+
+        # Get current draft_data to merge
+        c.execute('SELECT draft_data FROM listings WHERE ebay_listing_id = ?', (ebay_listing_id,))
+        draft_row = c.fetchone()
+        if draft_row and draft_row[0]:
+            draft_data = json.loads(draft_row[0])
+            draft_data.update(update_payload)
+            c.execute('UPDATE listings SET draft_data = ? WHERE ebay_listing_id = ?', (json.dumps(draft_data), ebay_listing_id))
+
+        if 'title' in update_payload:
+            c.execute('UPDATE listings SET title = ? WHERE ebay_listing_id = ?', (update_payload['title'], ebay_listing_id))
+        if 'price' in update_payload:
+            c.execute('UPDATE listings SET price = ? WHERE ebay_listing_id = ?', (update_payload['price'], ebay_listing_id))
+        conn.commit()
+        conn.close()
+
+        # Update valuations.db (via ValuationDatabase)
+        db.update_draft_listing(valuation_id, update_payload)
+
+        # Update ebay_submissions table
+        conn = sqlite3.connect('valuations.db')
+        c = conn.cursor()
+
+        # Get current ebay_response to merge or update
+        c.execute('SELECT ebay_response FROM ebay_submissions WHERE ebay_listing_id = ?', (ebay_listing_id,))
+        resp_row = c.fetchone()
+        if resp_row and resp_row[0]:
+            ebay_resp = json.loads(resp_row[0])
+            if "history" not in ebay_resp:
+                ebay_resp["history"] = []
+            ebay_resp["history"].append({
+                "timestamp": datetime.now().isoformat(),
+                "action": "update",
+                "payload": update_payload,
+                "result": ebay_result
+            })
+            ebay_resp["last_updated"] = datetime.now().isoformat()
+            c.execute('UPDATE ebay_submissions SET ebay_response = ? WHERE ebay_listing_id = ?', (json.dumps(ebay_resp), ebay_listing_id))
+
+        if 'title' in update_payload:
+            c.execute('UPDATE ebay_submissions SET listing_title = ? WHERE ebay_listing_id = ?', (update_payload['title'], ebay_listing_id))
+        if 'price' in update_payload:
+            c.execute('UPDATE ebay_submissions SET listing_price = ? WHERE ebay_listing_id = ?', (update_payload['price'], ebay_listing_id))
+        conn.commit()
+        conn.close()
 
         return jsonify({
             "success": True,
             "message": "Listing updated successfully",
-            "ebay_response": update_response
+            "ebay_response": ebay_result,
+            "warnings": ebay_result.get("warnings", [])
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
