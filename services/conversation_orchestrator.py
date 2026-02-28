@@ -216,22 +216,22 @@ class ConversationOrchestrator:
         
         for field, keywords in yes_no_fields.items():
             if any(kw in question.lower() for kw in keywords):
-                if any(word in answer_lower for word in ["yes", "yep", "yeah", "have", "do"]):
-                    extracted[field] = True
-                elif any(word in answer_lower for word in ["no", "nope", "don't", "dont"]):
+                # Use regex with word boundaries to avoid matching "no" in "not" or "have" in "don't have"
+                if re.search(r'\b(no|nope|don\'t|dont)\b', answer_lower):
                     extracted[field] = False
+                elif re.search(r'\b(yes|yep|yeah|have|do)\b', answer_lower):
+                    extracted[field] = True
         
         # Dimensions
         if "dimension" in question.lower():
             # Extract dimensions like "12x8x3" or "12 x 8 x 3"
-            import re
             dim_match = re.search(r'(\d+)\s*x\s*(\d+)\s*x\s*(\d+)', answer)
             if dim_match:
                 extracted["dimensions"] = f"{dim_match.group(1)}x{dim_match.group(2)}x{dim_match.group(3)}"
         
         # Weight
         if "weight" in question.lower():
-            weight_match = re.search(r'(\d+(?:\.\d+)?)\s*(lb|lbs|pound|pounds|kg|kilogram|kilograms|oz|ounce|ounces)', answer_lower)
+            weight_match = re.search(r'(\d+(?:\.\d+)?)\s*(lbs|lb|pounds|pound|kilograms|kilogram|kg|ounces|ounce|oz)', answer_lower)
             if weight_match:
                 extracted["weight"] = f"{weight_match.group(1)} {weight_match.group(2)}"
         
