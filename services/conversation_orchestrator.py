@@ -227,7 +227,7 @@ class ConversationOrchestrator:
             # Extract dimensions like "12x8x3" or "12 x 8 x 3"
             dim_match = re.search(r'(\d+)\s*x\s*(\d+)\s*x\s*(\d+)', answer)
             if dim_match:
-                extracted["dimensions"] = f"{dim_match.group(1)}x{dim_match.group(2)}x{dim_match.group(3)}"
+                extracted["dimensions"] = f"{dim_match.group(1)} x {dim_match.group(2)} x {dim_match.group(3)}"
         
         # Weight
         if "weight" in question.lower():
