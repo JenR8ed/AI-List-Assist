@@ -1228,12 +1228,17 @@
         
         // Add event listeners for form validation
         document.addEventListener('DOMContentLoaded', function() {
-            ['listingTitle', 'listingPrice', 'listingDescription'].forEach(id => {
-                document.getElementById(id).addEventListener('input', validateForm);
-            });
+            // Check for elements before adding listeners (important for dynamic tabs)
+            const validateIfExists = (id) => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', validateForm);
+            };
+
+            ['listingTitle', 'listingPrice', 'listingDescription'].forEach(validateIfExists);
             
             // Character counter for title
-            document.getElementById('listingTitle').addEventListener('input', function() {
+            const listingTitle = document.getElementById('listingTitle');
+            if (listingTitle) listingTitle.addEventListener('input', function() {
                 const count = this.value.length;
                 document.querySelector('.char-count').textContent = `${count}/80`;
             });
