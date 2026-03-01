@@ -13,10 +13,10 @@ AI List Assist is a programmatic orchestration layer designed to transform raw v
 *   **🤖 Multi-Item Hybrid Vision**: Snap one photo of multiple items; our Vision Service (Google Cloud Vision + Gemini 1.5 Flash) identifies and separates them automatically, extracting brand, model, and condition.
 *   **⚖️ Decision Gate Valuation Engine**: Instant market analysis providing estimated values, resale scores (1-10), and a "Worth Listing" recommendation based on real-time profitability metrics.
 *   **💬 Conversational Listing Assistant**: An AI-driven state machine that guides you through filling in missing eBay item specifics, resolving ambiguities through natural dialogue.
-*   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern **Inventory and Offer APIs** for seamless one-click publishing.
-*   **📦 Consignment & Asset Tracking**: Manage participants with KYC status, tax nexus codes, and commission tracking at scale.
+*   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern **Inventory and Offer APIs** for seamless one-click publishing and state reconciliation.
+*   **🤝 Consignment & Asset Tracking**: Manage participants with KYC status, tax nexus codes, and commission tracking at scale via the `ConsignmentDatabase`.
 *   **💰 API Usage & Cost Tracker**: Real-time monitoring of AI and marketplace API calls with accurate cost estimation for transparent operations.
-*   **💾 Offline-First Resilience**: Local caching and state reconciliation ensure work continues even when network signals drop.
+*   **💾 Offline-First Resilience**: Local caching and state reconciliation ensure work continues even when network signals drop, using a dual-database SQLite strategy.
 
 ---
 
@@ -87,9 +87,10 @@ The platform is built on 13 specialized services:
 ## ⚙️ Getting Started
 
 ### 1. Prerequisites
-- Python 3.12+ (Optimized for 3.14.2)
+- Python 3.12+ (Optimized for 3.14.2 as per `AGENTS.md`)
 - Google Cloud API Key (Vision + Gemini)
 - eBay Developer Account (Client ID + Secret)
+- Telegram Bot Token (Optional, for mobile sourcing)
 
 ### 2. Installation
 ```bash
@@ -128,6 +129,7 @@ EBAY_CATEGORY_TREE_ID=0
 - **Drafts**: Refine and prepare listings with guided category aspect resolution.
 - **Live**: Manage active eBay listings, refresh state, and end items.
 - **Stats**: Track performance, resale success, and API usage costs.
+- **Accessibility**: Includes keyboard-triggerable upload zones (`tabindex="0"`) and ARIA-compliant status indicators.
 
 ### Telegram Valuator Bot
 - **Snap**: Send a photo of an item while sourcing.
@@ -155,3 +157,7 @@ EBAY_CATEGORY_TREE_ID=0
 - [Valuation Data Guide](VALUATION_DATA_GUIDE.md) - Deep dive into valuation models.
 - [eBay Listing Mapping](EBAY_LISTING_MAPPING.md) - Schema mappings for eBay Inventory API.
 - [Agent Guidelines](AGENTS.md) - Technical standards for contributing developers.
+
+---
+
+**AI List Assist** - Turning reselling into a science.
