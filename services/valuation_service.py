@@ -13,13 +13,13 @@ class ValuationService:
     def __init__(self, use_sandbox: bool = True):
         self.use_sandbox = use_sandbox
         self.base_url = "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search" if use_sandbox else "https://api.ebay.com/buy/browse/v1/item_summary/search"
+        from services.ebay_token_manager import EBayTokenManager
+        self.token_manager = EBayTokenManager(use_sandbox=self.use_sandbox)
 
     def _get_access_token(self) -> Optional[str]:
         # Utilizing the TokenManager or env vars directly as per setup
         # For this service, we assume the environment has an active token, or we pull from token manager
-        from services.ebay_token_manager import EBayTokenManager
-        token_manager = EBayTokenManager(use_sandbox=self.use_sandbox)
-        return token_manager.get_valid_token()
+        return self.token_manager.get_valid_token()
 
     def evaluate_item(self, image_base64: str, content_type: str, item_data: Dict[str, Any]) -> ItemValuation:
         """
