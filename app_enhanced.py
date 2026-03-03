@@ -145,7 +145,24 @@ def analyze_image():
         image_data = file.read()
         image_base64 = base64.b64encode(image_data).decode('utf-8')
 
+
+        # Validate file extension and MIME type
+        ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
+
+        def allowed_file(filename):
+            return '.' in filename and \
+                   filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+        content_type = file.content_type
+        if not content_type or content_type not in ALLOWED_MIME_TYPES:
+            return jsonify({"error": "Invalid file type. Only images are allowed."}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({"error": "Invalid file extension. Only images are allowed."}), 400
+
         # Save uploaded file
+
         safe_filename = secure_filename(file.filename)
         filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_filename}"
         filepath = Path(app.config['UPLOAD_FOLDER']) / filename
