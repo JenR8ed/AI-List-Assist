@@ -16,7 +16,7 @@ AI List Assist is a programmatic orchestration layer designed to transform raw v
 *   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern **Inventory and Offer APIs** for seamless one-click publishing and state reconciliation.
 *   **🤝 Consignment & Asset Tracking**: Manage participants with KYC status, tax nexus codes, and commission tracking at scale via the `ConsignmentDatabase`.
 *   **💰 API Usage & Cost Tracker**: Real-time monitoring of AI and marketplace API calls with accurate cost estimation for transparent operations.
-*   **💾 Offline-First Resilience**: Local caching and state reconciliation ensure work continues even when network signals drop, using a dual-database SQLite strategy.
+*   **💾 Offline-First Resilience**: Local caching and state reconciliation ensure work continues even when network signals drop, using a triple-database SQLite strategy.
 
 ---
 
@@ -48,7 +48,7 @@ graph TD
     I --> J[Live Management]
 ```
 
-1.  **Visual Acquisition**: Upload photos via the Web Dashboard or Telegram Bot.
+1.  **Visual Acquisition**: Upload photos via the Web Dashboard or the Telegram Bot (`your_ebay_valuator_bot.py`).
 2.  **Hybrid Analysis**: AI detects items, extracts text, and evaluates market potential.
 3.  **The Decision Gate**: Filters items based on 90-day sold history and demand.
 4.  **Guided Refinement**: The Conversational Orchestrator resolves missing eBay aspects.
@@ -59,16 +59,19 @@ graph TD
 ## 🏗️ Technical Architecture
 
 ### 🛠️ Tech Stack
-- **Backend**: Python 3.12 - 3.14.2 (Flask)
-- **AI Stack**: Google Cloud Vision & Gemini 1.5 Flash (Direct REST)
+- **Backend**: Python 3.12+ (Flask) - Optimized for modern async features and type hinting.
+- **AI Stack**: Google Cloud Vision & Gemini 1.5 Flash (Direct REST Integration)
 - **Marketplace**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics)
-- **Persistence**: SQLite (Dual-DB strategy: `valuations.db` and `listings.db`)
-- **Mobile**: Python Telegram Bot API (Async)
-- **Containerization**: Docker & Docker Compose
+- **Persistence**: SQLite (Triple-DB strategy for state reconciliation)
+    - `valuations.db`: Historical analysis and market trends.
+    - `listings.db`: Local eBay inventory and offer state synchronization.
+    - `consignment.db`: Participant tracking, KYC, and asset management.
+- **Mobile**: Python Telegram Bot API (`your_ebay_valuator_bot.py` for async field sourcing)
+- **Containerization**: Docker & Docker Compose (Multi-container Dev/Prod setup)
 
 ### 📁 Modular Service System
-The platform is built on 13 specialized services:
-- `VisionService`: Hybrid OCR and object detection.
+The platform is built on 13 specialized services located in the `services/` directory:
+- `VisionService`: Hybrid OCR and object detection using Cloud Vision and Gemini.
 - `ValuationService`: Real-time market analysis and profitability scoring.
 - `ConversationOrchestrator`: Multi-turn dialogue for listing detail gathering.
 - `ListingSynthesisEngine`: SEO-optimized title and description generation.
@@ -77,9 +80,9 @@ The platform is built on 13 specialized services:
 - `EBayTokenManager`: OAuth 2.0 lifecycle and in-memory token caching.
 - `CategoryDetailGenerator`: Dynamic question generation based on eBay taxonomy.
 - `DraftImageManager`: Local management and cleanup of listing visual assets.
-- `ConsignmentDatabase`: Participant KYC and asset tracking.
-- `ValuationDatabase`: Thread-local SQLite persistence with WAL.
-- `GeminiRestClient`: Direct integration with Gemini 1.5 Flash.
+- `ConsignmentDatabase`: Participant KYC and asset tracking management.
+- `ValuationDatabase`: Thread-local SQLite persistence with WAL enabled.
+- `GeminiRestClient`: Direct REST integration with Gemini 1.5 Flash.
 - `MockValuationService`: High-fidelity simulation for development and testing.
 
 ---
@@ -87,8 +90,8 @@ The platform is built on 13 specialized services:
 ## ⚙️ Getting Started
 
 ### 1. Prerequisites
-- Python 3.12+ (Optimized for 3.14.2 as per `AGENTS.md`)
-- Google Cloud API Key (Vision + Gemini)
+- Python 3.12+ (Recommended)
+- Google Cloud API Key (Vision + Gemini 1.5 Flash)
 - eBay Developer Account (Client ID + Secret)
 - Telegram Bot Token (Optional, for mobile sourcing)
 
@@ -131,9 +134,9 @@ EBAY_CATEGORY_TREE_ID=0
 - **Stats**: Track performance, resale success, and API usage costs.
 - **Accessibility**: Includes keyboard-triggerable upload zones (`tabindex="0"`) and ARIA-compliant status indicators.
 
-### Telegram Valuator Bot
-- **Snap**: Send a photo of an item while sourcing.
-- **Evaluate**: Receive instant Brand, Model, and Category identification on the go.
+### Telegram Valuator Bot (`your_ebay_valuator_bot.py`)
+- **Snap**: Send a photo of an item while sourcing in the field.
+- **Evaluate**: Receive instant Brand, Model, and Category identification on the go via an async mobile interface.
 
 ---
 
