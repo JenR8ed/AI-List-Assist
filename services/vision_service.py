@@ -12,6 +12,7 @@ from shared.models import DetectedItem, BoundingBox
 from services.gemini_rest_client import GeminiRestClient
 import requests
 import base64
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +174,6 @@ class VisionService:
     
     def _extract_model(self, texts: List[str]) -> Optional[str]:
         """Extract model from detected text."""
-        import re
         for text in texts:
             # Look for model patterns (letters + numbers)
             model_match = re.search(r'[A-Z]{2,}[-\s]?\d{3,}', text)
