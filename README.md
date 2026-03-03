@@ -59,7 +59,7 @@ graph TD
 ## 🏗️ Technical Architecture
 
 ### 🛠️ Tech Stack
-- **Backend**: Python 3.12+ (Optimized for the Python 3.14.2 lifecycle) - Utilizing Flask 3.0.0 for modern async features and strict type hinting.
+- **Backend**: Python 3.12+ - Utilizing Flask 3.0.0 for modern async features and strict type hinting.
 - **AI Stack**: Google Cloud Vision & Gemini 1.5 Flash (Direct REST Integration).
 - **Marketplace**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics) - Modern REST/JSON model.
 - **Persistence**: Hybrid Storage Strategy:
