@@ -1,64 +1,18 @@
---- services/vision_service.py
-+++ services/vision_service.py
+--- services/ebay_integration.py
++++ services/ebay_integration.py
 @@ -3,6 +3,7 @@
- Detects multiple items in images using Google Cloud Vision API and Gemini Vision.
+ Handles OAuth, listing creation, and eBay Sell APIs.
  """
 
 +import logging
- import json
+ from typing import Dict, Any, Optional, List
  import os
- from typing import List, Dict, Any, Optional
-@@ -12,6 +13,8 @@
  import requests
- import base64
+@@ -10,6 +11,7 @@
+ from shared.models import ListingDraft, ItemCondition
+ from services.ebay_token_manager import EBayTokenManager
 
 +logger = logging.getLogger(__name__)
-+
- class VisionService:
-     """Service for multi-item detection and OCR using Google Vision APIs."""
 
-@@ -39,7 +42,7 @@
-         try:
-             return self._detect_with_cloud_vision(image_base64)
-         except Exception as e:
--            print(f"Cloud Vision failed: {e}, falling back to Gemini")
-+            logger.warning(f"Cloud Vision failed: {e}, falling back to Gemini")
-             return self._detect_with_gemini(image_base64, media_type)
-
-     async def detect_items_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
-@@ -49,7 +52,7 @@
-         try:
-             return await self._detect_with_cloud_vision_async(image_base64)
-         except Exception as e:
--            print(f"Cloud Vision failed: {e}, falling back to Gemini")
-+            logger.warning(f"Cloud Vision failed: {e}, falling back to Gemini")
-             return await self._detect_with_gemini_async(image_base64, media_type)
-
-     def _detect_with_cloud_vision(self, image_base64: str) -> List[DetectedItem]:
-@@ -229,7 +232,7 @@
-             return [self._create_default_item()]
-
-         except Exception as e:
--            print(f"Gemini Vision error: {e}")
-+            logger.error(f"Gemini Vision error: {e}")
-             return [self._create_default_item()]
-
-     async def _detect_with_gemini_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
-@@ -283,7 +286,7 @@
-             return [self._create_default_item()]
-
-         except Exception as e:
--            print(f"Gemini Vision error: {e}")
-+            logger.error(f"Gemini Vision error: {e}")
-             return [self._create_default_item()]
-
-     def _create_default_item(self) -> DetectedItem:
-@@ -321,7 +324,7 @@
-             return []
-
-         except Exception as e:
--            print(f"Text extraction failed: {e}")
-+            logger.error(f"Text extraction failed: {e}")
-             return []
-     def get_usage_metadata(self) -> Dict[str, Any]:
-         """Get usage metadata from last Gemini call."""
+ class eBayIntegration:
+     """Integration layer for eBay Sell APIs."""
