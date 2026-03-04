@@ -26,7 +26,7 @@
         .preview-img.show { display: block; }
         button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 1em; transition: all 0.3s; }
         button:hover { background: #764ba2; transform: translateY(-2px); }
-        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        button:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; transform: none; opacity: 0.7; }
         .valuations-grid { display: grid; gap: 15px; }
         .valuation-item { background: #f8f9ff; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; display: grid; grid-template-columns: 100px 1fr auto; gap: 15px; align-items: center; }
         .valuation-item.worth-listing { border-left-color: #28a745; }
@@ -157,19 +157,19 @@
                     <div class="listing-form">
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Title (80 chars max)</label>
-                                <input type="text" id="updateTitle" maxlength="80" placeholder="Item title for eBay">
+                                <label for="updateTitle">Title (80 chars max) <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                                <input type="text" id="updateTitle" maxlength="80" placeholder="Item title for eBay" required aria-required="true">
                                 <small class="char-count">0/80</small>
                             </div>
                             <div class="form-group">
-                                <label>Price</label>
-                                <input type="number" id="updatePrice" step="0.01" min="0.99" placeholder="0.00">
+                                <label for="updatePrice">Price <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                                <input type="number" id="updatePrice" step="0.01" min="0.99" placeholder="0.00" required aria-required="true">
                             </div>
                         </div>
                         
                         <div class="form-group">
-                            <label>Description</label>
-                            <textarea id="updateDescription" rows="6" placeholder="Detailed item description..."></textarea>
+                            <label for="updateDescription">Description <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                            <textarea id="updateDescription" rows="6" placeholder="Detailed item description..." required aria-required="true"></textarea>
                         </div>
                         
                         <!-- Dynamic Category Aspects for Updates -->
@@ -190,12 +190,12 @@
             <div class="listing-form">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Title (80 chars max)</label>
-                        <input type="text" id="listingTitle" maxlength="80" placeholder="Item title for eBay">
+                        <label for="listingTitle">Title (80 chars max) <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                        <input type="text" id="listingTitle" maxlength="80" placeholder="Item title for eBay" required aria-required="true">
                         <small class="char-count">0/80</small>
                     </div>
                     <div class="form-group">
-                        <label>Category</label>
+                        <label for="listingCategory">Category</label>
                         <select id="listingCategory" onchange="loadCategoryAspects()">
                             <option value="293">Electronics</option>
                             <option value="1059">Men's Clothing</option>
@@ -207,11 +207,11 @@
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Starting Price</label>
-                        <input type="number" id="listingPrice" step="0.01" min="0.99" placeholder="0.00">
+                        <label for="listingPrice">Starting Price <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                        <input type="number" id="listingPrice" step="0.01" min="0.99" placeholder="0.00" required aria-required="true">
                     </div>
                     <div class="form-group">
-                        <label>Condition</label>
+                        <label for="listingCondition">Condition</label>
                         <select id="listingCondition">
                             <option value="NEW">New</option>
                             <option value="USED_EXCELLENT">Used - Excellent</option>
@@ -223,8 +223,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="listingDescription" rows="6" placeholder="Detailed item description..."></textarea>
+                    <label for="listingDescription">Description <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                    <textarea id="listingDescription" rows="6" placeholder="Detailed item description..." required aria-required="true"></textarea>
                 </div>
                 
                 <!-- Dynamic Category Aspects -->
@@ -232,11 +232,11 @@
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Brand</label>
+                        <label for="listingBrand">Brand</label>
                         <input type="text" id="listingBrand" placeholder="Brand name">
                     </div>
                     <div class="form-group">
-                        <label>Model</label>
+                        <label for="listingModel">Model</label>
                         <input type="text" id="listingModel" placeholder="Model number">
                     </div>
                 </div>
@@ -502,10 +502,11 @@
         }
         
         function validateUpdateForm() {
-            const title = document.getElementById('updateTitle').value;
+            const title = document.getElementById('updateTitle').value.trim();
             const price = document.getElementById('updatePrice').value;
+            const description = document.getElementById('updateDescription').value.trim();
             
-            const isValid = title.length > 0 && price > 0;
+            const isValid = title !== '' && price >= 0.99 && description !== '';
             document.getElementById('updateListingBtn').disabled = !isValid;
         }
         
@@ -1318,6 +1319,7 @@
             loadingEl.style.display = 'block';
             analyzeBtn.disabled = true;
             analyzeBtn.setAttribute('aria-busy', 'true');
+            analyzeBtn.textContent = 'Analyzing...';
             document.getElementById('analysisResults').style.display = 'none';
 
             try {
@@ -1349,6 +1351,7 @@
                 loadingEl.style.display = 'none';
                 analyzeBtn.disabled = false;
                 analyzeBtn.setAttribute('aria-busy', 'false');
+                analyzeBtn.textContent = 'Analyze Item';
             }
         }
         
