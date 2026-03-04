@@ -17,8 +17,10 @@ class TestEBayGetListingsPagination(unittest.TestCase):
         self.ebay = eBayIntegration(use_sandbox=True)
         self.ebay.access_token = "valid_token"
 
+    @patch('services.ebay_token_manager.EBayTokenManager.get_valid_token')
     @patch('requests.get')
-    def test_get_active_listings_pagination_success(self, mock_get):
+    def test_get_active_listings_pagination_success(self, mock_get, mock_token):
+        mock_token.return_value = "valid_token"
         # 1. Mock Offer Responses (2 pages)
         mock_offer_resp_p1 = MagicMock()
         mock_offer_resp_p1.status_code = 200

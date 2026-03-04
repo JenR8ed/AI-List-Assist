@@ -182,12 +182,16 @@ class eBayIntegration:
         """Helper to get standard eBay API headers, ensuring token is fresh."""
         self.access_token = self.token_manager.get_valid_token()
 
-        return {
-            "Authorization": f"Bearer {self.access_token}",
+        headers = {
             "Content-Type": "application/json",
             "Content-Language": "en-US",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
+
+        if self.access_token:
+            headers["Authorization"] = f"Bearer {self.access_token}"
+
+        return headers
 
     def _handle_api_error(self, response: requests.Response, context: str):
         """Handle eBay API errors with granular parsing."""
@@ -297,7 +301,8 @@ class eBayIntegration:
         params = initial_params
 
         headers = self._get_headers()
-        if not headers.get("Authorization"):
+        if "Authorization" not in headers:
+            print(f"Warning: No authorization available for {base_url}")
             return []
 
         try:
@@ -315,7 +320,7 @@ class eBayIntegration:
                     break
 
                 data = response.json()
-                results.extend(data.get(key, []))
+                results.extend(data.get(key) or [])
 
                 next_url = data.get("next")
                 params = None  # Subsequent calls use full URL from 'next'
@@ -327,7 +332,11 @@ class eBayIntegration:
 
     def _join_offer_inventory(self, offers: List[Dict], inventory_map: Dict) -> List[Dict[str, Any]]:
         """Join offer data with inventory item data with null-safe access."""
+        if not offers:
+            return []
+
         active_listings = []
+        now_iso = datetime.now().isoformat()
 
         for offer in offers:
             if not isinstance(offer, dict):
@@ -358,7 +367,7 @@ class eBayIntegration:
                 "listing_price": price,
                 "status": "Active",
                 "listing_status": "active",
-                "submission_timestamp": datetime.now().isoformat(),
+                "submission_timestamp": now_iso,
                 "image_filename": image_filename,
                 "views": 0,
                 "watchers": 0

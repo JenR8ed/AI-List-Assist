@@ -17,8 +17,10 @@ class TestEBayGetListingsMerged(unittest.TestCase):
         self.ebay = eBayIntegration(use_sandbox=True)
         self.ebay.access_token = "valid_token"
 
+    @patch('services.ebay_token_manager.EBayTokenManager.get_valid_token')
     @patch('requests.get')
-    def test_get_active_listings_success(self, mock_get):
+    def test_get_active_listings_success(self, mock_get, mock_token):
+        mock_token.return_value = "valid_token"
         # 1. Mock Offer Response
         mock_offer_resp = MagicMock()
         mock_offer_resp.status_code = 200
@@ -62,9 +64,11 @@ class TestEBayGetListingsMerged(unittest.TestCase):
 
         self.assertEqual(mock_get.call_count, 2)
 
+    @patch('services.ebay_token_manager.EBayTokenManager.get_valid_token')
     @patch('requests.get')
     @patch('services.ebay_integration.eBayIntegration.refresh_access_token')
-    def test_get_active_listings_token_refresh(self, mock_refresh, mock_get):
+    def test_get_active_listings_token_refresh(self, mock_refresh, mock_get, mock_token):
+        mock_token.return_value = "valid_token"
         # 401 for offer, then 200 for offer, then 200 for inventory
         mock_resp_401 = MagicMock()
         mock_resp_401.status_code = 401
