@@ -1362,7 +1362,7 @@
                             <span class="item-value">${item.status === 'failed' ? 'ERROR' : '$' + item.estimated_value.toFixed(2)}</span>
                         </div>
                         ${item.status === 'failed' ? `
-                            <p class="text-danger" style="font-size: 0.85em; margin-top: 8px; font-weight: bold;">
+                            <p class="text-danger item-error-message">
                                  <span role="img" aria-label="Warning">⚠️</span> Valuation failed: ${escapeHTML(item.error)}
                             </p>
                         ` : `
