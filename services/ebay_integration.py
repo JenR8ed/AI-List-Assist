@@ -303,6 +303,11 @@ class eBayIntegration:
             withdraw_url = f"{self.base_url}/sell/inventory/v1/offer/{offer_id}/withdraw"
             withdraw_response = requests.post(withdraw_url, headers=headers)
 
+            if withdraw_response.status_code == 401:
+                if self.refresh_access_token():
+                    headers = self._get_headers()
+                    withdraw_response = requests.post(withdraw_url, headers=headers)
+
             if withdraw_response.status_code == 200:
                 return withdraw_response.json()
             else:
