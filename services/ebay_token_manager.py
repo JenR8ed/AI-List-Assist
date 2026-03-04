@@ -17,14 +17,19 @@ class EBayTokenManager:
         self.use_sandbox = use_sandbox
         self.token_file = '.ebay_token.json'
         self.base_url = "https://api.sandbox.ebay.com" if use_sandbox else "https://api.ebay.com"
-        
+        self._cached_token_data = None
+
     def get_valid_token(self):
         """Get valid token, refresh if needed."""
+        if self._cached_token_data and not self._is_expired(self._cached_token_data):
+            return self._cached_token_data.get('access_token')
+
         token_data = self._load_token()
-        
+
         if not token_data or self._is_expired(token_data):
             token_data = self._refresh_token()
-            
+
+        self._cached_token_data = token_data
         return token_data.get('access_token') if token_data else None
     
     def _load_token(self):
@@ -42,6 +47,7 @@ class EBayTokenManager:
         
         with open(self.token_file, 'w') as f:
             json.dump(token_data, f)
+        self._cached_token_data = token_data
     
     def _is_expired(self, token_data):
         """Check if token is expired."""
@@ -81,7 +87,12 @@ class EBayTokenManager:
                 self._update_env(token_data['access_token'], token_data.get('refresh_token'))
                 return token_data
             else:
-                print(f"Token exchange failed: {response.status_code} - {response.text}")
+                try:
+                    error_data = response.json()
+                    error_desc = error_data.get('error_description', 'No description')
+                    print(f"Token exchange failed: {response.status_code} - {error_desc}")
+                except:
+                    print(f"Token exchange failed: {response.status_code} - [REDACTED]")
         except Exception as e:
             print(f"Error exchanging code: {e}")
 

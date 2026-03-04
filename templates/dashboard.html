@@ -26,7 +26,7 @@
         .preview-img.show { display: block; }
         button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 1em; transition: all 0.3s; }
         button:hover { background: #764ba2; transform: translateY(-2px); }
-        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        button:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; transform: none; opacity: 0.7; }
         .valuations-grid { display: grid; gap: 15px; }
         .valuation-item { background: #f8f9ff; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; display: grid; grid-template-columns: 100px 1fr auto; gap: 15px; align-items: center; }
         .valuation-item.worth-listing { border-left-color: #28a745; }
@@ -90,25 +90,25 @@
 <body>
     <div class="container">
         <header>
-            <h1>📊 eBay Listing Assistant</h1>
+            <h1><span role="img" aria-label="Bar chart">📊</span> eBay Listing Assistant</h1>
             <p>Track valuations and manage eBay submissions</p>
         </header>
 
         <!-- Upload & Analyze Section (Always Visible) -->
         <div class="card">
-            <h2>📸 Upload & Analyze</h2>
+            <h2><span role="img" aria-label="Camera">📸</span> Upload & Analyze</h2>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;">
                 <div>
-                    <div class="upload-section" id="uploadSection">
-                        <div style="font-size: 3em; margin-bottom: 10px;">📷</div>
+                    <div class="upload-section" id="uploadSection" tabindex="0" role="button" aria-label="Upload item image">
+                        <div style="font-size: 3em; margin-bottom: 10px;" role="img" aria-label="Camera icon">📷</div>
                         <p><strong>Click to upload</strong> or drag & drop</p>
                         <p style="font-size: 0.9em; color: #999;">JPG, PNG, GIF, or WebP (Max 16MB)</p>
                     </div>
-                    <input type="file" id="imageInput" accept="image/*">
+                    <input type="file" id="imageInput" accept="image/*" aria-label="Select image file">
                     <img id="previewImg" class="preview-img" alt="Preview">
-                    <div class="error" id="errorMsg"></div>
-                    <button id="analyzeBtn" disabled onclick="analyzeImage()">Analyze Item</button>
-                    <div class="loading" id="loading">
+                    <div class="error" id="errorMsg" aria-live="assertive" role="alert"></div>
+                    <button id="analyzeBtn" disabled onclick="analyzeImage()" aria-busy="false">Analyze Item</button>
+                    <div class="loading" id="loading" aria-live="polite">
                         <div style="border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
                         <p>Analyzing item...</p>
                     </div>
@@ -121,14 +121,18 @@
         </div>
 
         <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="showTab('drafts')">📝 Draft Listings</button>
-            <button class="tab" onclick="showTab('live')">🔴 Live Listings</button>
+        <div class="tabs" role="tablist">
+            <button id="tab-drafts" class="tab active" onclick="showTab('drafts')" role="tab" aria-selected="true" aria-controls="draftsTab">
+                <span role="img" aria-label="Memo">📝</span> Draft Listings
+            </button>
+            <button id="tab-live" class="tab" onclick="showTab('live')" role="tab" aria-selected="false" aria-controls="liveTab">
+                <span role="img" aria-label="Red circle">🔴</span> Live Listings
+            </button>
         </div>
 
         <div class="tab-content">
             <!-- Draft Listings Tab -->
-            <div id="draftsTab" class="tab-panel">
+            <div id="draftsTab" class="tab-panel" role="tabpanel" aria-labelledby="tab-drafts">
                 <h3 style="margin-bottom: 20px;">Draft Listings</h3>
                 <div class="valuations-grid" id="draftListings">
                     <p style="color: #999; text-align: center;">No draft listings yet.</p>
@@ -136,7 +140,7 @@
             </div>
 
             <!-- Live Listings Tab -->
-            <div id="liveTab" class="tab-panel hidden">
+            <div id="liveTab" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-live">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h3 style="margin-bottom: 0;">Live eBay Listings</h3>
                     <button class="btn btn-primary btn-sm" onclick="refreshLiveListings()" style="background: #667eea; border: none; padding: 8px 16px; border-radius: 4px; color: white; cursor: pointer;">
@@ -153,19 +157,19 @@
                     <div class="listing-form">
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Title (80 chars max)</label>
-                                <input type="text" id="updateTitle" maxlength="80" placeholder="Item title for eBay">
+                                <label for="updateTitle">Title (80 chars max) <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                                <input type="text" id="updateTitle" maxlength="80" placeholder="Item title for eBay" required aria-required="true">
                                 <small class="char-count">0/80</small>
                             </div>
                             <div class="form-group">
-                                <label>Price</label>
-                                <input type="number" id="updatePrice" step="0.01" min="0.99" placeholder="0.00">
+                                <label for="updatePrice">Price <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                                <input type="number" id="updatePrice" step="0.01" min="0.99" placeholder="0.00" required aria-required="true">
                             </div>
                         </div>
                         
                         <div class="form-group">
-                            <label>Description</label>
-                            <textarea id="updateDescription" rows="6" placeholder="Detailed item description..."></textarea>
+                            <label for="updateDescription">Description <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                            <textarea id="updateDescription" rows="6" placeholder="Detailed item description..." required aria-required="true"></textarea>
                         </div>
                         
                         <!-- Dynamic Category Aspects for Updates -->
@@ -186,12 +190,12 @@
             <div class="listing-form">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Title (80 chars max)</label>
-                        <input type="text" id="listingTitle" maxlength="80" placeholder="Item title for eBay">
+                        <label for="listingTitle">Title (80 chars max) <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                        <input type="text" id="listingTitle" maxlength="80" placeholder="Item title for eBay" required aria-required="true">
                         <small class="char-count">0/80</small>
                     </div>
                     <div class="form-group">
-                        <label>Category</label>
+                        <label for="listingCategory">Category</label>
                         <select id="listingCategory" onchange="loadCategoryAspects()">
                             <option value="293">Electronics</option>
                             <option value="1059">Men's Clothing</option>
@@ -203,11 +207,11 @@
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Starting Price</label>
-                        <input type="number" id="listingPrice" step="0.01" min="0.99" placeholder="0.00">
+                        <label for="listingPrice">Starting Price <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                        <input type="number" id="listingPrice" step="0.01" min="0.99" placeholder="0.00" required aria-required="true">
                     </div>
                     <div class="form-group">
-                        <label>Condition</label>
+                        <label for="listingCondition">Condition</label>
                         <select id="listingCondition">
                             <option value="NEW">New</option>
                             <option value="USED_EXCELLENT">Used - Excellent</option>
@@ -219,8 +223,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="listingDescription" rows="6" placeholder="Detailed item description..."></textarea>
+                    <label for="listingDescription">Description <span style="color: #dc3545;" aria-hidden="true">*</span></label>
+                    <textarea id="listingDescription" rows="6" placeholder="Detailed item description..." required aria-required="true"></textarea>
                 </div>
                 
                 <!-- Dynamic Category Aspects -->
@@ -228,11 +232,11 @@
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Brand</label>
+                        <label for="listingBrand">Brand</label>
                         <input type="text" id="listingBrand" placeholder="Brand name">
                     </div>
                     <div class="form-group">
-                        <label>Model</label>
+                        <label for="listingModel">Model</label>
                         <input type="text" id="listingModel" placeholder="Model number">
                     </div>
                 </div>
@@ -262,30 +266,37 @@
         </div>
 
         <!-- API Usage Tracker -->
-        <div style="position: fixed; bottom: 20px; right: 20px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h4 style="margin: 0; color: #856404;">💰 API Usage Tracker</h4>
-                <button onclick="resetApiCounters()" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">Reset</button>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; font-size: 0.85em;">
-                <div style="text-align: center;">
-                    <div style="font-weight: bold; color: #495057;">Vision API</div>
-                    <div id="visionCalls" style="color: #667eea;">0</div>
-                    <div id="visionCost" style="color: #856404; font-size: 0.8em;">FREE</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-weight: bold; color: #495057;">Gemini</div>
-                    <div id="geminiCalls" style="color: #667eea;">0</div>
-                    <div id="geminiCost" style="color: #856404; font-size: 0.8em;">$0.00</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-weight: bold; color: #495057;">eBay API</div>
-                    <div id="ebayCalls" style="color: #667eea;">0</div>
-                    <div style="color: #28a745; font-size: 0.8em;">FREE</div>
+        <div id="apiTracker" style="position: fixed; bottom: 20px; right: 20px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 100; transition: all 0.3s ease;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0; color: #856404; cursor: pointer;" onclick="toggleApiTracker()" role="button" aria-expanded="true" aria-controls="apiTrackerContent">
+                    <span role="img" aria-label="Money bag">💰</span> API Usage Tracker
+                </h4>
+                <div>
+                    <button onclick="resetApiCounters()" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer; margin-right: 5px;" aria-label="Reset API counters">Reset</button>
+                    <button id="apiTrackerToggle" onclick="toggleApiTracker()" style="background: #667eea; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer;" aria-label="Minimize tracker">−</button>
                 </div>
             </div>
-            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #ffeaa7; text-align: center;">
-                <strong style="color: #856404;">Total: <span id="totalCost">$0.00</span></strong>
+            <div id="apiTrackerContent" style="margin-top: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; font-size: 0.85em;">
+                    <div style="text-align: center;">
+                        <div style="font-weight: bold; color: #495057;">Vision API</div>
+                        <div id="visionCalls" style="color: #667eea;">0</div>
+                        <div id="visionCost" style="color: #856404; font-size: 0.8em;">FREE</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-weight: bold; color: #495057;">Gemini</div>
+                        <div id="geminiCalls" style="color: #667eea;">0</div>
+                        <div id="geminiCost" style="color: #856404; font-size: 0.8em;">$0.00</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-weight: bold; color: #495057;">eBay API</div>
+                        <div id="ebayCalls" style="color: #667eea;">0</div>
+                        <div style="color: #28a745; font-size: 0.8em;">FREE</div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #ffeaa7; text-align: center;">
+                    <strong style="color: #856404;">Total: <span id="totalCost">$0.00</span></strong>
+                </div>
             </div>
         </div>
     </div>
@@ -381,6 +392,35 @@
             }
         }
 
+        function toggleApiTracker() {
+            const content = document.getElementById('apiTrackerContent');
+            const toggleBtn = document.getElementById('apiTrackerToggle');
+            const trackerTitle = document.querySelector('#apiTracker h4');
+            const isCollapsed = content.style.display === 'none';
+
+            content.style.display = isCollapsed ? 'block' : 'none';
+            toggleBtn.textContent = isCollapsed ? '−' : '+';
+            toggleBtn.setAttribute('aria-label', isCollapsed ? 'Minimize tracker' : 'Expand tracker');
+            trackerTitle.setAttribute('aria-expanded', isCollapsed ? 'true' : 'false');
+
+            localStorage.setItem('apiTrackerCollapsed', !isCollapsed);
+        }
+
+        // Initialize API Tracker state
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('apiTrackerCollapsed') === 'true') {
+                const content = document.getElementById('apiTrackerContent');
+                const toggleBtn = document.getElementById('apiTrackerToggle');
+                const trackerTitle = document.querySelector('#apiTracker h4');
+
+                content.style.display = 'none';
+                toggleBtn.textContent = '+';
+                toggleBtn.setAttribute('aria-label', 'Expand tracker');
+                trackerTitle.setAttribute('aria-expanded', 'false');
+            }
+        });
+    </script>
+
     <script>
         let currentValuationId = null;
         let currentListingId = null;
@@ -462,10 +502,11 @@
         }
         
         function validateUpdateForm() {
-            const title = document.getElementById('updateTitle').value;
+            const title = document.getElementById('updateTitle').value.trim();
             const price = document.getElementById('updatePrice').value;
+            const description = document.getElementById('updateDescription').value.trim();
             
-            const isValid = title.length > 0 && price > 0;
+            const isValid = title !== '' && price >= 0.99 && description !== '';
             document.getElementById('updateListingBtn').disabled = !isValid;
         }
         
@@ -491,8 +532,10 @@
             };
             
             try {
-                document.getElementById('updateListingBtn').disabled = true;
-                document.getElementById('updateListingBtn').textContent = 'Updating...';
+                const updateBtn = document.getElementById('updateListingBtn');
+                updateBtn.disabled = true;
+                updateBtn.textContent = 'Updating...';
+                updateBtn.setAttribute('aria-busy', 'true');
                 
                 const response = await fetch('/api/ebay/update-listing', {
                     method: 'POST',
@@ -512,8 +555,10 @@
             } catch (err) {
                 showError('Error updating listing: ' + err.message);
             } finally {
-                document.getElementById('updateListingBtn').disabled = false;
-                document.getElementById('updateListingBtn').textContent = 'Update Listing';
+                const updateBtn = document.getElementById('updateListingBtn');
+                updateBtn.disabled = false;
+                updateBtn.textContent = 'Update Listing';
+                updateBtn.setAttribute('aria-busy', 'false');
             }
         }
         
@@ -662,8 +707,8 @@
             `;
             
             modal.innerHTML = `
-                <div style="background: white; border-radius: 8px; padding: 30px; max-width: 500px; width: 90%;">
-                    <h3>📝 Listing Details for ${itemData.item_name}</h3>
+                <div style="background: white; border-radius: 8px; padding: 30px; max-width: 500px; width: 90%;" role="dialog" aria-labelledby="convModalTitle">
+                    <h3 id="convModalTitle"><span role="img" aria-label="Memo">📝</span> Listing Details for ${itemData.item_name}</h3>
                     <p id="conversationQuestion" style="margin: 20px 0; font-size: 1.1em;">${question}</p>
                     <input type="text" id="answerInput" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;" placeholder="Your answer...">
                     <div style="margin-top: 20px; text-align: right;">
@@ -1017,8 +1062,10 @@
             };
             
             try {
-                document.getElementById('createDraftBtn').disabled = true;
-                document.getElementById('createDraftBtn').textContent = 'Creating...';
+                const createBtn = document.getElementById('createDraftBtn');
+                createBtn.disabled = true;
+                createBtn.textContent = 'Creating...';
+                createBtn.setAttribute('aria-busy', 'true');
                 
                 const response = await fetch('/api/listing/create-draft', {
                     method: 'POST',
@@ -1038,8 +1085,10 @@
             } catch (err) {
                 showError('Error creating draft: ' + err.message);
             } finally {
-                document.getElementById('createDraftBtn').disabled = false;
-                document.getElementById('createDraftBtn').textContent = 'Create Draft';
+                const createBtn = document.getElementById('createDraftBtn');
+                createBtn.disabled = false;
+                createBtn.textContent = 'Create Draft';
+                createBtn.setAttribute('aria-busy', 'false');
             }
         }
         
@@ -1140,8 +1189,10 @@
             };
             
             try {
-                document.getElementById('submitToEbay').disabled = true;
-                document.getElementById('submitToEbay').textContent = 'Submitting...';
+                const submitBtn = document.getElementById('submitToEbay');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Submitting...';
+                submitBtn.setAttribute('aria-busy', 'true');
                 
                 const response = await fetch('/api/ebay/submit-listing', {
                     method: 'POST',
@@ -1162,8 +1213,12 @@
             } catch (err) {
                 showError('Error submitting to eBay: ' + err.message);
             } finally {
-                document.getElementById('submitToEbay').disabled = false;
-                document.getElementById('submitToEbay').textContent = 'Submit to eBay';
+                const submitBtn = document.getElementById('submitToEbay');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit to eBay';
+                    submitBtn.setAttribute('aria-busy', 'false');
+                }
             }
         }
         
@@ -1174,20 +1229,34 @@
         
         // Add event listeners for form validation
         document.addEventListener('DOMContentLoaded', function() {
-            ['listingTitle', 'listingPrice', 'listingDescription'].forEach(id => {
-                document.getElementById(id).addEventListener('input', validateForm);
-            });
+            // Check for elements before adding listeners (important for dynamic tabs)
+            const validateIfExists = (id) => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', validateForm);
+            };
+
+            ['listingTitle', 'listingPrice', 'listingDescription'].forEach(validateIfExists);
             
             // Character counter for title
-            document.getElementById('listingTitle').addEventListener('input', function() {
+            const listingTitle = document.getElementById('listingTitle');
+            if (listingTitle) listingTitle.addEventListener('input', function() {
                 const count = this.value.length;
                 document.querySelector('.char-count').textContent = `${count}/80`;
             });
         });
 
         // Upload area click
-        document.getElementById('uploadSection').addEventListener('click', () => {
+        const uploadSectionEl = document.getElementById('uploadSection');
+        uploadSectionEl.addEventListener('click', () => {
             document.getElementById('imageInput').click();
+        });
+
+        // Keyboard accessibility for upload area
+        uploadSectionEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                document.getElementById('imageInput').click();
+            }
         });
 
         // File selection
@@ -1244,8 +1313,13 @@
             const formData = new FormData();
             formData.append('image', selectedFile);
 
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('analyzeBtn').disabled = true;
+            const loadingEl = document.getElementById('loading');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+
+            loadingEl.style.display = 'block';
+            analyzeBtn.disabled = true;
+            analyzeBtn.setAttribute('aria-busy', 'true');
+            analyzeBtn.textContent = 'Analyzing...';
             document.getElementById('analysisResults').style.display = 'none';
 
             try {
@@ -1272,8 +1346,12 @@
             } catch (err) {
                 showError('Error: ' + err.message);
             } finally {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('analyzeBtn').disabled = false;
+                const loadingEl = document.getElementById('loading');
+                const analyzeBtn = document.getElementById('analyzeBtn');
+                loadingEl.style.display = 'none';
+                analyzeBtn.disabled = false;
+                analyzeBtn.setAttribute('aria-busy', 'false');
+                analyzeBtn.textContent = 'Analyze Item';
             }
         }
         
@@ -1286,28 +1364,60 @@
             
             if (data.items && data.items.length > 0) {
                 resultsContainer.innerHTML = data.items.map(item => `
-                    <div class="item-result ${item.worth_listing ? 'worth-listing' : 'not-worth'}">
+                    <div class="item-result ${item.status === 'failed' ? 'not-worth' : (item.worth_listing ? 'worth-listing' : 'not-worth')}">
                         <div class="item-header">
                             <h4 class="item-name">${item.item_name}</h4>
-                            <span class="item-value">$${item.estimated_value.toFixed(2)}</span>
+                            <span class="item-value">${item.status === 'failed' ? 'ERROR' : '$' + item.estimated_value.toFixed(2)}</span>
                         </div>
-                        <div class="item-details">
-                            <div class="detail-item">
-                                <span class="detail-label">Worth Listing:</span>
-                                <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
-                                    ${item.worth_listing ? 'Yes' : 'No'}
-                                </span>
+                        ${item.status === 'failed' ? `
+                            <p class="text-danger item-error-message">
+                                 <span role="img" aria-label="Warning">⚠️</span> Valuation failed: ${escapeHTML(item.error)}
+                            </p>
+                        ` : `
+                            <div class="item-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">Worth Listing:</span>
+                                    <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
+                                        ${item.worth_listing ? 'Yes' : 'No'}
+                                    </span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Profitability:</span>
+                                    <span class="detail-value">${item.profitability.toUpperCase()}</span>
+                                </div>
                             </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Profitability:</span>
-                                <span class="detail-value">${item.profitability.toUpperCase()}</span>
-                            </div>
+                            ${item.worth_listing ? `
+            
+            if (data.items && data.items.length > 0) {
+                resultsContainer.innerHTML = data.items.map(item => `
+                    <div class="item-result ${item.status === 'failed' ? 'not-worth' : (item.worth_listing ? 'worth-listing' : 'not-worth')}">
+                        <div class="item-header">
+                            <h4 class="item-name">${item.item_name}</h4>
+                            <span class="item-value">${item.status === 'failed' ? 'ERROR' : '$' + item.estimated_value.toFixed(2)}</span>
                         </div>
-                        ${item.worth_listing ? `
-                            <button class="create-listing-btn" onclick="createListing('${item.item_id}')" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                Create Listing
-                            </button>
-                        ` : ''}
+                        ${item.status === 'failed' ? `
+                            <p class="text-danger" style="font-size: 0.85em; margin-top: 8px; font-weight: bold;">
+                                 <span role="img" aria-label="Warning">⚠️</span> Valuation failed: ${escapeHTML(item.error)}
+                            </p>
+                        ` : `
+                            <div class="item-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">Worth Listing:</span>
+                                    <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
+                                        ${item.worth_listing ? 'Yes' : 'No'}
+                                    </span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Profitability:</span>
+                                    <span class="detail-value">${item.profitability.toUpperCase()}</span>
+                                </div>
+                            </div>
+                            ${item.worth_listing ? `
+                                <button class="create-listing-btn" onclick="createListing('${escapeHTML(item.item_id)}')" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Create Listing
+                                </button>
+                            ` : ''}
+                        `}
                     </div>
                 `).join('');
                 
@@ -1449,11 +1559,19 @@
         }
 
         function showTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            const activeTab = document.getElementById('tab-' + tabName);
+            if (activeTab) {
+                activeTab.classList.add('active');
+                activeTab.setAttribute('aria-selected', 'true');
+            }
 
             document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
-            document.getElementById(tabName + 'Tab').classList.remove('hidden');
+            const panel = document.getElementById(tabName + 'Tab');
+            if (panel) panel.classList.remove('hidden');
 
             if (tabName === 'drafts') loadDraftListings();
             if (tabName === 'live') loadLiveListings();
@@ -1486,7 +1604,7 @@
             modal.id = 'photoModal';
             modal.className = 'photo-modal';
             modal.innerHTML = `
-                <span class="close" onclick="hideFullImage()">&times;</span>
+                <span class="close" onclick="hideFullImage()" role="button" aria-label="Close photo view">&times;</span>
                 <img src="" alt="Full size photo">
             `;
             modal.onclick = (e) => { if (e.target === modal) hideFullImage(); };

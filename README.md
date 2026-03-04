@@ -1,265 +1,165 @@
-# eBay Listing Assistant - AI-Powered Listing System
+# AI List Assist: Enterprise-Grade Reselling Orchestration
 
-> **End-to-end AI-assisted eBay listing creation system** optimized for Pixel 9 Pro XL and designed to progressively gather information to create eBay listings via Sell APIs.
-
----
-
-## 🎯 What This Does
-
-This system helps you:
-- 📸 **Capture items** with your Pixel 9 Pro XL
-- 🤖 **AI analyzes** images to detect and value items
-- 💬 **Smart questions** gather missing details progressively
-- 📝 **Auto-generates** eBay listings
-- 🚀 **Publishes** directly to eBay via Sell APIs
+**AI List Assist** is an advanced, end-to-end automation platform for professional online resellers. It bridges the gap between unstructured visual data (photos) and structured marketplace requirements (eBay listings) using a **Hybrid AI** architecture (Google Gemini 1.5 Flash + Cloud Vision).
 
 ---
 
-## 🚀 Quick Start
+## 🚀 System Overview
 
-### 1. Install Dependencies
+AI List Assist is a programmatic orchestration layer designed to transform raw visual assets into optimized e-commerce data. From individual sourcing to high-volume commercial operations, the system automates the entire lifecycle: **Detection, Valuation, Taxonomy Validation, and Automated Submission.**
+
+### 🌟 Key Features
+
+*   **🤖 Multi-Item Hybrid Vision**: Snap one photo of multiple items; our Vision Service identifies and separates them automatically, extracting brand, model, and condition.
+*   **⚖️ Decision Gate Valuation Engine**: Instant market analysis providing estimated values, resale scores (1-10), and a "Worth Listing" recommendation based on real-time profitability metrics.
+*   **💬 Conversational Listing Assistant**: An AI-driven state machine that guides you through filling in missing eBay item specifics, resolving ambiguities through natural dialogue.
+*   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern **Inventory and Offer APIs** for seamless one-click publishing and state reconciliation.
+*   **🤝 Consignment & Asset Tracking**: Manage participants with KYC status, tax nexus codes, and commission tracking at scale via the `ConsignmentDatabase`.
+*   **💰 API Usage & Cost Tracker**: Real-time monitoring of AI and marketplace API calls with accurate cost estimation for transparent operations.
+*   **💾 Offline-First Resilience**: Local caching and state reconciliation ensure work continues even when network signals drop.
+
+---
+
+## 🎮 Operational Modes
+
+AI List Assist adapts to your specific reselling workflow through four dedicated modes:
+
+| Mode | Purpose | Target User |
+| :--- | :--- | :--- |
+| **🏠 Locker Mode** | Secure storage and management of existing inventory. | Personal Resellers |
+| **🔍 Sourcing Mode** | On-the-go valuation and market analysis in the field. | Thrift/Flea Market Hunters |
+| **🤝 Consignment** | Tracking assets, commissions, and KYC for third-party sellers. | Consignment Businesses |
+| **🏬 Studio Mode** | High-speed, bulk photo intake and batch processing. | Commercial Warehouses |
+
+---
+
+## 🔄 Core Workflow
+
+```mermaid
+graph TD
+    A[Capture Image] --> B{Vision Service}
+    B -->|Object Detection| C[Identify Items]
+    B -->|OCR| D[Extract Brand/Model]
+    C & D --> E{Decision Gate}
+    E -->|Analyze Market| F[Valuation Report]
+    F -->|Worth Listing?| G[Conversational Refinement]
+    G -->|User Feedback| H[Listing Synthesis]
+    H -->|Submit| I[eBay Marketplace]
+    I --> J[Live Management]
+```
+
+1.  **Visual Acquisition**: Upload photos via the Web Dashboard or the Telegram Bot (`your_ebay_valuator_bot.py`).
+2.  **Hybrid Analysis**: AI detects items, extracts text, and evaluates market potential.
+3.  **The Decision Gate**: Filters items based on 90-day sold history and demand.
+4.  **Guided Refinement**: The Conversational Orchestrator resolves missing eBay aspects.
+5.  **Marketplace Synthesis**: Automated generation of SEO-optimized eBay listings.
+
+---
+
+## 🏗️ Technical Architecture
+
+### 🛠️ Tech Stack
+- **Backend**: Python 3.12+ - Utilizing Flask 3.0.0 for modern async features and strict type hinting.
+- **AI Stack**: Google Cloud Vision & Gemini 1.5 Flash (Direct REST Integration).
+- **Marketplace**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics) - Modern REST/JSON model.
+- **Persistence**: Hybrid Storage Strategy:
+    - **Triple-SQLite**: `valuations.db` (trends), `listings.db` (eBay state), and `consignment.db` (KYC/Assets).
+    - **PostgreSQL**: Centralized `ebay_market_data` for long-term trend analysis (supported via `seed_db.py`).
+    - **Redis**: High-speed caching for latest market trends and session data.
+- **Mobile**: Python Telegram Bot API (`your_ebay_valuator_bot.py` for async field sourcing).
+- **Containerization**: Docker & Docker Compose (Multi-container setup for scalable deployment).
+
+### 📁 Modular Service System
+The platform is built on 13 specialized services:
+- `VisionService`: Hybrid OCR and object detection using Cloud Vision and Gemini.
+- `ValuationService`: Real-time market analysis and profitability scoring.
+- `ConversationOrchestrator`: Multi-turn dialogue for listing detail gathering.
+- `ListingSynthesisEngine`: SEO-optimized title and description generation.
+- `eBayIntegration`: Modern REST Inventory/Offer API management.
+- `EBayCategoryService`: Parameterized category tree and aspect mapping.
+- `EBayTokenManager`: OAuth 2.0 lifecycle with auto-refresh and in-memory caching.
+- `CategoryDetailGenerator`: Dynamic question generation based on eBay taxonomy.
+- `DraftImageManager`: Local management and cleanup of listing visual assets.
+- `ConsignmentDatabase`: Participant KYC and asset tracking management.
+- `ValuationDatabase`: Thread-local SQLite persistence with WAL enabled.
+- `GeminiRestClient`: Direct REST integration with Gemini 1.5 Flash.
+- `MockValuationService`: High-fidelity simulation for development and testing.
+
+---
+
+## ⚙️ Getting Started
+
+### 1. Prerequisites
+- **Python 3.12+** (Required for core dependencies).
+- **Google Cloud API Key** (Vision + Gemini 1.5 Flash).
+- **eBay Developer Account** (Client ID + Secret).
+- **Telegram Bot Token** (Optional, for mobile sourcing).
+
+### 2. Installation
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd ai-list-assist
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Configure API Keys
-Copy `.env.example` to `.env` and add your keys:
+### 3. Quick Start with Docker
+The fastest way to launch the full stack (App + Redis + DBs):
 ```bash
-cp .env.example .env
-# Edit .env with your actual API keys
+docker-compose -f docker-compose.dev.yml up --build
 ```
 
-### 3. Run the Application
-```bash
-# Original app
-python app.py
-
-# Enhanced app (with all new features)
-python app_enhanced.py
-```
-
-Visit: **http://localhost:5000**
-
----
-
-## 📁 Project Structure
-
-```
-ebay-listing-assistant/
-├── app.py                    # Original Flask app
-├── app_enhanced.py           # Enhanced app with all services
-├── requirements.txt          # Python dependencies
-├── .env                      # Environment variables (create this)
-├── .gitignore               # Git ignore rules
-│
-├── services/                # Core services
-│   ├── vision_service.py           # Multi-item detection & OCR
-│   ├── valuation_service.py        # Enhanced valuation with decision gate
-│   ├── conversation_orchestrator.py # Progressive questioning
-│   ├── listing_synthesis.py        # Listing generation
-│   └── ebay_integration.py         # eBay API client
-│
-├── shared/                  # Shared components
-│   └── models.py            # Data models & schemas
-│
-├── templates/               # Web UI
-│   └── index.html          # Main interface
-│
-├── scripts/                 # Utility scripts
-│   ├── item_valuation.py   # CLI valuation tool
-│   └── test_setup.py       # Setup verification
-│
-└── docs/                    # Documentation
-    ├── README.md           # This file
-    ├── SETUP.md            # Setup guide
-    ├── QUICKSTART.md       # Quick start
-    ├── ARCHITECTURE.md     # System architecture
-    ├── IMPLEMENTATION_PLAN.md
-    ├── ASSESSMENT_SUMMARY.md
-    ├── PIXEL_INTEGRATION.md
-    ├── gemini-item-valuation-setup.md
-    └── QUICK_REFERENCE.md  # API reference
+### 4. Configuration
+Create a `.env` file with your credentials:
+```env
+SECRET_KEY=...
+GOOGLE_API_KEY=...
+EBAY_CLIENT_ID=...
+EBAY_CLIENT_SECRET=...
+TELEGRAM_BOT_TOKEN=...
+EBAY_USE_SANDBOX=True
+EBAY_CATEGORY_TREE_ID=0
 ```
 
 ---
 
-## ✨ Key Features
+## 📱 Interface Guide
 
-### 🤖 AI-Powered Analysis
-- **Multi-item detection** - Identifies all items in a single photo
-- **Smart valuation** - Determines if items are worth listing
-- **Decision gate** - Automatically filters low-value items
+### Web Dashboard (http://localhost:5000)
+- **Analyze**: Upload images for instant AI valuation and "Worth Listing" checks.
+- **Drafts**: Refine and prepare listings with guided category aspect resolution.
+- **Live**: Manage active eBay listings, refresh state, and end items.
+- **Stats**: Track performance, resale success, and API usage costs.
+- **Accessibility**: ARIA-compliant dashboard with keyboard-triggerable upload zones (`tabindex="0"`).
 
-### 💬 Progressive Questioning
-- **Only asks necessary questions** - No overwhelming forms
-- **Natural language** - Human-friendly conversation
-- **Smart prioritization** - Asks most important questions first
-
-### 📝 Listing Generation
-- **Auto-generated titles** - Optimized for eBay (80 char limit)
-- **Rich descriptions** - HTML formatted with all details
-- **Item specifics** - Automatically extracted and formatted
-
-### 🔌 eBay Integration
-- **OAuth 2.0** - Secure authentication
-- **Sell APIs** - Direct listing creation
-- **Sandbox support** - Test before going live
+### Telegram Valuator Bot (`your_ebay_valuator_bot.py`)
+- **Snap**: Send a photo of an item while sourcing in the field.
+- **Evaluate**: Receive instant Brand, Model, and Category identification on the go.
 
 ---
 
-## 📖 Documentation
+## 📅 Roadmap
 
-All documentation is in the `docs/` folder:
-
-- **[SETUP.md](docs/SETUP.md)** - Detailed setup instructions
-- **[QUICKSTART.md](docs/QUICKSTART.md)** - 5-minute quick start
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
-- **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - API endpoints
-- **[PIXEL_INTEGRATION.md](docs/PIXEL_INTEGRATION.md)** - Mobile setup
-
----
-
-## 🔧 Usage Examples
-
-### Analyze Image (Multi-Item Detection)
-```bash
-POST /api/analyze
-Content-Type: multipart/form-data
-Body: image file
-```
-
-### Start Conversation
-```bash
-POST /api/conversation/start
-{
-  "item_id": "item_1",
-  "initial_data": {"item_name": "Headphones", "brand": "Sony"}
-}
-```
-
-### Create Listing
-```bash
-POST /api/listing/create
-{
-  "item_id": "item_1",
-  "session_id": "..."
-}
-```
-
-See [QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) for complete API documentation.
+- **Phase 1: Automation** (Complete)
+  - [x] Modular service architecture and Hybrid Vision/Valuation pipeline.
+  - [x] Modern eBay REST Inventory/Offer API integration.
+  - [x] Triple-DB state reconciliation strategy.
+- **Phase 2: Reporting & Analytics** (In Progress)
+  - [ ] Consignment Payout Dashboard and Market Trend Analysis.
+  - [ ] Postgres/Redis seeding for enterprise-scale market data.
+- **Phase 3: Scale** (Planned)
+  - [ ] Omnichannel support (Mercari, Poshmark) and Studio Mode bulk intake.
 
 ---
 
-## 🛠️ Development
-
-### Running Tests
-```bash
-python scripts/test_setup.py
-```
-
-### CLI Tool
-```bash
-python scripts/item_valuation.py photo.jpg --save
-```
+## 📄 Documentation
+- [Setup Guide](SETUP_GUIDE.md) - Detailed installation and troubleshooting.
+- [Valuation Data Guide](VALUATION_DATA_GUIDE.md) - Deep dive into valuation models.
+- [eBay Listing Mapping](EBAY_LISTING_MAPPING.md) - Schema mappings for eBay Inventory API.
+- [Agent Guidelines](AGENTS.md) - Technical standards and architectural context.
 
 ---
 
-## 📊 System Requirements
-
-- Python 3.8+
-- Google Gemini API key
-- eBay Developer account (for full integration)
-- Flask web server
-
----
-
-## 🔐 Environment Variables
-
-```bash
-# Required
-GOOGLE_API_KEY=your_gemini_api_key
-
-# Optional (for eBay integration)
-EBAY_APP_ID=your_ebay_app_id
-EBAY_CERT_ID=your_ebay_cert_id
-EBAY_DEV_ID=your_ebay_dev_id
-EBAY_ACCESS_TOKEN=your_ebay_token
-```
-
----
-
-## 🎯 Workflow
-
-```
-1. Capture photo with Pixel 9 Pro XL
-   ↓
-2. Upload to web app
-   ↓
-3. AI detects and values all items
-   ↓
-4. Decision gate filters worth listing
-   ↓
-5. Progressive questioning gathers details
-   ↓
-6. Listing auto-generated
-   ↓
-7. Review and publish to eBay
-```
-
----
-
-## 💡 Key Concepts
-
-- **Decision Gate**: Automatically filters items not worth listing
-- **Progressive Questioning**: Only asks necessary questions
-- **Canonical Format**: Marketplace-agnostic listing structure
-- **Multi-Item Support**: Process multiple items from one photo
-
----
-
-## 🐛 Troubleshooting
-
-See [SETUP.md](docs/SETUP.md) for troubleshooting guide.
-
-Common issues:
-- API key not found → Create `.env` file
-- Module not found → Run `pip install -r requirements.txt`
-- Port in use → Change port in `app.py`
-
----
-
-## 📈 Cost Estimates
-
-- **Gemini API**: ~$0.0005-0.001 per image analysis
-- **Per listing**: ~$0.001-0.002 total
-- **Very affordable** at scale!
-
----
-
-## 🤝 Contributing
-
-This is a modular system designed for extension:
-- Add new marketplaces (Etsy, FB Marketplace)
-- Customize decision gate thresholds
-- Enhance conversation logic
-- Add new AI models
-
----
-
-## 📄 License
-
-See individual files for license information.
-
----
-
-## 🎉 Getting Started
-
-1. ✅ Install dependencies: `pip install -r requirements.txt`
-2. ✅ Create `.env` with `GOOGLE_API_KEY`
-3. ✅ Run: `python app_enhanced.py`
-4. ✅ Visit: http://localhost:5000
-5. ✅ Upload a photo and start listing!
-
----
-
-**For detailed documentation, see the [docs/](docs/) folder.**
+**AI List Assist** - Turning reselling into a science.
