@@ -84,7 +84,6 @@ class EBayTokenManager:
             if response.status_code == 200:
                 token_data = response.json()
                 self._save_token(token_data)
-                self._update_env(token_data['access_token'], token_data.get('refresh_token'))
                 return token_data
             else:
                 try:
@@ -149,44 +148,9 @@ class EBayTokenManager:
                     token_data = new_token_data
 
                 self._save_token(token_data)
-                self._update_env(token_data['access_token'], token_data.get('refresh_token'))
                 return token_data
         except Exception as e:
-            print(f"Error refreshing token: {e}")
+            logging.error(f"Error refreshing token: {e}")
             
         return None
     
-    def _update_env(self, token, refresh_token=None):
-        """Update .env file with new token."""
-        try:
-            if not os.path.exists('.env'):
-                with open('.env', 'w') as f:
-                    f.write(f'EBAY_ACCESS_TOKEN={token}\n')
-                    if refresh_token:
-                        f.write(f'EBAY_REFRESH_TOKEN={refresh_token}\n')
-                return
-
-            with open('.env', 'r') as f:
-                lines = f.readlines()
-            
-            access_token_updated = False
-            refresh_token_updated = False
-
-            for i, line in enumerate(lines):
-                if line.startswith('EBAY_ACCESS_TOKEN='):
-                    lines[i] = f'EBAY_ACCESS_TOKEN={token}\n'
-                    access_token_updated = True
-                elif refresh_token and line.startswith('EBAY_REFRESH_TOKEN='):
-                    lines[i] = f'EBAY_REFRESH_TOKEN={refresh_token}\n'
-                    refresh_token_updated = True
-
-            if not access_token_updated:
-                lines.append(f'EBAY_ACCESS_TOKEN={token}\n')
-
-            if refresh_token and not refresh_token_updated:
-                lines.append(f'EBAY_REFRESH_TOKEN={refresh_token}\n')
-            
-            with open('.env', 'w') as f:
-                f.writelines(lines)
-        except Exception as e:
-            print(f"Error updating .env: {e}")
