@@ -672,7 +672,12 @@ def submit_listing_to_ebay():
             ebay_integration.access_token = token
 
         # Reconstruct ListingDraft
-        listing_id = data.get('listing_id', f"draft_{valuation_id[:8]}")
+        listing_id = data.get('listing_id')
+        if listing_id and not all(c.isalnum() or c in '-_' for c in listing_id):
+            return jsonify({"error": "Invalid listing_id format"}), 400
+        
+        if not listing_id:
+            listing_id = f"draft_{valuation_id[:8]}"
 
         condition_str = data.get('condition', 'USED')
         try:
