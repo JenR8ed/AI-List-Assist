@@ -1,10 +1,8 @@
-
 import unittest
-from unittest.mock import MagicMock, patch
-import os
 import sys
+from unittest.mock import MagicMock, patch
 
-# Mock modules before importing CategoryDetailGenerator
+# Mock modules before importing CategoryDetailGenerator to avoid dependency issues
 with patch.dict(sys.modules, {
     'services.ebay_category_service': MagicMock(),
     'services.gemini_rest_client': MagicMock(),
