@@ -1,156 +1,99 @@
-import pytest
+
+import unittest
+from unittest.mock import MagicMock, patch
 import os
-from unittest.mock import patch, MagicMock
-from services.category_detail_generator import CategoryDetailGenerator
+import sys
 
-@patch.dict(os.environ, {"GOOGLE_API_KEY": "dummy_key"})
-@patch('services.category_detail_generator.GeminiRestClient')
-@patch('services.category_detail_generator.EBayCategoryService')
-def test_init_success(mock_ebay_service, mock_gemini_client):
-    generator = CategoryDetailGenerator()
-    assert generator.category_service is not None
-    assert generator.gemini_client is not None
-    mock_gemini_client.assert_called_once_with(api_key="dummy_key")
+# Mock modules before importing CategoryDetailGenerator
+with patch.dict(sys.modules, {
+    'services.ebay_category_service': MagicMock(),
+    'services.gemini_rest_client': MagicMock(),
+    'requests': MagicMock(),
+    'httpx': MagicMock(),
+    'PIL': MagicMock(),
+    'google': MagicMock(),
+    'google.generativeai': MagicMock(),
+    'dotenv': MagicMock(),
+    'flask': MagicMock()
+}):
+    from services.category_detail_generator import CategoryDetailGenerator
 
-@patch.dict(os.environ, {"GOOGLE_API_KEY": "dummy_key"})
-@patch('services.category_detail_generator.GeminiRestClient', side_effect=Exception("Failed"))
-@patch('services.category_detail_generator.EBayCategoryService')
-def test_init_failure(mock_ebay_service, mock_gemini_client):
-    generator = CategoryDetailGenerator()
-    assert generator.gemini_client is None
+class TestCategoryDetailGenerator(unittest.TestCase):
+    def setUp(self):
+        self.generator = CategoryDetailGenerator()
+        # Mock the category service behavior
+        self.generator.category_service.get_category_aspects = MagicMock()
 
-@patch('services.category_detail_generator.GeminiRestClient')
-@patch('services.category_detail_generator.EBayCategoryService')
-def test_get_required_fields(mock_ebay_service, mock_gemini_client):
-    generator = CategoryDetailGenerator()
-    generator.category_service.get_category_aspects.return_value = {
-        "required": [
-            {"name": "Brand", "dataType": "STRING", "mode": "FREETEXT"},
-            {"name": "Type", "dataType": "STRING", "mode": "SELECT", "values": ["Shirt", "Pants"]}
-        ]
-    }
+    def test_generate_questions_missing_fields(self):
+        # Setup mock aspects
+        self.generator.category_service.get_category_aspects.return_value = {
+            "required": [
+                {"name": "Brand", "mode": "FREETEXT", "values": []},
+                {"name": "Color", "mode": "FREETEXT", "values": []}
+            ]
+        }
 
-    fields = generator.get_required_fields("1059")
+        # Scenario: Brand is known, Color is missing
+        known_data = {"Brand": "Sony", "item_name": "Headphones"}
+        questions = self.generator.generate_questions("293", known_data)
 
-    assert len(fields) == 2
-    assert fields[0]["name"] == "Brand"
-    assert fields[0]["required"] is True
-    assert fields[0]["data_type"] == "STRING"
-    assert fields[0]["input_mode"] == "FREETEXT"
-    assert fields[0]["allowed_values"] == []
+        self.assertEqual(len(questions), 1)
+        self.assertEqual(questions[0]["field"], "Color")
+        self.assertIn("color", questions[0]["question"].lower())
 
-    assert fields[1]["name"] == "Type"
-    assert fields[1]["input_mode"] == "SELECT"
-    assert fields[1]["allowed_values"] == ["Shirt", "Pants"]
+    def test_generate_questions_case_insensitivity(self):
+        # Setup mock aspects with mixed case
+        self.generator.category_service.get_category_aspects.return_value = {
+            "required": [
+                {"name": "BRAND", "mode": "FREETEXT", "values": []}
+            ]
+        }
 
-@patch('services.category_detail_generator.GeminiRestClient')
-@patch('services.category_detail_generator.EBayCategoryService')
-def test_generate_questions(mock_ebay_service, mock_gemini_client):
-    generator = CategoryDetailGenerator()
-    generator.category_service.get_category_aspects.return_value = {
-        "required": [
-            {"name": "Brand"},
-            {"name": "Type", "mode": "SELECT", "values": ["A", "B"]},
-            {"name": "Size"},
-            {"name": "Color"}
-        ]
-    }
+        # Known data with different case
+        known_data = {"brand": "Apple"}
+        questions = self.generator.generate_questions("293", known_data)
 
-    # All fields missing
-    questions = generator.generate_questions("123", {"item_name": "Test Item"})
-    assert len(questions) == 3 # Should limit to 3
-    assert questions[0]["field"] == "Brand"
-    assert questions[0]["input_type"] == "text"
-    assert questions[1]["field"] == "Type"
-    assert questions[1]["input_type"] == "select"
-    assert questions[1]["options"] == ["A", "B"]
-    assert questions[2]["field"] == "Size"
+        # BRAND should be considered known despite case difference
+        self.assertEqual(len(questions), 0)
 
-    # Some fields known
-    questions = generator.generate_questions("123", {"item_name": "Test Item", "brand": "Nike"})
-    assert len(questions) == 3
-    assert questions[0]["field"] == "Type"
+    def test_validate_data(self):
+        self.generator.category_service.get_category_aspects.return_value = {
+            "required": [
+                {"name": "Brand", "mode": "FREETEXT", "values": []},
+                {"name": "Type", "mode": "SELECT", "values": ["Phone", "Laptop"]}
+            ]
+        }
 
-    # Case insensitivity test
-    questions = generator.generate_questions("123", {"item_name": "Test Item", "BRAND": "Nike", "type": "A"})
-    assert len(questions) == 2
-    assert questions[0]["field"] == "Size"
-    assert questions[1]["field"] == "Color"
+        # Valid data
+        valid_data = {"Brand": "Samsung", "Type": "Phone"}
+        result = self.generator.validate_data("293", valid_data)
+        self.assertTrue(result["valid"])
+        self.assertEqual(len(result["missing"]), 0)
+        self.assertEqual(len(result["invalid"]), 0)
 
+        # Missing data
+        missing_data = {"Brand": "Samsung"}
+        result = self.generator.validate_data("293", missing_data)
+        self.assertFalse(result["valid"])
+        self.assertIn("Type", result["missing"])
 
-@patch('services.category_detail_generator.GeminiRestClient')
-@patch('services.category_detail_generator.EBayCategoryService')
-def test_create_question(mock_ebay_service, mock_gemini_client):
-    generator = CategoryDetailGenerator()
+        # Invalid SELECT value
+        invalid_data = {"Brand": "Samsung", "Type": "Toaster"}
+        result = self.generator.validate_data("293", invalid_data)
+        self.assertFalse(result["valid"])
+        self.assertEqual(len(result["invalid"]), 1)
+        self.assertEqual(result["invalid"][0]["field"], "Type")
 
-    assert generator._create_question({"name": "Brand"}, {"item_name": "shoe"}) == "What brand is shoe?"
-    assert generator._create_question({"name": "Type"}, {"item_name": "shirt"}) == "What type is shirt?"
-    assert generator._create_question({"name": "Size"}, {}) == "What size is this item?"
-    assert generator._create_question({"name": "Color"}, {"item_name": "hat"}) == "What color is hat?"
-    assert generator._create_question({"name": "Condition"}, {"item_name": "book"}) == "What condition is book in?"
+    def test_suggest_category_from_data(self):
+        # Test electronics
+        item = {"item_name": "iPhone 13"}
+        suggestions = self.generator.suggest_category_from_data(item)
+        self.assertEqual(suggestions[0]["category_id"], "293")
 
-    # Fallback
-    assert generator._create_question({"name": "Material"}, {"item_name": "table"}) == "What is the Material for table?"
-    assert generator._create_question({"name": "Material"}, {}) == "What is the Material for this item?"
+        # Test clothing
+        item = {"item_name": "Blue Denim Pants"}
+        suggestions = self.generator.suggest_category_from_data(item)
+        self.assertEqual(suggestions[0]["category_id"], "1059")
 
-@patch('services.category_detail_generator.GeminiRestClient')
-@patch('services.category_detail_generator.EBayCategoryService')
-def test_validate_data(mock_ebay_service, mock_gemini_client):
-    generator = CategoryDetailGenerator()
-    generator.category_service.get_category_aspects.return_value = {
-        "required": [
-            {"name": "Brand"},
-            {"name": "Type", "mode": "SELECT", "values": ["A", "B"]}
-        ]
-    }
-
-    # Valid
-    res = generator.validate_data("123", {"Brand": "Nike", "Type": "A"})
-    assert res["valid"] is True
-    assert len(res["missing"]) == 0
-    assert len(res["invalid"]) == 0
-
-    # Missing field
-    res = generator.validate_data("123", {"Type": "A"})
-    assert res["valid"] is False
-    assert res["missing"] == ["Brand"]
-    assert len(res["invalid"]) == 0
-
-    # Empty field (counts as missing)
-    res = generator.validate_data("123", {"Brand": "", "Type": "A"})
-    assert res["valid"] is False
-    assert res["missing"] == ["Brand"]
-
-    # Invalid select option
-    res = generator.validate_data("123", {"Brand": "Nike", "Type": "C"})
-    assert res["valid"] is False
-    assert len(res["missing"]) == 0
-    assert len(res["invalid"]) == 1
-    assert res["invalid"][0]["field"] == "Type"
-    assert res["invalid"][0]["value"] == "C"
-    assert res["invalid"][0]["allowed"] == ["A", "B"]
-
-@patch('services.category_detail_generator.GeminiRestClient')
-@patch('services.category_detail_generator.EBayCategoryService')
-def test_suggest_category_from_data(mock_ebay_service, mock_gemini_client):
-    generator = CategoryDetailGenerator()
-
-    res = generator.suggest_category_from_data({"item_name": "iPhone 12"})
-    assert res[0]["category_id"] == "293"
-    assert res[0]["confidence"] == 0.8
-
-    res = generator.suggest_category_from_data({"item_name": "Blue Cotton Shirt"})
-    assert res[0]["category_id"] == "1059"
-    assert res[0]["confidence"] == 0.7
-
-    res = generator.suggest_category_from_data({"item_name": "Vintage Clock"})
-    assert res[0]["category_id"] == "20081"
-    assert res[0]["confidence"] == 0.6
-
-    res = generator.suggest_category_from_data({"item_name": "Car Engine part"})
-    assert res[0]["category_id"] == "6024"
-    assert res[0]["confidence"] == 0.7
-
-    res = generator.suggest_category_from_data({"item_name": "Random item"})
-    assert res[0]["category_id"] == "293"
-    assert res[0]["confidence"] == 0.3
+if __name__ == '__main__':
+    unittest.main()

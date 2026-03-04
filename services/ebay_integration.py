@@ -265,57 +265,6 @@ class eBayIntegration:
         query_string = "&".join([f"{k}={v}" for k, v in params.items()])
         return f"{base_url}/oauth2/authorize?{query_string}"
 
-    def end_listing(self, sku: str) -> Dict[str, Any]:
-        """
-        End an active eBay listing by withdrawing its offer.
-        """
-        headers = self._get_headers()
-        if not self.access_token:
-            raise ValueError("Not authenticated. Call authenticate() first.")
-
-        # 1. Get offers for the SKU
-        offer_url = f"{self.base_url}/sell/inventory/v1/offer"
-        params = {"sku": sku}
-
-        try:
-            offer_response = requests.get(offer_url, headers=headers, params=params)
-
-            if offer_response.status_code == 401:
-                if self.refresh_access_token():
-                    headers = self._get_headers()
-                    offer_response = requests.get(offer_url, headers=headers, params=params)
-
-            if offer_response.status_code != 200:
-                self._handle_api_error(offer_response, "end_listing_get_offers")
-
-            offers_data = offer_response.json()
-            offers = offers_data.get("offers", [])
-
-            # Find the published offer
-            published_offer = next((o for o in offers if o.get("status") == "PUBLISHED"), None)
-
-            if not published_offer:
-                raise RuntimeError(f"No published offer found for SKU {sku}")
-
-            offer_id = published_offer.get("offerId")
-
-            # 2. Withdraw the offer
-            withdraw_url = f"{self.base_url}/sell/inventory/v1/offer/{offer_id}/withdraw"
-            withdraw_response = requests.post(withdraw_url, headers=headers)
-
-            if withdraw_response.status_code == 401:
-                if self.refresh_access_token():
-                    headers = self._get_headers()
-                    withdraw_response = requests.post(withdraw_url, headers=headers)
-
-            if withdraw_response.status_code == 200:
-                return withdraw_response.json()
-            else:
-                self._handle_api_error(withdraw_response, "end_listing_withdraw")
-
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Network error ending listing: {str(e)}") from e
-
     def get_active_listings(self) -> List[Dict[str, Any]]:
         """
         Fetch active listings (published offers) from eBay, joined with inventory data.
