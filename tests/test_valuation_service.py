@@ -4,7 +4,7 @@ import os
 import sys
 
 # Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Mock EBayTokenManager so it doesn't fail on import if dependencies are missing
 sys.modules["services.ebay_token_manager"] = MagicMock()
@@ -14,9 +14,10 @@ from shared.models import Profitability
 
 class TestValuationService(unittest.TestCase):
     def setUp(self):
-        # The EBayTokenManager is mocked at the module level (line 10) due to the
-        # local import in ValuationService.__init__. self.service.token_manager
-        # will be a MagicMock instance automatically.
+        # We need to mock the token_manager that is instantiated in __init__
+        self.patcher = patch('services.valuation_service.EBayTokenManager', create=True)
+        self.mock_manager_class = self.patcher.start()
+        self.mock_token_manager_instance = self.mock_manager_class.return_value
 
         self.service = ValuationService(use_sandbox=True)
 
@@ -27,7 +28,7 @@ class TestValuationService(unittest.TestCase):
         }
 
     def tearDown(self):
-        pass
+        self.patcher.stop()
 
     def test_initialization(self):
         # Sandbox

@@ -11,7 +11,6 @@ import httpx
 from typing import Any, Dict, List, Optional
 
 import requests
-import httpx
 
 
 class GeminiRestClient:
@@ -38,13 +37,19 @@ class GeminiRestClient:
         self.timeout_s = timeout_s
         self.session = requests.Session()
 
-    def _prepare_payload(
+    def count_tokens(
         self,
         prompt: str,
+        *,
         inline_image_base64: Optional[str] = None,
         inline_image_mime_type: Optional[str] = None,
-        generation_config: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, int]:
+        """Count tokens for content before making request."""
+        url = (
+            f"{self.api_base}/{self.api_version}/models/"
+            f"{self.model}:countTokens?key={self.api_key}"
+        )
+
         parts: List[Dict[str, Any]] = [{"text": prompt}]
         if inline_image_base64:
             if not inline_image_mime_type:
@@ -66,45 +71,6 @@ class GeminiRestClient:
                 }
             ]
         }
-        if generation_config:
-            payload["generationConfig"] = generation_config
-        return payload
-
-    def _parse_generate_content_response(self, data: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
-        # Extract usage metadata
-        usage_metadata = data.get("usageMetadata", {})
-
-        # Typical response path: candidates[0].content.parts[*].text
-        candidates = data.get("candidates") or []
-        if not candidates:
-            raise RuntimeError(f"No candidates in response: {json.dumps(data)[:2000]}")
-
-        content = candidates[0].get("content") or {}
-        parts_out = content.get("parts") or []
-        texts = []
-        for p in parts_out:
-            t = p.get("text")
-            if t:
-                texts.append(t)
-        if not texts:
-            raise RuntimeError(f"No text parts in response: {json.dumps(data)[:2000]}")
-
-        return "\n".join(texts), usage_metadata
-
-    def count_tokens(
-        self,
-        prompt: str,
-        *,
-        inline_image_base64: Optional[str] = None,
-        inline_image_mime_type: Optional[str] = None,
-    ) -> Dict[str, int]:
-        """Count tokens for content before making request."""
-        url = (
-            f"{self.api_base}/{self.api_version}/models/"
-            f"{self.model}:countTokens?key={self.api_key}"
-        )
-
-        payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type)
 
         resp = self.session.post(url, json=payload, timeout=self.timeout_s)
         resp.raise_for_status()
@@ -119,13 +85,33 @@ class GeminiRestClient:
         inline_image_base64: Optional[str] = None,
         inline_image_mime_type: Optional[str] = None,
     ) -> Dict[str, int]:
-        """Count tokens for content before making request asynchronously."""
+        """Async version of count_tokens."""
         url = (
             f"{self.api_base}/{self.api_version}/models/"
             f"{self.model}:countTokens?key={self.api_key}"
         )
 
-        payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type)
+        parts: List[Dict[str, Any]] = [{"text": prompt}]
+        if inline_image_base64:
+            if not inline_image_mime_type:
+                raise ValueError("inline_image_mime_type is required when providing inline_image_base64")
+            parts.append(
+                {
+                    "inlineData": {
+                        "mimeType": inline_image_mime_type,
+                        "data": inline_image_base64,
+                    }
+                }
+            )
+
+        payload: Dict[str, Any] = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": parts,
+                }
+            ]
+        }
 
         async with httpx.AsyncClient(timeout=self.timeout_s) as client:
             resp = await client.post(url, json=payload)
@@ -148,44 +134,55 @@ class GeminiRestClient:
             f"{self.model}:generateContent?key={self.api_key}"
         )
 
-        generation_config = {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens,
+        parts: List[Dict[str, Any]] = [{"text": prompt}]
+        if inline_image_base64:
+            if not inline_image_mime_type:
+                raise ValueError("inline_image_mime_type is required when providing inline_image_base64")
+            parts.append(
+                {
+                    "inlineData": {
+                        "mimeType": inline_image_mime_type,
+                        "data": inline_image_base64,
+                    }
+                }
+            )
+
+        payload: Dict[str, Any] = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": parts,
+                }
+            ],
+            "generationConfig": {
+                "temperature": temperature,
+                "maxOutputTokens": max_output_tokens,
+            },
         }
-        payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type, generation_config)
 
         resp = self.session.post(url, json=payload, timeout=self.timeout_s)
         resp.raise_for_status()
         data = resp.json()
 
-        return self._parse_generate_content_response(data)
+        # Extract usage metadata
+        usage_metadata = data.get("usageMetadata", {})
 
-    async def generate_content_async(
-        self,
-        prompt: str,
-        *,
-        inline_image_base64: Optional[str] = None,
-        inline_image_mime_type: Optional[str] = None,
-        temperature: float = 0.2,
-        max_output_tokens: int = 1024,
-    ) -> tuple[str, Dict[str, Any]]:
-        url = (
-            f"{self.api_base}/{self.api_version}/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
-        )
+        # Typical response path: candidates[0].content.parts[*].text
+        candidates = data.get("candidates") or []
+        if not candidates:
+            raise RuntimeError(f"No candidates in response: {json.dumps(data)[:2000]}")
 
-        generation_config = {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens,
-        }
-        payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type, generation_config)
+        content = candidates[0].get("content") or {}
+        parts_out = content.get("parts") or []
+        texts = []
+        for p in parts_out:
+            t = p.get("text")
+            if t:
+                texts.append(t)
+        if not texts:
+            raise RuntimeError(f"No text parts in response: {json.dumps(data)[:2000]}")
 
-        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-
-        return self._parse_generate_content_response(data)
+        return "\n".join(texts), usage_metadata
 
     async def generate_content_async(
         self,
