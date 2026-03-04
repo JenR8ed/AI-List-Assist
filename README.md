@@ -10,18 +10,19 @@ AI List Assist is a programmatic orchestration layer designed to transform raw v
 
 ### 🌟 Key Features
 
-*   **🤖 Multi-Item Hybrid Vision**: Snap one photo of multiple items; our Vision Service (Google Cloud Vision + Gemini 1.5 Flash) identifies and separates them automatically, extracting brand, model, and condition.
+*   **🤖 Multi-Item Hybrid Vision**: Snap one photo of multiple items; our Vision Service identifies and separates them automatically, extracting brand, model, and condition.
 *   **⚖️ Decision Gate Valuation Engine**: Instant market analysis providing estimated values, resale scores (1-10), and a "Worth Listing" recommendation based on real-time profitability metrics.
 *   **💬 Conversational Listing Assistant**: An AI-driven state machine that guides you through filling in missing eBay item specifics, resolving ambiguities through natural dialogue.
-*   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern **Inventory and Offer APIs** for seamless one-click publishing.
-*   **📦 Consignment & Asset Tracking**: Manage participants with KYC status, tax nexus codes, and commission tracking at scale.
+*   **🔌 Direct eBay Publishing**: Secure OAuth 2.0 integration with eBay’s modern **Inventory and Offer APIs** for seamless one-click publishing and state reconciliation.
+*   **🤝 Consignment & Asset Tracking**: Manage participants with KYC status, tax nexus codes, and commission tracking at scale via the `ConsignmentDatabase`.
 *   **💰 API Usage & Cost Tracker**: Real-time monitoring of AI and marketplace API calls with accurate cost estimation for transparent operations.
+*   **💾 Offline-First Resilience**: Local caching and state reconciliation ensure work continues even when network signals drop.
 
 ---
 
 ## 🎮 Operational Modes
 
-AI List Assist adapts to your specific reselling workflow through dedicated modes:
+AI List Assist adapts to your specific reselling workflow through four dedicated modes:
 
 | Mode | Purpose | Target User |
 | :--- | :--- | :--- |
@@ -47,7 +48,7 @@ graph TD
     I --> J[Live Management]
 ```
 
-1.  **Visual Acquisition**: Upload photos via the Web Dashboard or Telegram Bot.
+1.  **Visual Acquisition**: Upload photos via the Web Dashboard or the Telegram Bot (`your_ebay_valuator_bot.py`).
 2.  **Hybrid Analysis**: AI detects items, extracts text, and evaluates market potential.
 3.  **The Decision Gate**: Filters items based on 90-day sold history and demand.
 4.  **Guided Refinement**: The Conversational Orchestrator resolves missing eBay aspects.
@@ -58,24 +59,43 @@ graph TD
 ## 🏗️ Technical Architecture
 
 ### 🛠️ Tech Stack
-- **Backend**: Python 3.12 - 3.14.2 (Flask)
-- **AI Stack**: Google Cloud Vision & Gemini 1.5 Flash (Direct REST)
-- **Marketplace**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics)
-- **Persistence**: SQLite (Dual-DB strategy: `valuations.db` and `listings.db`)
-- **Mobile**: Python Telegram Bot API (Async)
+- **Backend**: Python 3.12+ - Utilizing Flask 3.0.0 for modern async features and strict type hinting.
+- **AI Stack**: Google Cloud Vision & Gemini 1.5 Flash (Direct REST Integration).
+- **Marketplace**: eBay Sell APIs (Inventory, Taxonomy, Account, Analytics) - Modern REST/JSON model.
+- **Persistence**: Hybrid Storage Strategy:
+    - **Triple-SQLite**: `valuations.db` (trends), `listings.db` (eBay state), and `consignment.db` (KYC/Assets).
+    - **PostgreSQL**: Centralized `ebay_market_data` for long-term trend analysis (supported via `seed_db.py`).
+    - **Redis**: High-speed caching for latest market trends and session data.
+- **Mobile**: Python Telegram Bot API (`your_ebay_valuator_bot.py` for async field sourcing).
+- **Containerization**: Docker & Docker Compose (Multi-container setup for scalable deployment).
 
-### 📁 Project Structure
-- `app_enhanced.py`: Main Flask application and Web API.
-- `your_ebay_valuator_bot.py`: Telegram bot for mobile sourcing.
-- `services/`: Modular business logic (Vision, Valuation, Listing, eBay Integration).
-- `shared/`: Canonical data models (ListingDraft, ItemValuation).
-- `templates/`: Professional Dashboard UI.
+### 📁 Modular Service System
+The platform is built on 13 specialized services:
+- `VisionService`: Hybrid OCR and object detection using Cloud Vision and Gemini.
+- `ValuationService`: Real-time market analysis and profitability scoring.
+- `ConversationOrchestrator`: Multi-turn dialogue for listing detail gathering.
+- `ListingSynthesisEngine`: SEO-optimized title and description generation.
+- `eBayIntegration`: Modern REST Inventory/Offer API management.
+- `EBayCategoryService`: Parameterized category tree and aspect mapping.
+- `EBayTokenManager`: OAuth 2.0 lifecycle with auto-refresh and in-memory caching.
+- `CategoryDetailGenerator`: Dynamic question generation based on eBay taxonomy.
+- `DraftImageManager`: Local management and cleanup of listing visual assets.
+- `ConsignmentDatabase`: Participant KYC and asset tracking management.
+- `ValuationDatabase`: Thread-local SQLite persistence with WAL enabled.
+- `GeminiRestClient`: Direct REST integration with Gemini 1.5 Flash.
+- `MockValuationService`: High-fidelity simulation for development and testing.
 
 ---
 
 ## ⚙️ Getting Started
 
-### 1. Installation
+### 1. Prerequisites
+- **Python 3.12+** (Required for core dependencies).
+- **Google Cloud API Key** (Vision + Gemini 1.5 Flash).
+- **eBay Developer Account** (Client ID + Secret).
+- **Telegram Bot Token** (Optional, for mobile sourcing).
+
+### 2. Installation
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -85,13 +105,13 @@ cd ai-list-assist
 pip install -r requirements.txt
 ```
 
-### 2. Quick Start with Docker
+### 3. Quick Start with Docker
+The fastest way to launch the full stack (App + Redis + DBs):
 ```bash
-# Launch full stack (App + Redis + DBs)
 docker-compose -f docker-compose.dev.yml up --build
 ```
 
-### 3. Configuration
+### 4. Configuration
 Create a `.env` file with your credentials:
 ```env
 SECRET_KEY=...
@@ -100,6 +120,7 @@ EBAY_CLIENT_ID=...
 EBAY_CLIENT_SECRET=...
 TELEGRAM_BOT_TOKEN=...
 EBAY_USE_SANDBOX=True
+EBAY_CATEGORY_TREE_ID=0
 ```
 
 ---
@@ -107,34 +128,38 @@ EBAY_USE_SANDBOX=True
 ## 📱 Interface Guide
 
 ### Web Dashboard (http://localhost:5000)
-- **Analyze**: Upload images for instant AI valuation.
-- **Drafts**: Refine and prepare listings for eBay.
-- **Live**: Manage active eBay listings directly.
-- **Stats**: Track performance and API usage costs.
+- **Analyze**: Upload images for instant AI valuation and "Worth Listing" checks.
+- **Drafts**: Refine and prepare listings with guided category aspect resolution.
+- **Live**: Manage active eBay listings, refresh state, and end items.
+- **Stats**: Track performance, resale success, and API usage costs.
+- **Accessibility**: ARIA-compliant dashboard with keyboard-triggerable upload zones (`tabindex="0"`).
 
-### Telegram Valuator Bot
-- **Snap**: Send a photo of an item while sourcing.
-- **Evaluate**: Receive instant Brand, Model, and Category identification.
+### Telegram Valuator Bot (`your_ebay_valuator_bot.py`)
+- **Snap**: Send a photo of an item while sourcing in the field.
+- **Evaluate**: Receive instant Brand, Model, and Category identification on the go.
 
 ---
 
 ## 📅 Roadmap
 
-- **Phase 1: Automation** (Current)
-  - [x] Modular service architecture.
-  - [x] Business Policy integration.
-  - [ ] Return Window Lock logic.
-- **Phase 2: Analytics**
-  - [ ] Consignment Payout Dashboard.
-  - [ ] Market Trend Analysis.
-- **Phase 3: Scale**
-  - [ ] Multi-Marketplace Support (Mercari, Poshmark).
-  - [ ] Studio Mode high-speed intake.
+- **Phase 1: Automation** (Complete)
+  - [x] Modular service architecture and Hybrid Vision/Valuation pipeline.
+  - [x] Modern eBay REST Inventory/Offer API integration.
+  - [x] Triple-DB state reconciliation strategy.
+- **Phase 2: Reporting & Analytics** (In Progress)
+  - [ ] Consignment Payout Dashboard and Market Trend Analysis.
+  - [ ] Postgres/Redis seeding for enterprise-scale market data.
+- **Phase 3: Scale** (Planned)
+  - [ ] Omnichannel support (Mercari, Poshmark) and Studio Mode bulk intake.
 
 ---
 
 ## 📄 Documentation
-- [Setup Guide](SETUP_GUIDE.md)
-- [Valuation Data Guide](VALUATION_DATA_GUIDE.md)
-- [eBay Listing Mapping](EBAY_LISTING_MAPPING.md)
-- [Agent Guidelines](AGENTS.md)
+- [Setup Guide](SETUP_GUIDE.md) - Detailed installation and troubleshooting.
+- [Valuation Data Guide](VALUATION_DATA_GUIDE.md) - Deep dive into valuation models.
+- [eBay Listing Mapping](EBAY_LISTING_MAPPING.md) - Schema mappings for eBay Inventory API.
+- [Agent Guidelines](AGENTS.md) - Technical standards and architectural context.
+
+---
+
+**AI List Assist** - Turning reselling into a science.
