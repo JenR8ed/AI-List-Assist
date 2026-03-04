@@ -220,7 +220,30 @@ def analyze_image():
                     "worth_listing": False,
                     "profitability": "not_recommended",
                     "status": "failed",
-                    "error": str(val_error)
+                    item.to_dict()
+                )
+                valuations.append(valuation)
+                item_results.append({
+                    "item_id": valuation.item_id,
+                    "item_name": valuation.item_name,
+                    "estimated_value": valuation.estimated_value,
+                    "worth_listing": valuation.worth_listing,
+                    "profitability": valuation.profitability.value,
+                    "status": "success"
+                })
+                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
+            except Exception as val_error:
+                logger.exception(f"Valuation error for item {item.item_id}")
+                # Collect failed items for the frontend
+                item_results.append({
+                    "item_id": item.item_id,
+                    "item_name": item.brand or "Unknown Item",
+                    "estimated_value": 0.0,
+                    "worth_listing": False,
+                    "profitability": "not_recommended",
+                    "status": "failed",
+                    "error": "Valuation failed due to an internal error."
+                })
                 })
 
         # Step 3: Filter items worth listing
