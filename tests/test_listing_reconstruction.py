@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition, ItemValuation, Profitability, ConversationState
 from services.listing_synthesis import ListingSynthesisEngine
-# from app_enhanced import app, init_db
+from app_enhanced import app, init_db
 
 class TestListingSynthesisEngine(unittest.TestCase):
     def setUp(self):
