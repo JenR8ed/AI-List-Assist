@@ -193,11 +193,19 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
     
     def _parse_gemini_response(self, response_text: str) -> List[DetectedItem]:
         """Extract and parse the JSON items array from Gemini's response."""
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}") + 1
+        json_str = ""
 
-        if json_start >= 0 and json_end > json_start:
-            json_str = response_text[json_start:json_end]
+        # Try to find a JSON block in markdown
+        json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            json_start = response_text.find("{")
+            json_end = response_text.rfind("}") + 1
+            if json_start >= 0 and json_end > json_start:
+                json_str = response_text[json_start:json_end]
+
+        if json_str:
             try:
                 data = json.loads(json_str)
                 items = []
@@ -213,8 +221,9 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
                     )
                     items.append(item)
                 return items if items else [self._create_default_item()]
-            except json.JSONDecodeError:
-                pass
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse Gemini JSON: {e}. Raw response: [REDACTED]")
+
         return [self._create_default_item()]
 
     def _detect_with_gemini(self, image_base64: str, media_type: str) -> List[DetectedItem]:
