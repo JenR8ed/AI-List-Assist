@@ -855,7 +855,8 @@ def refresh_live_listings():
             "listings": active_listings
         })
     except Exception as e:
-        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
+        logger.exception("API Error")
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/listing/<ebay_listing_id>', methods=['GET'])
 def get_ebay_listing(ebay_listing_id):
