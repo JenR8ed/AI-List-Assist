@@ -14,10 +14,9 @@ from shared.models import Profitability
 
 class TestValuationService(unittest.TestCase):
     def setUp(self):
-        # We need to mock the token_manager that is instantiated in __init__
-        self.patcher = patch('services.valuation_service.EBayTokenManager', create=True)
-        self.mock_manager_class = self.patcher.start()
-        self.mock_token_manager_instance = self.mock_manager_class.return_value
+        # The EBayTokenManager is mocked at the module level (line 10) due to the
+        # local import in ValuationService.__init__. self.service.token_manager
+        # will be a MagicMock instance automatically.
 
         self.service = ValuationService(use_sandbox=True)
 
