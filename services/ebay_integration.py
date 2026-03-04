@@ -270,7 +270,7 @@ class eBayIntegration:
         End an active eBay listing by withdrawing its offer.
         """
         headers = self._get_headers()
-        if not headers.get("Authorization"):
+        if not self.access_token:
             raise ValueError("Not authenticated. Call authenticate() first.")
 
         # 1. Get offers for the SKU
