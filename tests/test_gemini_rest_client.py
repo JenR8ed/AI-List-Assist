@@ -19,7 +19,7 @@ def test_init_missing_api_key():
 @patch("services.gemini_rest_client.requests.Session.post")
 def test_count_tokens_success(mock_post):
     mock_response = MagicMock()
-    mock_response.json.return_value = {"totalTokens": 42}
+    mock_response.json.return_value = SUCCESS_TOKEN_COUNT_RESPONSE
     mock_post.return_value = mock_response
 
     client = GeminiRestClient(api_key="test_key")
