@@ -77,6 +77,8 @@ class ValuationService:
             item_id=item_data.get("item_id", "unknown"),
             item_name=item_name,
             brand=item_data.get("brand"),
+            estimated_age="Unknown",
+            is_complete=True,
             estimated_value=estimated_value,
             value_range={"low": max(0.9, estimated_value * 0.8), "high": estimated_value * 1.2},
             condition_score=7,
