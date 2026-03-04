@@ -517,7 +517,8 @@ def get_ebay_oauth_url():
             "oauth_url": oauth_url
         })
     except Exception as e:
-        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
+        logger.exception("API Error")
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/valuations/recent', methods=['GET'])
 def get_recent_valuations():
