@@ -872,7 +872,8 @@ def get_ebay_listing(ebay_listing_id):
             "listing": listing
         })
     except Exception as e:
-        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
+        logger.exception("API Error")
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/update-listing', methods=['POST'])
 def update_ebay_listing():
