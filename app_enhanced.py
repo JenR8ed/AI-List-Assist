@@ -961,4 +961,4 @@ if __name__ == '__main__':
     print("Database initialized")
     print("Starting Enhanced eBay Listing Assistant")
     print("Visit: http://localhost:5000")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't'), host='0.0.0.0', port=5000)
