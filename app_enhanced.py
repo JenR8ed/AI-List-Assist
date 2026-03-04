@@ -8,6 +8,8 @@ from werkzeug.utils import secure_filename
 import base64
 import json
 import os
+import logging
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -29,6 +31,13 @@ from services.category_detail_generator import CategoryDetailGenerator
 # Load environment variables
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 if not app.config['SECRET_KEY']:
@@ -42,9 +51,9 @@ Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True)
 # Initialize services
 try:
     vision_service = VisionService()
-    print("Vision service initialized")
+    logger.info("Vision service initialized")
 except Exception as e:
-    print(f"Vision service failed: {e}")
+    logger.error(f"Vision service failed: {e}")
     vision_service = None
 
 # Initialize database and services
@@ -53,7 +62,7 @@ valuation_service = ValuationService(use_sandbox=True)
 category_service = EBayCategoryService()
 category_generator = CategoryDetailGenerator()
 draft_image_manager = DraftImageManager()
-print("Database and services initialized")
+logger.info("Database and services initialized")
 
 conversation_orchestrator = None
 listing_engine = None
@@ -63,9 +72,9 @@ try:
     conversation_orchestrator = ConversationOrchestrator()
     listing_engine = ListingSynthesisEngine()
     ebay_integration = eBayIntegration(use_sandbox=True)
-    print("Other services initialized")
+    logger.info("Other services initialized")
 except Exception as e:
-    print(f"Other services warning: {e}")
+    logger.warning(f"Other services warning: {e}")
 
 # ============================================================================
 # DATABASE
@@ -154,9 +163,10 @@ def analyze_image():
 
         # Create session
         session_id = str(uuid.uuid4())
+        image_hash = hashlib.sha256(image_data).hexdigest()
 
         # Step 1: Detect items
-        print(f"DEBUG: Processing image, size: {len(image_base64)} chars, content_type: {file.content_type}")
+        logger.debug(f"Processing image, size: {len(image_base64)} chars, content_type: {file.content_type}")
         if not vision_service:
             return jsonify({"error": "Vision service not available"}), 500
 
@@ -174,15 +184,16 @@ def analyze_image():
             if usage_metadata:  # If we have Gemini usage data, it was used
                 gemini_used = True
 
-            print(f"DEBUG: Detected {len(detected_items)} items")
+            logger.info(f"Detected {len(detected_items)} items")
             for i, item in enumerate(detected_items):
-                print(f"DEBUG: Item {i}: brand={item.brand}, category={item.probable_category}, text={item.detected_text}")
+                logger.debug(f"Item {i}: brand={item.brand}, category={item.probable_category}, text={item.detected_text}")
         except Exception as vision_error:
-            print(f"DEBUG: Vision service error: {vision_error}")
+            logger.exception(f"Vision service error: {vision_error}")
             return jsonify({"error": f"Vision service failed: {str(vision_error)}"}), 500
 
         # Step 2: Value each item
         valuations = []
+        item_results = []
         for item in detected_items:
             try:
                 content_type = file.content_type or 'image/jpeg'  # Default if None
@@ -192,19 +203,36 @@ def analyze_image():
                     item.to_dict()
                 )
                 valuations.append(valuation)
-                print(f"DEBUG: Valued item {item.item_id}: {valuation.item_name}")
+                item_results.append({
+                    "item_id": valuation.item_id,
+                    "item_name": valuation.item_name,
+                    "estimated_value": valuation.estimated_value,
+                    "worth_listing": valuation.worth_listing,
+                    "profitability": valuation.profitability.value,
+                    "status": "success"
+                })
+                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
             except Exception as val_error:
-                print(f"DEBUG: Valuation error for {item.item_id}: {val_error}")
-                # Continue with other items
+                logger.exception(f"Valuation error for item {item.item_id}")
+                # Collect failed items for the frontend
+                item_name = item.brand or item.probable_category or "Unknown Item"
+                item_results.append({
+                    "item_id": item.item_id,
+                    "item_name": item_name,
+                    "estimated_value": 0.0,
+                    "worth_listing": False,
+                    "profitability": "not_recommended",
+                    "status": "failed",
+                    "error": str(val_error),
+                })
 
         # Step 3: Filter items worth listing
         worth_listing = [v for v in valuations if v.worth_listing]
 
         # Save valuations to database
         for valuation in valuations:
-            image_hash = str(hash(image_base64))
             valuation_id = db.save_valuation(filename, image_hash, valuation)
-            print(f"Saved valuation {valuation_id} for {valuation.item_name}")
+            logger.info(f"Saved valuation {valuation_id} for {valuation.item_name}")
 
         # Save to database
         conn = sqlite3.connect('listings.db')
@@ -228,16 +256,7 @@ def analyze_image():
             "vision_used": vision_used,
             "gemini_used": gemini_used,
             "usage_metadata": usage_metadata,
-            "items": [
-                {
-                    "item_id": v.item_id,
-                    "item_name": v.item_name,
-                    "estimated_value": v.estimated_value,
-                    "worth_listing": v.worth_listing,
-                    "profitability": v.profitability.value
-                }
-                for v in valuations
-            ],
+            "items": item_results,
             "image_url": f"/uploads/{filename}"
         })
 
@@ -901,7 +920,7 @@ def download_file(filename):
 
 if __name__ == '__main__':
     init_db()
-    print("Database initialized")
-    print("Starting Enhanced eBay Listing Assistant")
-    print("Visit: http://localhost:5000")
+    logger.info("Database initialized")
+    logger.info("Starting Enhanced eBay Listing Assistant")
+    logger.info("Visit: http://localhost:5000")
     app.run(debug=True, host='0.0.0.0', port=5000)
