@@ -4,6 +4,7 @@ import base64
 import os
 import logging
 from datetime import datetime
+from pathlib import Path
 
 from extensions import db, vision_service, valuation_service, category_service, draft_image_manager
 
