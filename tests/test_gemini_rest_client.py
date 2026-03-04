@@ -32,10 +32,11 @@ def test_count_tokens_success(mock_post):
     args, kwargs = mock_post.call_args
     assert "inlineData" not in kwargs["json"]["contents"][0]["parts"][0]
 
-def test_count_tokens_missing_mime():
-    client = GeminiRestClient(api_key="test_key")
+@pytest.mark.parametrize("method_name", ["count_tokens", "count_tokens_async"])
+def test_count_tokens_missing_mime(client, method_name):
+    method = getattr(client, method_name)
     with pytest.raises(ValueError, match="inline_image_mime_type is required when providing inline_image_base64"):
-        client.count_tokens("test prompt", inline_image_base64="base64data")
+        method("test prompt", inline_image_base64="base64data")
 
 @patch("services.gemini_rest_client.requests.Session.post")
 def test_count_tokens_with_image(mock_post):
