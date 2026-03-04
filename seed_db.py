@@ -10,19 +10,27 @@ print("Waiting for databases...")
 time.sleep(15)
 
 # Connect to Redis
-r = redis.Redis(host='localhost', port=6379, db=0)
-print("Connected to Redis!")
+redis_host = os.environ.get("REDIS_HOST", "localhost")
+redis_port = int(os.environ.get("REDIS_PORT", 6379))
+r = redis.Redis(host=redis_host, port=redis_port, db=0)
+print(f"Connected to Redis at {redis_host}:{redis_port}!")
 
 # Connect to Postgres
+pg_dbname = os.environ.get("POSTGRES_DB", "ebay_market_data")
+pg_user = os.environ.get("POSTGRES_USER", "ai_user")
+pg_password = os.environ.get("POSTGRES_PASSWORD", "ai_password")
+pg_host = os.environ.get("POSTGRES_HOST", "localhost")
+pg_port = os.environ.get("POSTGRES_PORT", "5432")
+
 conn = None
 for i in range(5):
     try:
         conn = psycopg2.connect(
-            dbname="ebay_market_data",
-            user="ai_user",
-            password="ai_password",
-            host="localhost",
-            port=5432
+            dbname=pg_dbname,
+            user=pg_user,
+            password=pg_password,
+            host=pg_host,
+            port=pg_port
         )
         break
     except Exception as e:
