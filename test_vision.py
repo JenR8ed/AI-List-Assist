@@ -18,7 +18,7 @@ def test_vision_service():
         print("❌ No GOOGLE_API_KEY found in .env file")
         return
     
-    print(f"✅ API Key found: {api_key[:20]}...")
+    print(f"✅ API Key found: [REDACTED]")
     
     try:
         # Initialize vision service

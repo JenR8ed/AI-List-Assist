@@ -8,6 +8,16 @@ load_dotenv()
 client_id = os.getenv('EBAY_CLIENT_ID')
 client_secret = os.getenv('EBAY_CLIENT_SECRET')
 
+if client_id:
+    print(f"Client ID: [REDACTED]")
+else:
+    print("Client ID: NOT FOUND")
+
+if client_secret:
+    print(f"Client Secret: [REDACTED]")
+else:
+    print("Client Secret: NOT FOUND")
+
 credentials = f"{client_id}:{client_secret}"
 encoded = base64.b64encode(credentials.encode()).decode()
 

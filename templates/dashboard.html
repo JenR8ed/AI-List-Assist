@@ -1228,12 +1228,17 @@
         
         // Add event listeners for form validation
         document.addEventListener('DOMContentLoaded', function() {
-            ['listingTitle', 'listingPrice', 'listingDescription'].forEach(id => {
-                document.getElementById(id).addEventListener('input', validateForm);
-            });
+            // Check for elements before adding listeners (important for dynamic tabs)
+            const validateIfExists = (id) => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', validateForm);
+            };
+
+            ['listingTitle', 'listingPrice', 'listingDescription'].forEach(validateIfExists);
             
             // Character counter for title
-            document.getElementById('listingTitle').addEventListener('input', function() {
+            const listingTitle = document.getElementById('listingTitle');
+            if (listingTitle) listingTitle.addEventListener('input', function() {
                 const count = this.value.length;
                 document.querySelector('.char-count').textContent = `${count}/80`;
             });
@@ -1356,28 +1361,60 @@
             
             if (data.items && data.items.length > 0) {
                 resultsContainer.innerHTML = data.items.map(item => `
-                    <div class="item-result ${item.worth_listing ? 'worth-listing' : 'not-worth'}">
+                    <div class="item-result ${item.status === 'failed' ? 'not-worth' : (item.worth_listing ? 'worth-listing' : 'not-worth')}">
                         <div class="item-header">
                             <h4 class="item-name">${item.item_name}</h4>
-                            <span class="item-value">$${item.estimated_value.toFixed(2)}</span>
+                            <span class="item-value">${item.status === 'failed' ? 'ERROR' : '$' + item.estimated_value.toFixed(2)}</span>
                         </div>
-                        <div class="item-details">
-                            <div class="detail-item">
-                                <span class="detail-label">Worth Listing:</span>
-                                <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
-                                    ${item.worth_listing ? 'Yes' : 'No'}
-                                </span>
+                        ${item.status === 'failed' ? `
+                            <p class="text-danger item-error-message">
+                                 <span role="img" aria-label="Warning">⚠️</span> Valuation failed: ${escapeHTML(item.error)}
+                            </p>
+                        ` : `
+                            <div class="item-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">Worth Listing:</span>
+                                    <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
+                                        ${item.worth_listing ? 'Yes' : 'No'}
+                                    </span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Profitability:</span>
+                                    <span class="detail-value">${item.profitability.toUpperCase()}</span>
+                                </div>
                             </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Profitability:</span>
-                                <span class="detail-value">${item.profitability.toUpperCase()}</span>
-                            </div>
+                            ${item.worth_listing ? `
+            
+            if (data.items && data.items.length > 0) {
+                resultsContainer.innerHTML = data.items.map(item => `
+                    <div class="item-result ${item.status === 'failed' ? 'not-worth' : (item.worth_listing ? 'worth-listing' : 'not-worth')}">
+                        <div class="item-header">
+                            <h4 class="item-name">${item.item_name}</h4>
+                            <span class="item-value">${item.status === 'failed' ? 'ERROR' : '$' + item.estimated_value.toFixed(2)}</span>
                         </div>
-                        ${item.worth_listing ? `
-                            <button class="create-listing-btn" onclick="createListing('${item.item_id}')" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                Create Listing
-                            </button>
-                        ` : ''}
+                        ${item.status === 'failed' ? `
+                            <p class="text-danger" style="font-size: 0.85em; margin-top: 8px; font-weight: bold;">
+                                 <span role="img" aria-label="Warning">⚠️</span> Valuation failed: ${escapeHTML(item.error)}
+                            </p>
+                        ` : `
+                            <div class="item-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">Worth Listing:</span>
+                                    <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
+                                        ${item.worth_listing ? 'Yes' : 'No'}
+                                    </span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Profitability:</span>
+                                    <span class="detail-value">${item.profitability.toUpperCase()}</span>
+                                </div>
+                            </div>
+                            ${item.worth_listing ? `
+                                <button class="create-listing-btn" onclick="createListing('${escapeHTML(item.item_id)}')" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Create Listing
+                                </button>
+                            ` : ''}
+                        `}
                     </div>
                 `).join('');
                 

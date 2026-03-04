@@ -1,0 +1,35 @@
+--- services/ebay_integration.py
++++ services/ebay_integration.py
+@@ -198,7 +198,7 @@
+                 error_msg = main_error.get('message', 'Unknown error')
+                 error_id = main_error.get('errorId', 'Unknown ID')
+                 full_msg = f"eBay API error in {context}: {response.status_code} - {error_msg} (Error ID: {error_id})"
+-                print(f"ERROR: {full_msg}")
++                logger.error(full_msg)
+                 raise RuntimeError(full_msg)
+             else:
+                 raise RuntimeError(f"eBay API error in {context}: {response.status_code} - [REDACTED]")
+@@ -275,7 +275,7 @@
+         """
+         headers = self._get_headers()
+         if not headers.get("Authorization"):
+-            print("Warning: No access token available for eBay API")
++            logger.warning("No access token available for eBay API")
+             return []
+
+         # 1. Fetch Offers (Active Listings) with Pagination
+@@ -322,12 +322,12 @@
+                     next_inv_url = inv_data.get("next")
+                     inv_params = None
+                 else:
+-                    print(f"Warning: Failed to fetch inventory page: {inventory_response.status_code}")
++                    logger.warning(f"Failed to fetch inventory page: {inventory_response.status_code}")
+                     break
+
+             # 3. Join and Map
+             return self._join_offer_inventory(published_offers, inventory_map)
+
+         except Exception as e:
+-            print(f"Exception fetching eBay listings: {str(e)}")
++            logger.exception(f"Exception fetching eBay listings: {str(e)}")
+             return []

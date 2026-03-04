@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 import base64
 import json
 import os
+import logging
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -28,6 +29,13 @@ from services.category_detail_generator import CategoryDetailGenerator
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -145,7 +153,24 @@ def analyze_image():
         image_data = file.read()
         image_base64 = base64.b64encode(image_data).decode('utf-8')
 
+
+        # Validate file extension and MIME type
+        ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
+
+        def allowed_file(filename):
+            return '.' in filename and \
+                   filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+        content_type = file.content_type
+        if not content_type or content_type not in ALLOWED_MIME_TYPES:
+            return jsonify({"error": "Invalid file type. Only images are allowed."}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({"error": "Invalid file extension. Only images are allowed."}), 400
+
         # Save uploaded file
+
         safe_filename = secure_filename(file.filename)
         filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_filename}"
         filepath = Path(app.config['UPLOAD_FOLDER']) / filename
@@ -183,6 +208,7 @@ def analyze_image():
 
         # Step 2: Value each item
         valuations = []
+        item_results = []
         for item in detected_items:
             try:
                 content_type = file.content_type or 'image/jpeg'  # Default if None
@@ -192,10 +218,50 @@ def analyze_image():
                     item.to_dict()
                 )
                 valuations.append(valuation)
-                print(f"DEBUG: Valued item {item.item_id}: {valuation.item_name}")
+                item_results.append({
+                    "item_id": valuation.item_id,
+                    "item_name": valuation.item_name,
+                    "estimated_value": valuation.estimated_value,
+                    "worth_listing": valuation.worth_listing,
+                    "profitability": valuation.profitability.value,
+                    "status": "success"
+                })
+                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
             except Exception as val_error:
-                print(f"DEBUG: Valuation error for {item.item_id}: {val_error}")
-                # Continue with other items
+                logger.exception(f"Valuation error for item {item.item_id}")
+                # Collect failed items for the frontend
+                item_results.append({
+                    "item_id": item.item_id,
+                    "item_name": item.probable_category or item.brand or "Unknown Item",
+                    "estimated_value": 0.0,
+                    "worth_listing": False,
+                    "profitability": "not_recommended",
+                    "status": "failed",
+                    item.to_dict()
+                )
+                valuations.append(valuation)
+                item_results.append({
+                    "item_id": valuation.item_id,
+                    "item_name": valuation.item_name,
+                    "estimated_value": valuation.estimated_value,
+                    "worth_listing": valuation.worth_listing,
+                    "profitability": valuation.profitability.value,
+                    "status": "success"
+                })
+                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
+            except Exception as val_error:
+                logger.exception(f"Valuation error for item {item.item_id}")
+                # Collect failed items for the frontend
+                item_results.append({
+                    "item_id": item.item_id,
+                    "item_name": item.brand or "Unknown Item",
+                    "estimated_value": 0.0,
+                    "worth_listing": False,
+                    "profitability": "not_recommended",
+                    "status": "failed",
+                    "error": "Valuation failed due to an internal error."
+                })
+                })
 
         # Step 3: Filter items worth listing
         worth_listing = [v for v in valuations if v.worth_listing]
@@ -228,16 +294,7 @@ def analyze_image():
             "vision_used": vision_used,
             "gemini_used": gemini_used,
             "usage_metadata": usage_metadata,
-            "items": [
-                {
-                    "item_id": v.item_id,
-                    "item_name": v.item_name,
-                    "estimated_value": v.estimated_value,
-                    "worth_listing": v.worth_listing,
-                    "profitability": v.profitability.value
-                }
-                for v in valuations
-            ],
+            "items": item_results,
             "image_url": f"/uploads/{filename}"
         })
 
