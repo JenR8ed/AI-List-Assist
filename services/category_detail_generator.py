@@ -37,8 +37,11 @@ class CategoryDetailGenerator:
         required_fields = self.get_required_fields(category_id)
         questions = []
         
+        # Performance optimization: pre-compute normalized keys to avoid repeated O(M) list comprehensions
+        known_keys = {k.lower() for k in known_data}
+
         for field in required_fields:
-            if field["name"].lower() not in [k.lower() for k in known_data.keys()]:
+            if field["name"].lower() not in known_keys:
                 questions.append({
                     "field": field["name"],
                     "question": self._create_question(field, known_data),
