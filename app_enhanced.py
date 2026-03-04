@@ -215,7 +215,7 @@ def analyze_image():
                 # Collect failed items for the frontend
                 item_results.append({
                     "item_id": item.item_id,
-                    "item_name": item.brand or "Unknown Item",
+                    "item_name": item.probable_category or item.brand or "Unknown Item",
                     "estimated_value": 0.0,
                     "worth_listing": False,
                     "profitability": "not_recommended",
