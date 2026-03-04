@@ -56,7 +56,7 @@ def test_api_authorized_without_bearer_prefix(client):
     headers = {'Authorization': 'test_api_key_123'}
     response = client.get('/api/listings/drafts', headers=headers)
 
-    assert response.status_code != 401
+    assert response.status_code == 200
 
 def test_public_routes_unaffected(client):
     """Test that non-API routes don't require authentication."""
