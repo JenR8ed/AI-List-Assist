@@ -4,7 +4,6 @@ Handles category-specific item aspects and mapping from AI valuation
 """
 
 import requests
-import json
 import os
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
