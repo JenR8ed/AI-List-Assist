@@ -57,9 +57,8 @@ class TestEBayOAuth(unittest.TestCase):
 
     @patch('requests.post')
     @patch('services.ebay_token_manager.EBayTokenManager._save_token')
-    @patch('services.ebay_token_manager.EBayTokenManager._update_env')
     @patch('services.ebay_token_manager.EBayTokenManager._load_token')
-    def test_token_manager_refresh_with_refresh_token(self, mock_load, mock_update_env, mock_save, mock_post):
+    def test_token_manager_refresh_with_refresh_token(self, mock_load, mock_save, mock_post):
         # Mock successful response
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -86,9 +85,8 @@ class TestEBayOAuth(unittest.TestCase):
 
     @patch('requests.post')
     @patch('services.ebay_token_manager.EBayTokenManager._save_token')
-    @patch('services.ebay_token_manager.EBayTokenManager._update_env')
     @patch('services.ebay_token_manager.EBayTokenManager._load_token')
-    def test_token_manager_client_credentials_fallback(self, mock_load, mock_update_env, mock_save, mock_post):
+    def test_token_manager_client_credentials_fallback(self, mock_load, mock_save, mock_post):
         # Mock successful response
         mock_response = MagicMock()
         mock_response.status_code = 200
