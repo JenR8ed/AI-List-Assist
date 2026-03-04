@@ -326,7 +326,8 @@ def answer_question():
             "known_fields": state.known_fields
         })
     except Exception as e:
-        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
+        logger.exception("API Error")
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/listing/create', methods=['POST'])
 def create_listing():
