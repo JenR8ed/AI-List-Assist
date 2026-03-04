@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 import logging
 
-from extensions import category_generator
+from extensions import category_generator, category_service
 
 categories_bp = Blueprint('categories', __name__, url_prefix='/api')
 logger = logging.getLogger(__name__)
@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 def get_category_aspects(category_id):
     """Get required item specifics for an eBay category."""
     try:
-        from extensions import category_service
         aspects = category_service.get_category_specifics(category_id)
         return jsonify({
             "success": True,

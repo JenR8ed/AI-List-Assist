@@ -39,7 +39,7 @@ def analyze_image():
         # Prepend timestamp to ensure uniqueness
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_filename = f"{timestamp}_{filename}"
-        filepath = Path(current_app.config['UPLOAD_FOLDER']) / unique_filename
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
         file.save(filepath)
 
         # 1. Vision Analysis (Detect Items)
