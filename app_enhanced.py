@@ -237,30 +237,7 @@ def analyze_image():
                     "worth_listing": False,
                     "profitability": "not_recommended",
                     "status": "failed",
-                    item.to_dict()
-                )
-                valuations.append(valuation)
-                item_results.append({
-                    "item_id": valuation.item_id,
-                    "item_name": valuation.item_name,
-                    "estimated_value": valuation.estimated_value,
-                    "worth_listing": valuation.worth_listing,
-                    "profitability": valuation.profitability.value,
-                    "status": "success"
-                })
-                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
-            except Exception as val_error:
-                logger.exception(f"Valuation error for item {item.item_id}")
-                # Collect failed items for the frontend
-                item_results.append({
-                    "item_id": item.item_id,
-                    "item_name": item.brand or "Unknown Item",
-                    "estimated_value": 0.0,
-                    "worth_listing": False,
-                    "profitability": "not_recommended",
-                    "status": "failed",
                     "error": "Valuation failed due to an internal error."
-                })
                 })
 
         # Step 3: Filter items worth listing
@@ -324,7 +301,7 @@ def start_conversation():
             "is_complete": state.is_complete
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/conversation/answer', methods=['POST'])
 def answer_question():
@@ -349,7 +326,7 @@ def answer_question():
             "known_fields": state.known_fields
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/listing/create', methods=['POST'])
 def create_listing():
@@ -446,7 +423,7 @@ def create_listing():
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/listing/publish', methods=['POST'])
 def publish_listing():
@@ -522,7 +499,7 @@ def publish_listing():
             }), 401
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/oauth/url', methods=['GET'])
 def get_ebay_oauth_url():
@@ -539,7 +516,7 @@ def get_ebay_oauth_url():
             "oauth_url": oauth_url
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/valuations/recent', methods=['GET'])
 def get_recent_valuations():
@@ -553,7 +530,7 @@ def get_recent_valuations():
             "valuations": valuations
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/valuations/approved', methods=['GET'])
 def get_approved_valuations():
@@ -565,7 +542,7 @@ def get_approved_valuations():
             "approved_valuations": valuations
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/valuations/<valuation_id>/approve', methods=['POST'])
 def approve_valuation(valuation_id):
@@ -577,7 +554,7 @@ def approve_valuation(valuation_id):
         else:
             return jsonify({"error": "Valuation not found"}), 404
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
@@ -589,7 +566,7 @@ def get_stats():
             "stats": stats
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/valuations/<valuation_id>', methods=['GET'])
 def get_valuation(valuation_id):
@@ -610,7 +587,7 @@ def get_valuation(valuation_id):
         else:
             return jsonify({"error": "Valuation not found"}), 404
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/category/<category_id>/aspects', methods=['GET'])
 def get_category_aspects(category_id):
@@ -623,7 +600,7 @@ def get_category_aspects(category_id):
             "aspects": aspects
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/submit-listing', methods=['POST'])
 def submit_listing_to_ebay():
@@ -692,7 +669,7 @@ def submit_listing_to_ebay():
             "message": "Listing submitted successfully and draft images cleaned up"
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/listing/update-draft', methods=['POST'])
 def update_draft_listing():
@@ -719,7 +696,7 @@ def update_draft_listing():
         else:
             return jsonify({"error": "Draft not found"}), 404
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/listing/create-draft', methods=['POST'])
 def create_draft_listing():
@@ -745,7 +722,7 @@ def create_draft_listing():
         listing_id = db.create_draft_listing(valuation_id, listing_data)
         return jsonify({"success": True, "listing_id": listing_id})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/listings/drafts', methods=['GET'])
 def get_draft_listings():
@@ -754,7 +731,7 @@ def get_draft_listings():
         drafts = db.get_draft_listings()
         return jsonify({"success": True, "drafts": drafts})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/live-listings', methods=['GET'])
 def get_live_listings():
@@ -766,7 +743,7 @@ def get_live_listings():
             "listings": submissions
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/category/questions', methods=['POST'])
 def get_category_questions():
@@ -792,7 +769,7 @@ def get_category_questions():
             "validation": validation
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/category/suggest', methods=['POST'])
 def suggest_category():
@@ -809,7 +786,7 @@ def suggest_category():
             "suggestions": suggestions
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/category/<category_id>/fields', methods=['GET'])
 def get_required_fields(category_id):
@@ -822,7 +799,7 @@ def get_required_fields(category_id):
             "required_fields": required_fields
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/token/status', methods=['GET'])
 def get_token_status():
@@ -838,7 +815,7 @@ def get_token_status():
             "token_preview": token[:20] + "..." if token else None
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/token/refresh', methods=['POST'])
 def refresh_token():
@@ -857,7 +834,7 @@ def refresh_token():
         else:
             return jsonify({"error": "Failed to refresh token"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/refresh-listings', methods=['POST'])
 def refresh_live_listings():
@@ -875,7 +852,7 @@ def refresh_live_listings():
             "listings": active_listings
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/listing/<ebay_listing_id>', methods=['GET'])
 def get_ebay_listing(ebay_listing_id):
@@ -894,7 +871,7 @@ def get_ebay_listing(ebay_listing_id):
             "listing": listing
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/update-listing', methods=['POST'])
 def update_ebay_listing():
@@ -922,7 +899,7 @@ def update_ebay_listing():
             "ebay_response": update_response
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/end-listing', methods=['POST'])
 def end_ebay_listing():
@@ -944,7 +921,7 @@ def end_ebay_listing():
             "ebay_listing_id": ebay_listing_id
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/uploads/<filename>')
 def download_file(filename):
