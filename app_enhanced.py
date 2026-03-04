@@ -215,7 +215,7 @@ def analyze_image():
                 valuation = valuation_service.evaluate_item(
                     image_base64,
                     content_type,
-                    item.to_dict()
+                    **item.to_dict()
                 )
                 valuations.append(valuation)
                 item_results.append({
@@ -237,8 +237,8 @@ def analyze_image():
                     "worth_listing": False,
                     "profitability": "not_recommended",
                     "status": "failed",
-                    item.to_dict()
-                )
+                    **item.to_dict()
+                })
                 valuations.append(valuation)
                 item_results.append({
                     "item_id": valuation.item_id,
@@ -260,7 +260,6 @@ def analyze_image():
                     "profitability": "not_recommended",
                     "status": "failed",
                     "error": "Valuation failed due to an internal error."
-                })
                 })
 
         # Step 3: Filter items worth listing
@@ -961,4 +960,4 @@ if __name__ == '__main__':
     print("Database initialized")
     print("Starting Enhanced eBay Listing Assistant")
     print("Visit: http://localhost:5000")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't'), host='0.0.0.0', port=5000)
