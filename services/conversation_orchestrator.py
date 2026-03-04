@@ -231,7 +231,7 @@ class ConversationOrchestrator:
         
         # Weight
         if "weight" in question.lower():
-            weight_match = re.search(r'(\d+(?:\.\d+)?)\s*(lbs?|pounds?|kgs?|kilograms?|oz|ounces?)', answer_lower)
+            weight_match = re.search(r'(\d+(?:\.\d+)?)\s*(lbs|lb|pounds|pound|kilograms|kilogram|kg|ounces|ounce|oz)', answer_lower)
             if weight_match:
                 extracted["weight"] = f"{weight_match.group(1)} {weight_match.group(2)}"
         
