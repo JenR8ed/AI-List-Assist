@@ -150,7 +150,7 @@ class EBayTokenManager:
                 self._save_token(token_data)
                 return token_data
         except Exception as e:
-            print(f"Error refreshing token: {e}")
+            logging.error(f"Error refreshing token: {e}")
             
         return None
     
