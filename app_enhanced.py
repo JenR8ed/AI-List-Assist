@@ -91,7 +91,7 @@ def require_api_key(f):
         if request_key and request_key.startswith('Bearer '):
             request_key = request_key.split('Bearer ')[1]
 
-        if not request_key or request_key != api_key:
+        if not request_key or not hmac.compare_digest(request_key, api_key):
             return jsonify({"error": "Unauthorized"}), 401
 
         return f(*args, **kwargs)
