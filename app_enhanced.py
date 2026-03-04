@@ -929,7 +929,8 @@ def end_ebay_listing():
             "ebay_listing_id": ebay_listing_id
         })
     except Exception as e:
-        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
+        logger.exception("API Error")
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/uploads/<filename>')
 def download_file(filename):
