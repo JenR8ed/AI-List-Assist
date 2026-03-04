@@ -49,8 +49,7 @@ def test_api_authorized_with_valid_key(client):
     headers = {'Authorization': 'Bearer test_api_key_123'}
     response = client.get('/api/listings/drafts', headers=headers)
 
-    # Might be 200 or 500 depending on DB state, but shouldn't be 401
-    assert response.status_code != 401
+    assert response.status_code == 200
 
 def test_api_authorized_without_bearer_prefix(client):
     """Test that API works even without 'Bearer ' prefix."""
