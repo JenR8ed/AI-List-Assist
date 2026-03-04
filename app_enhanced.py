@@ -734,7 +734,8 @@ def get_draft_listings():
         drafts = db.get_draft_listings()
         return jsonify({"success": True, "drafts": drafts})
     except Exception as e:
-        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
+        logger.exception("API Error")
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/ebay/live-listings', methods=['GET'])
 def get_live_listings():
