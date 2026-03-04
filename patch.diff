@@ -1,0 +1,18 @@
+--- services/ebay_integration.py
++++ services/ebay_integration.py
+@@ -3,6 +3,7 @@
+ Handles OAuth, listing creation, and eBay Sell APIs.
+ """
+
++import logging
+ from typing import Dict, Any, Optional, List
+ import os
+ import requests
+@@ -10,6 +11,7 @@
+ from shared.models import ListingDraft, ItemCondition
+ from services.ebay_token_manager import EBayTokenManager
+
++logger = logging.getLogger(__name__)
+
+ class eBayIntegration:
+     """Integration layer for eBay Sell APIs."""

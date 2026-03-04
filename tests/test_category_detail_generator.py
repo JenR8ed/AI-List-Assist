@@ -4,9 +4,6 @@ from unittest.mock import MagicMock, patch
 import os
 import sys
 
-# Ensure the root directory is in sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 # Mock modules before importing CategoryDetailGenerator
 with patch.dict(sys.modules, {
     'services.ebay_category_service': MagicMock(),
