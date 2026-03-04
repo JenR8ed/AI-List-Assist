@@ -28,7 +28,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Ensure folders exist, skip during test discovery where config is mocked
-if not app.testing:
+if not getattr(app.config.get('UPLOAD_FOLDER', ''), '__class__', None).__name__ == 'MagicMock':
     try:
         Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True)
     except Exception as e:
