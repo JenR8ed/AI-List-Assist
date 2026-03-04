@@ -27,7 +27,7 @@ class TestValuationService(unittest.TestCase):
         }
 
     def tearDown(self):
-        self.patcher.stop()
+        pass
 
     def test_initialization(self):
         # Sandbox
