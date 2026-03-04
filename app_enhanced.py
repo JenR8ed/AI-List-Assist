@@ -647,17 +647,55 @@ def submit_listing_to_ebay():
             "aspects": validation["aspects"],
             "validation_errors": validation["errors"]
         }
-        # For now, simulate eBay submission
-        ebay_listing_id = f"ebay_{valuation_id[:8]}"
+        # Ensure we have a valid eBay token
+        token = ebay_integration.token_manager.get_valid_token()
+        if token:
+            ebay_integration.access_token = token
 
-        # Record submission in database
-        submission_id = db.submit_to_ebay(
-            valuation_id=valuation_id,
-            ebay_listing_id=ebay_listing_id,
-            listing_title=data.get('title'),
-            listing_price=data.get('price'),
-            ebay_response={"status": "success", "listing_id": ebay_listing_id}
+        # Reconstruct ListingDraft
+        listing_id = data.get('listing_id')
+        if listing_id and not all(c.isalnum() or c in '-_' for c in listing_id):
+            return jsonify({"error": "Invalid listing_id format"}), 400
+        
+        if not listing_id:
+            listing_id = f"draft_{valuation_id[:8]}"
+
+        condition_str = data.get('condition', 'USED')
+        try:
+            condition = ItemCondition(condition_str)
+        except ValueError:
+            condition = ItemCondition.USED
+
+        listing_draft = ListingDraft(
+            listing_id=listing_id,
+            item_id=valuation_id,
+            title=data.get('title'),
+            description=data.get('description', ''),
+            category_id=category_id,
+            condition=condition,
+            price=float(data.get('price') or 0.0),
+            item_specifics=validation["aspects"],
+            images=data.get('images', [])
         )
+
+        # Publish to eBay
+        try:
+            ebay_result = ebay_integration.create_listing(listing_draft)
+            ebay_listing_id = ebay_result.get("listing_id")
+
+            # Record submission in database
+            submission_id = db.submit_to_ebay(
+                valuation_id=valuation_id,
+                ebay_listing_id=ebay_listing_id,
+                listing_title=data.get('title'),
+                listing_price=price,
+                ebay_response=ebay_result
+            )
+        except Exception as ebay_err:
+            return jsonify({
+                "error": f"eBay publishing failed: {str(ebay_err)}",
+                "details": "The listing was processed but failed to publish to eBay."
+            }), 500
 
         # Cleanup draft images after successful submission
         listing_id = data.get('listing_id')
