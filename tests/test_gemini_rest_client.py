@@ -8,8 +8,7 @@ sys.modules['flask'] = MagicMock()
 
 from services.gemini_rest_client import GeminiRestClient
 
-def test_init_success():
-    client = GeminiRestClient(api_key="test_key")
+def test_init_success(client):
     assert client.api_key == "test_key"
     assert client.model == "gemini-2.5-flash"
 
