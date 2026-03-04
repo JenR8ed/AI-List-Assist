@@ -1,9 +1,9 @@
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from services.conversation_orchestrator import ConversationOrchestrator
 
 # Load env to get your Gemini API Key
-load_dotenv()
+# load_dotenv()
 
 def run_cli_test():
     print("🤖 Initializing Conversation Orchestrator...")
