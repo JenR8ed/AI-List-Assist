@@ -1363,7 +1363,7 @@
                         </div>
                         ${item.status === 'failed' ? `
                             <p class="text-danger" style="font-size: 0.85em; margin-top: 8px; font-weight: bold;">
-                                <span role="img" aria-label="Warning">⚠️</span> Valuation failed: ${item.error}
+                                 <span role="img" aria-label="Warning">⚠️</span> Valuation failed: ${escapeHTML(item.error)}
                             </p>
                         ` : `
                             <div class="item-details">
