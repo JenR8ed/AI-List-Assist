@@ -1,3 +1,4 @@
+import asyncio
 """
 Enhanced Flask App - End-to-End eBay Listing Assistant
 Integrates all services: vision, valuation, conversation, listing synthesis, eBay API
@@ -137,7 +138,7 @@ def simple_interface():
     return render_template('index.html')
 
 @app.route('/api/analyze', methods=['POST'])
-def analyze_image():
+async def analyze_image():
     """
     Analyze image: detect items, value them, and determine if worth listing.
     """
@@ -191,7 +192,7 @@ def analyze_image():
 
         try:
             content_type = file.content_type or 'image/jpeg'  # Default if None
-            detected_items = vision_service.detect_items(image_base64, content_type)
+            detected_items = await vision_service.detect_items_async(image_base64, content_type)
 
             # Check which APIs were used
             vision_used = True  # Cloud Vision always tried first
@@ -212,7 +213,8 @@ def analyze_image():
         for item in detected_items:
             try:
                 content_type = file.content_type or 'image/jpeg'  # Default if None
-                valuation = valuation_service.evaluate_item(
+                valuation = await asyncio.to_thread(
+                    valuation_service.evaluate_item,
                     image_base64,
                     content_type,
                     item.to_dict()
@@ -237,30 +239,7 @@ def analyze_image():
                     "worth_listing": False,
                     "profitability": "not_recommended",
                     "status": "failed",
-                    item.to_dict()
-                )
-                valuations.append(valuation)
-                item_results.append({
-                    "item_id": valuation.item_id,
-                    "item_name": valuation.item_name,
-                    "estimated_value": valuation.estimated_value,
-                    "worth_listing": valuation.worth_listing,
-                    "profitability": valuation.profitability.value,
-                    "status": "success"
-                })
-                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
-            except Exception as val_error:
-                logger.exception(f"Valuation error for item {item.item_id}")
-                # Collect failed items for the frontend
-                item_results.append({
-                    "item_id": item.item_id,
-                    "item_name": item.brand or "Unknown Item",
-                    "estimated_value": 0.0,
-                    "worth_listing": False,
-                    "profitability": "not_recommended",
-                    "status": "failed",
                     "error": "Valuation failed due to an internal error."
-                })
                 })
 
         # Step 3: Filter items worth listing
