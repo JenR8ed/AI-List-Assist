@@ -502,10 +502,11 @@
         }
         
         function validateUpdateForm() {
-            const title = document.getElementById('updateTitle').value;
+            const title = document.getElementById('updateTitle').value.trim();
             const price = document.getElementById('updatePrice').value;
+            const description = document.getElementById('updateDescription').value.trim();
             
-            const isValid = title.length > 0 && price > 0;
+            const isValid = title !== '' && price >= 0.99 && description !== '';
             document.getElementById('updateListingBtn').disabled = !isValid;
         }
         
