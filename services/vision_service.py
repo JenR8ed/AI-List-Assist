@@ -19,6 +19,16 @@ logger = logging.getLogger(__name__)
 class VisionService:
     """Service for multi-item detection and OCR using Google Vision APIs."""
     
+    GEMINI_PROMPT = """Analyze this image and detect ALL distinct items visible.
+
+For each item, provide:
+1. Item category/type
+2. Any visible text (brand names, model numbers)
+3. Brand name if visible
+4. Model number if visible
+
+Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics", "detected_text": ["Sony"], "brand": "Sony", "model": "WH-1000XM4"}]}"""
+
     def __init__(self, api_key: Optional[str] = None):
         """Initialize vision service with Google APIs."""
         if not api_key:
@@ -181,22 +191,38 @@ class VisionService:
                 return model_match.group()
         return None
     
+    def _parse_gemini_response(self, response_text: str) -> List[DetectedItem]:
+        """Extract and parse the JSON items array from Gemini's response."""
+        json_start = response_text.find("{")
+        json_end = response_text.rfind("}") + 1
+
+        if json_start >= 0 and json_end > json_start:
+            json_str = response_text[json_start:json_end]
+            try:
+                data = json.loads(json_str)
+                items = []
+                for idx, item_data in enumerate(data.get("items", [])):
+                    item = DetectedItem(
+                        item_id=item_data.get("item_id", f"item_{idx + 1}"),
+                        bbox=BoundingBox(x=0, y=0, width=0, height=0),
+                        confidence=0.7,
+                        probable_category=item_data.get("probable_category"),
+                        detected_text=item_data.get("detected_text", []),
+                        brand=item_data.get("brand"),
+                        model=item_data.get("model")
+                    )
+                    items.append(item)
+                return items if items else [self._create_default_item()]
+            except json.JSONDecodeError:
+                pass
+        return [self._create_default_item()]
+
     def _detect_with_gemini(self, image_base64: str, media_type: str) -> List[DetectedItem]:
         """Fallback to Gemini Vision API."""
         
-        prompt = """Analyze this image and detect ALL distinct items visible.
-
-For each item, provide:
-1. Item category/type
-2. Any visible text (brand names, model numbers)
-3. Brand name if visible
-4. Model number if visible
-
-Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics", "detected_text": ["Sony"], "brand": "Sony", "model": "WH-1000XM4"}]}"""
-        
         try:
             response_text, usage_metadata = self.gemini_client.generate_content(
-                prompt,
+                self.GEMINI_PROMPT,
                 inline_image_base64=image_base64,
                 inline_image_mime_type=media_type,
                 temperature=0.2,
@@ -205,31 +231,7 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
             
             # Store usage metadata for tracking
             self.last_usage_metadata = usage_metadata
-            
-            json_start = response_text.find("{")
-            json_end = response_text.rfind("}") + 1
-
-            if json_start >= 0 and json_end > json_start:
-                json_str = response_text[json_start:json_end]
-                try:
-                    data = json.loads(json_str)
-                    items = []
-                    for idx, item_data in enumerate(data.get("items", [])):
-                        item = DetectedItem(
-                            item_id=item_data.get("item_id", f"item_{idx + 1}"),
-                            bbox=BoundingBox(x=0, y=0, width=0, height=0),
-                            confidence=0.7,
-                            probable_category=item_data.get("probable_category"),
-                            detected_text=item_data.get("detected_text", []),
-                            brand=item_data.get("brand"),
-                            model=item_data.get("model")
-                        )
-                        items.append(item)
-                    return items if items else [self._create_default_item()]
-                except json.JSONDecodeError:
-                    pass
-            
-            return [self._create_default_item()]
+            return self._parse_gemini_response(response_text)
         
         except Exception as e:
             logger.error(f"Gemini Vision error: {e}")
@@ -238,19 +240,9 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
     async def _detect_with_gemini_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
         """Fallback to Gemini Vision API (async)."""
 
-        prompt = """Analyze this image and detect ALL distinct items visible.
-
-For each item, provide:
-1. Item category/type
-2. Any visible text (brand names, model numbers)
-3. Brand name if visible
-4. Model number if visible
-
-Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics", "detected_text": ["Sony"], "brand": "Sony", "model": "WH-1000XM4"}]}"""
-
         try:
             response_text, usage_metadata = await self.gemini_client.generate_content_async(
-                prompt,
+                self.GEMINI_PROMPT,
                 inline_image_base64=image_base64,
                 inline_image_mime_type=media_type,
                 temperature=0.2,
@@ -259,31 +251,7 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
 
             # Store usage metadata for tracking
             self.last_usage_metadata = usage_metadata
-
-            json_start = response_text.find("{")
-            json_end = response_text.rfind("}") + 1
-
-            if json_start >= 0 and json_end > json_start:
-                json_str = response_text[json_start:json_end]
-                try:
-                    data = json.loads(json_str)
-                    items = []
-                    for idx, item_data in enumerate(data.get("items", [])):
-                        item = DetectedItem(
-                            item_id=item_data.get("item_id", f"item_{idx + 1}"),
-                            bbox=BoundingBox(x=0, y=0, width=0, height=0),
-                            confidence=0.7,
-                            probable_category=item_data.get("probable_category"),
-                            detected_text=item_data.get("detected_text", []),
-                            brand=item_data.get("brand"),
-                            model=item_data.get("model")
-                        )
-                        items.append(item)
-                    return items if items else [self._create_default_item()]
-                except json.JSONDecodeError:
-                    pass
-
-            return [self._create_default_item()]
+            return self._parse_gemini_response(response_text)
 
         except Exception as e:
             logger.error(f"Gemini Vision error: {e}")
