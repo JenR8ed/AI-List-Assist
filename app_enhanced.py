@@ -692,7 +692,7 @@ def submit_listing_to_ebay():
             description=data.get('description', ''),
             category_id=category_id,
             condition=condition,
-            price=float(data.get('price', 0.0)),
+            price=float(data.get('price') or 0.0),
             item_specifics=validation["aspects"],
             images=data.get('images', [])
         )
