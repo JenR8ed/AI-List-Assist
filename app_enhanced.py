@@ -696,7 +696,8 @@ def update_draft_listing():
         else:
             return jsonify({"error": "Draft not found"}), 404
     except Exception as e:
-        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
+        logger.exception("API Error")
+        return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/api/listing/create-draft', methods=['POST'])
 def create_draft_listing():
