@@ -75,6 +75,28 @@ try:
 except Exception as e:
     print(f"Other services warning: {e}")
 
+
+from functools import wraps
+
+def require_api_key(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        api_key = os.getenv('API_KEY')
+        if not api_key:
+            # If no API key is configured, we might want to allow it for dev
+            # But for security, we should enforce it.
+            return jsonify({"error": "Server misconfiguration: API_KEY not set"}), 500
+
+        request_key = request.headers.get('Authorization')
+        if request_key and request_key.startswith('Bearer '):
+            request_key = request_key.split('Bearer ')[1]
+
+        if not request_key or request_key != api_key:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        return f(*args, **kwargs)
+    return decorated_function
+
 # ============================================================================
 # DATABASE
 # ============================================================================
@@ -137,6 +159,7 @@ def simple_interface():
     return render_template('index.html')
 
 @app.route('/api/analyze', methods=['POST'])
+@require_api_key
 def analyze_image():
     """
     Analyze image: detect items, value them, and determine if worth listing.
@@ -232,35 +255,12 @@ def analyze_image():
                 # Collect failed items for the frontend
                 item_results.append({
                     "item_id": item.item_id,
-                    "item_name": item.probable_category or item.brand or "Unknown Item",
-                    "estimated_value": 0.0,
-                    "worth_listing": False,
-                    "profitability": "not_recommended",
-                    "status": "failed",
-                    item.to_dict()
-                )
-                valuations.append(valuation)
-                item_results.append({
-                    "item_id": valuation.item_id,
-                    "item_name": valuation.item_name,
-                    "estimated_value": valuation.estimated_value,
-                    "worth_listing": valuation.worth_listing,
-                    "profitability": valuation.profitability.value,
-                    "status": "success"
-                })
-                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
-            except Exception as val_error:
-                logger.exception(f"Valuation error for item {item.item_id}")
-                # Collect failed items for the frontend
-                item_results.append({
-                    "item_id": item.item_id,
                     "item_name": item.brand or "Unknown Item",
                     "estimated_value": 0.0,
                     "worth_listing": False,
                     "profitability": "not_recommended",
                     "status": "failed",
                     "error": "Valuation failed due to an internal error."
-                })
                 })
 
         # Step 3: Filter items worth listing
@@ -302,6 +302,7 @@ def analyze_image():
         return jsonify({"error": f"Error processing image: {str(e)}"}), 500
 
 @app.route('/api/conversation/start', methods=['POST'])
+@require_api_key
 def start_conversation():
     """Start conversation for gathering listing details."""
     data = request.json
@@ -327,6 +328,7 @@ def start_conversation():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/conversation/answer', methods=['POST'])
+@require_api_key
 def answer_question():
     """Process user's answer and get next question."""
     data = request.json
@@ -352,6 +354,7 @@ def answer_question():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/listing/create', methods=['POST'])
+@require_api_key
 def create_listing():
     """Create listing draft from conversation data."""
     data = request.json
@@ -449,6 +452,7 @@ def create_listing():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/listing/publish', methods=['POST'])
+@require_api_key
 def publish_listing():
     """Publish listing to eBay."""
     if not ebay_integration:
@@ -525,6 +529,7 @@ def publish_listing():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/oauth/url', methods=['GET'])
+@require_api_key
 def get_ebay_oauth_url():
     """Get eBay OAuth authorization URL."""
     if not ebay_integration:
@@ -542,6 +547,7 @@ def get_ebay_oauth_url():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/valuations/recent', methods=['GET'])
+@require_api_key
 def get_recent_valuations():
     """Get recent valuations."""
     limit = request.args.get('limit', 20, type=int)
@@ -556,6 +562,7 @@ def get_recent_valuations():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/valuations/approved', methods=['GET'])
+@require_api_key
 def get_approved_valuations():
     """Get approved valuations ready for eBay."""
     try:
@@ -568,6 +575,7 @@ def get_approved_valuations():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/valuations/<valuation_id>/approve', methods=['POST'])
+@require_api_key
 def approve_valuation(valuation_id):
     """Approve a valuation for eBay listing."""
     try:
@@ -580,6 +588,7 @@ def approve_valuation(valuation_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/stats', methods=['GET'])
+@require_api_key
 def get_stats():
     """Get valuation statistics."""
     try:
@@ -592,6 +601,7 @@ def get_stats():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/valuations/<valuation_id>', methods=['GET'])
+@require_api_key
 def get_valuation(valuation_id):
     """Get a specific valuation by ID."""
     try:
@@ -613,6 +623,7 @@ def get_valuation(valuation_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/category/<category_id>/aspects', methods=['GET'])
+@require_api_key
 def get_category_aspects(category_id):
     """Get eBay category-specific aspects."""
     try:
@@ -626,6 +637,7 @@ def get_category_aspects(category_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/submit-listing', methods=['POST'])
+@require_api_key
 def submit_listing_to_ebay():
     """Submit listing to eBay with category aspects."""
     data = request.json
@@ -695,6 +707,7 @@ def submit_listing_to_ebay():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/listing/update-draft', methods=['POST'])
+@require_api_key
 def update_draft_listing():
     """Update draft listing with category and aspects."""
     data = request.json
@@ -722,6 +735,7 @@ def update_draft_listing():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/listing/create-draft', methods=['POST'])
+@require_api_key
 def create_draft_listing():
     """Create draft listing from valuation."""
     data = request.json
@@ -748,6 +762,7 @@ def create_draft_listing():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/listings/drafts', methods=['GET'])
+@require_api_key
 def get_draft_listings():
     """Get draft listings ready for eBay submission."""
     try:
@@ -757,6 +772,7 @@ def get_draft_listings():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/live-listings', methods=['GET'])
+@require_api_key
 def get_live_listings():
     """Get all live eBay listings."""
     try:
@@ -769,6 +785,7 @@ def get_live_listings():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/category/questions', methods=['POST'])
+@require_api_key
 def get_category_questions():
     """Get category-specific questions from eBay Taxonomy API."""
     data = request.json
@@ -795,6 +812,7 @@ def get_category_questions():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/category/suggest', methods=['POST'])
+@require_api_key
 def suggest_category():
     """Suggest eBay category based on item data."""
     data = request.json
@@ -812,6 +830,7 @@ def suggest_category():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/category/<category_id>/fields', methods=['GET'])
+@require_api_key
 def get_required_fields(category_id):
     """Get exact required fields for a category from eBay Taxonomy API."""
     try:
@@ -825,6 +844,7 @@ def get_required_fields(category_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/token/status', methods=['GET'])
+@require_api_key
 def get_token_status():
     """Check eBay token status."""
     try:
@@ -841,6 +861,7 @@ def get_token_status():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/token/refresh', methods=['POST'])
+@require_api_key
 def refresh_token():
     """Force refresh eBay token."""
     try:
@@ -860,6 +881,7 @@ def refresh_token():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/refresh-listings', methods=['POST'])
+@require_api_key
 def refresh_live_listings():
     """Refresh live listings from eBay account."""
     if not ebay_integration:
@@ -878,6 +900,7 @@ def refresh_live_listings():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/listing/<ebay_listing_id>', methods=['GET'])
+@require_api_key
 def get_ebay_listing(ebay_listing_id):
     """Get specific eBay listing details."""
     try:
@@ -897,6 +920,7 @@ def get_ebay_listing(ebay_listing_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/update-listing', methods=['POST'])
+@require_api_key
 def update_ebay_listing():
     """Update eBay listing using ReviseItem API."""
     data = request.json
@@ -925,6 +949,7 @@ def update_ebay_listing():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ebay/end-listing', methods=['POST'])
+@require_api_key
 def end_ebay_listing():
     """End eBay listing using EndItem API."""
     data = request.json
