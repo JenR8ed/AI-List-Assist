@@ -237,8 +237,7 @@ def analyze_image():
                     "worth_listing": False,
                     "profitability": "not_recommended",
                     "status": "failed",
-                    item.to_dict()
-                )
+                })
                 valuations.append(valuation)
                 item_results.append({
                     "item_id": valuation.item_id,
@@ -261,8 +260,6 @@ def analyze_image():
                     "status": "failed",
                     "error": "Valuation failed due to an internal error."
                 })
-                })
-
         # Step 3: Filter items worth listing
         worth_listing = [v for v in valuations if v.worth_listing]
 
