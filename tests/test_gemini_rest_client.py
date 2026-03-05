@@ -3,14 +3,20 @@ import sys
 from unittest.mock import patch, MagicMock, AsyncMock
 
 # Mock out modules that might cause ImportErrors during testing
-sys.modules['dotenv'] = MagicMock()
-sys.modules['flask'] = MagicMock()
+# sys.modules['dotenv'] = MagicMock()
+# sys.modules['flask'] = MagicMock()
 
 from services.gemini_rest_client import GeminiRestClient
 
+SUCCESS_TOKEN_COUNT_RESPONSE = {"totalTokens": 42}
+
+@pytest.fixture
+def client():
+    return GeminiRestClient(api_key="test_key", model="gemini-1.5-flash")
+
 def test_init_success(client):
     assert client.api_key == "test_key"
-    assert client.model == "gemini-2.5-flash"
+    assert client.model == "gemini-1.5-flash"
 
 def test_init_missing_api_key():
     with pytest.raises(ValueError, match="api_key is required"):
@@ -32,11 +38,15 @@ def test_count_tokens_success(mock_post):
     args, kwargs = mock_post.call_args
     assert "inlineData" not in kwargs["json"]["contents"][0]["parts"][0]
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("method_name", ["count_tokens", "count_tokens_async"])
-def test_count_tokens_missing_mime(client, method_name):
+async def test_count_tokens_missing_mime(client, method_name):
     method = getattr(client, method_name)
     with pytest.raises(ValueError, match="inline_image_mime_type is required when providing inline_image_base64"):
-        method("test prompt", inline_image_base64="base64data")
+        if method_name.endswith("_async"):
+            await method("test prompt", inline_image_base64="base64data")
+        else:
+            method("test prompt", inline_image_base64="base64data")
 
 @patch("services.gemini_rest_client.requests.Session.post")
 def test_count_tokens_with_image(mock_post):
