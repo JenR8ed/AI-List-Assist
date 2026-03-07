@@ -13,6 +13,9 @@ from services.gemini_rest_client import GeminiRestClient
 import requests
 import httpx
 import base64
+import re
+
+logger = logging.getLogger(__name__)
 
 class VisionService:
     """Service for multi-item detection and OCR using Google Vision APIs."""
