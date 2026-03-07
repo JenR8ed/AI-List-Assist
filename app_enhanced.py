@@ -1,3 +1,4 @@
+import asyncio
 """
 Enhanced Flask App - End-to-End eBay Listing Assistant
 Integrates all services: vision, valuation, conversation, listing synthesis, eBay API
@@ -160,8 +161,7 @@ def simple_interface():
     return render_template('index.html')
 
 @app.route('/api/analyze', methods=['POST'])
-@require_api_key
-def analyze_image():
+async def analyze_image():
     """
     Analyze image: detect items, value them, and determine if worth listing.
     """
@@ -215,7 +215,7 @@ def analyze_image():
 
         try:
             content_type = file.content_type or 'image/jpeg'  # Default if None
-            detected_items = vision_service.detect_items(image_base64, content_type)
+            detected_items = await vision_service.detect_items_async(image_base64, content_type)
 
             # Check which APIs were used
             vision_used = True  # Cloud Vision always tried first
@@ -236,7 +236,8 @@ def analyze_image():
         for item in detected_items:
             try:
                 content_type = file.content_type or 'image/jpeg'  # Default if None
-                valuation = valuation_service.evaluate_item(
+                valuation = await asyncio.to_thread(
+                    valuation_service.evaluate_item,
                     image_base64,
                     content_type,
                     item.to_dict()
@@ -256,7 +257,7 @@ def analyze_image():
                 # Collect failed items for the frontend
                 item_results.append({
                     "item_id": item.item_id,
-                    "item_name": item.brand or "Unknown Item",
+                    "item_name": item.probable_category or item.brand or "Unknown Item",
                     "estimated_value": 0.0,
                     "worth_listing": False,
                     "profitability": "not_recommended",
