@@ -9,6 +9,7 @@ import base64
 import json
 import os
 import logging
+import hmac
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
