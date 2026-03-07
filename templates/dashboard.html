@@ -302,6 +302,16 @@
     </div>
 
     <script>
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         // API Usage Tracking with accurate pricing
         const API_COSTS = {
             VISION_FREE_TIER: 1000,

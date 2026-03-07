@@ -161,6 +161,7 @@ def simple_interface():
     return render_template('index.html')
 
 @app.route('/api/analyze', methods=['POST'])
+@require_api_key
 async def analyze_image():
     """
     Analyze image: detect items, value them, and determine if worth listing.
