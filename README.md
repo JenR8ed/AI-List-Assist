@@ -56,13 +56,21 @@ AI List Assist adapts to your specific reselling workflow through four dedicated
 - **Security**: Endpoint protection via `@require_api_key` (HMAC comparison) and strict file upload validation (MIME/Extension).
 - **Infrastructure**: Docker-ready for multi-container deployments.
 
-### 📁 Specialized Service System
-The platform is built on 13 specialized services, including:
-- `VisionService`: Hybrid OCR and object detection.
-- `CategoryDetailGenerator`: Optimized question generation (**30x speedup** via O(N+M) mapping).
-- `eBayIntegration`: Modern REST Inventory/Offer API management with idempotency support.
-- `EBayTokenManager`: Centralized OAuth 2.0 lifecycle with auto-refresh.
-- `ConsignmentDatabase`: Participant KYC (PENDING|VERIFIED|REJECTED) and asset provenance tracking.
+### 📁 Modular Service System
+The platform is built on 13 specialized services:
+1.  `VisionService`: Hybrid OCR and multi-item object detection.
+2.  `ValuationService`: Market analysis and decision gate logic.
+3.  `ConversationOrchestrator`: AI-driven dialogue management for item aspects.
+4.  `ListingSynthesisEngine`: SEO-optimized marketplace listing generation.
+5.  `eBayIntegration`: Modern REST Inventory/Offer API management.
+6.  `EBayCategoryService`: Interaction with eBay Taxonomy API for metadata.
+7.  `EBayTokenManager`: Centralized OAuth 2.0 lifecycle management.
+8.  `CategoryDetailGenerator`: Optimized question generation (~30x speedup via O(N+M) mapping).
+9.  `DraftImageManager`: Lifecycle management for listing images.
+10. `ConsignmentDatabase`: Participant KYC and asset provenance tracking.
+11. `ValuationDatabase`: History and trend analysis storage.
+12. `GeminiRestClient`: Unified sync/async interface for Google AI.
+13. `MockValuationService`: High-fidelity development and testing environment.
 
 ---
 
@@ -73,6 +81,7 @@ The platform is built on 13 specialized services, including:
 3.  **The Decision Gate**: Filters items based on 90-day sold history and demand.
 4.  **Guided Refinement**: The Conversational Orchestrator resolves missing eBay aspects.
 5.  **Marketplace Synthesis**: Automated generation of SEO-optimized eBay listings.
+6.  **Secure Publishing**: Direct deployment to eBay via the Inventory API.
 
 ---
 
@@ -97,7 +106,7 @@ GOOGLE_API_KEY=...         # Google AI Studio API Key
 EBAY_CLIENT_ID=...         # eBay Dev ID
 EBAY_CLIENT_SECRET=...     # eBay Cert ID
 EBAY_USE_SANDBOX=True      # Toggle for Sandbox/Production
-EBAY_CATEGORY_TREE_ID=0    # Default eBay Category Tree
+EBAY_CATEGORY_TREE_ID=0    # Default eBay Category Tree (0 for US)
 TELEGRAM_BOT_TOKEN=...     # For your_ebay_valuator_bot.py
 ```
 
