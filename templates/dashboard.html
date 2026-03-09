@@ -302,14 +302,15 @@
     </div>
 
     <script>
+        // Security helper to prevent XSS
         function escapeHTML(str) {
-            if (!str) return '';
-            return str.toString()
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+            if (str === null || str === undefined) return "";
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
 
         // API Usage Tracking with accurate pricing
@@ -716,13 +717,13 @@
             `;
             
             modal.innerHTML = `
-                <div style="background: white; border-radius: 8px; padding: 30px; max-width: 500px; width: 90%;" role="dialog" aria-labelledby="convModalTitle">
-                    <h3 id="convModalTitle"><span role="img" aria-label="Memo">📝</span> Listing Details for ${itemData.item_name}</h3>
-                    <p id="conversationQuestion" style="margin: 20px 0; font-size: 1.1em;">${question}</p>
+                <div style="background: white; border-radius: 8px; padding: 30px; max-width: 500px; width: 90%;">
+                    <h3>📝 Listing Details for ${escapeHTML(itemData.item_name)}</h3>
+                    <p id="conversationQuestion" style="margin: 20px 0; font-size: 1.1em;">${escapeHTML(question)}</p>
                     <input type="text" id="answerInput" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;" placeholder="Your answer...">
                     <div style="margin-top: 20px; text-align: right;">
-                        <button onclick="submitAnswer('${sessionId}', '${itemData.item_id}')" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px;">Submit</button>
-                        <button onclick="skipConversation('${itemData.item_id}')" style="background: #ccc; border: none; padding: 10px 20px; border-radius: 4px;">Skip</button>
+                        <button data-session-id="${escapeHTML(sessionId)}" data-item-id="${escapeHTML(itemData.item_id)}" onclick="submitAnswerFromData(this)" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px;">Submit</button>
+                        <button data-item-id="${escapeHTML(itemData.item_id)}" onclick="skipConversationFromData(this)" style="background: #ccc; border: none; padding: 10px 20px; border-radius: 4px;">Skip</button>
                     </div>
                 </div>
             `;
@@ -888,7 +889,7 @@
             
             modal.innerHTML = `
                 <div style="background: white; border-radius: 8px; padding: 30px; max-width: 600px; width: 90%;">
-                    <h3>Select Category for ${itemData.item_name}</h3>
+                    <h3>Select Category for ${escapeHTML(itemData.item_name)}</h3>
                     <div style="margin: 20px 0;">
                         <label>eBay Category:</label>
                         <select id="categorySelect" onchange="loadCategoryFields()" style="width: 100%; padding: 10px; margin-top: 5px;">
@@ -902,7 +903,7 @@
                     <div id="categoryFieldsTable"></div>
                     <div style="margin-top: 20px; text-align: right;">
                         <button onclick="closeCategoryModal()" style="margin-right: 10px; padding: 10px 20px; background: #ccc; border: none; border-radius: 4px;">Cancel</button>
-                        <button onclick="saveCategorySelection('${listingId}')" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 4px;">Save</button>
+                        <button onclick="saveCategorySelection('${escapeHTML(listingId)}')" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 4px;">Save</button>
                     </div>
                 </div>
             `;
@@ -962,18 +963,18 @@
                     inputHTML = `<select id="${fieldId}" style="width: 100%; padding: 5px;">`;
                     inputHTML += '<option value="">Select...</option>';
                     field.allowed_values.forEach(value => {
-                        inputHTML += `<option value="${value}">${value}</option>`;
+                        inputHTML += `<option value="${escapeHTML(value)}">${escapeHTML(value)}</option>`;
                     });
                     inputHTML += '</select>';
                 } else {
                     const suggestedValue = getSuggestedValue(field.name, window.currentItemData);
-                    inputHTML = `<input type="text" id="${fieldId}" value="${suggestedValue}" style="width: 100%; padding: 5px;" placeholder="Enter ${field.name}">`;
+                    inputHTML = `<input type="text" id="${fieldId}" value="${escapeHTML(suggestedValue)}" style="width: 100%; padding: 5px;" placeholder="Enter ${escapeHTML(field.name)}">`;
                 }
                 
                 tableHTML += `
                     <tr>
-                        <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${field.name}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">${field.input_mode}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${escapeHTML(field.name)}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${escapeHTML(field.input_mode)}</td>
                         <td style="border: 1px solid #ddd; padding: 8px;">${inputHTML}</td>
                     </tr>
                 `;
@@ -1125,24 +1126,24 @@
             container.innerHTML = drafts.map(draft => {
                 const photos = draft.listing_data.photos || [draft.image_filename];
                 const thumbnails = photos.map(photo => 
-                    `<img src="/uploads/${photo}" class="photo-thumb" onclick="showFullImage('/uploads/${photo}')" alt="Photo">`
+                    `<img src="/uploads/${encodeURIComponent(photo)}" class="photo-thumb" data-url="/uploads/${encodeURIComponent(photo)}" onclick="showFullImage(this.dataset.url)" alt="Photo">`
                 ).join('');
                 
                 return `
                     <div class="valuation-item">
                         <div style="display: flex; flex-direction: column; align-items: center;">
-                            <img src="/uploads/${photos[0]}" class="item-image" alt="${draft.item_name}" onclick="showFullImage('/uploads/${photos[0]})" style="cursor: pointer;">
+                            <img src="/uploads/${escapeHTML(photos[0])}" class="item-image" alt="${escapeHTML(draft.item_name)}" onclick="showFullImage('/uploads/${escapeHTML(photos[0])}')" style="cursor: pointer;">
                             ${photos.length > 1 ? `<div class="photo-thumbnails">${thumbnails}</div>` : ''}
                         </div>
                         <div class="item-details">
-                            <h4>${draft.listing_data.title || draft.item_name}</h4>
+                            <h4>${escapeHTML(draft.listing_data.title || draft.item_name)}</h4>
                             <p><strong>$${draft.listing_data.price?.toFixed(2) || draft.estimated_value?.toFixed(2)}</strong> • Draft</p>
                             <p>Created: ${new Date(draft.upload_timestamp).toLocaleDateString()}</p>
                             <span class="status-badge status-draft">DRAFT</span>
                         </div>
                         <div class="item-actions">
-                            <button class="submit-btn" onclick="submitDraftToEbay('${draft.id}')">Submit to eBay</button>
-                            <button class="cancel-btn" onclick="deleteDraft('${draft.id}')">Delete</button>
+                            <button class="submit-btn" onclick="submitDraftToEbay('${escapeHTML(draft.id)}')">Submit to eBay</button>
+                            <button class="cancel-btn" onclick="deleteDraft('${escapeHTML(draft.id)}')">Delete</button>
                         </div>
                     </div>
                 `;
@@ -1373,25 +1374,19 @@
                 resultsContainer.innerHTML = data.items.map(item => `
                     <div class="item-result ${item.status === 'failed' ? 'not-worth' : (item.worth_listing ? 'worth-listing' : 'not-worth')}">
                         <div class="item-header">
-                            <h4 class="item-name">${item.item_name}</h4>
-                            <span class="item-value">${item.status === 'failed' ? 'ERROR' : '$' + item.estimated_value.toFixed(2)}</span>
+                            <h4 class="item-name">${escapeHTML(item.item_name)}</h4>
+                            <span class="item-value">$${item.estimated_value.toFixed(2)}</span>
                         </div>
-                        ${item.status === 'failed' ? `
-                            <p class="text-danger item-error-message">
-                                 <span role="img" aria-label="Warning">⚠️</span> Valuation failed: ${escapeHTML(item.error)}
-                            </p>
-                        ` : `
-                            <div class="item-details">
-                                <div class="detail-item">
-                                    <span class="detail-label">Worth Listing:</span>
-                                    <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
-                                        ${item.worth_listing ? 'Yes' : 'No'}
-                                    </span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Profitability:</span>
-                                    <span class="detail-value">${item.profitability.toUpperCase()}</span>
-                                </div>
+                        <div class="item-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Worth Listing:</span>
+                                <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
+                                    ${item.worth_listing ? 'Yes' : 'No'}
+                                </span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Profitability:</span>
+                                <span class="detail-value">${escapeHTML(item.profitability.toUpperCase())}</span>
                             </div>
                             ${item.worth_listing ? `
             
@@ -1402,29 +1397,11 @@
                             <h4 class="item-name">${item.item_name}</h4>
                             <span class="item-value">${item.status === 'failed' ? 'ERROR' : '$' + item.estimated_value.toFixed(2)}</span>
                         </div>
-                        ${item.status === 'failed' ? `
-                            <p class="text-danger" style="font-size: 0.85em; margin-top: 8px; font-weight: bold;">
-                                 <span role="img" aria-label="Warning">⚠️</span> Valuation failed: ${escapeHTML(item.error)}
-                            </p>
-                        ` : `
-                            <div class="item-details">
-                                <div class="detail-item">
-                                    <span class="detail-label">Worth Listing:</span>
-                                    <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
-                                        ${item.worth_listing ? 'Yes' : 'No'}
-                                    </span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Profitability:</span>
-                                    <span class="detail-value">${item.profitability.toUpperCase()}</span>
-                                </div>
-                            </div>
-                            ${item.worth_listing ? `
-                                <button class="create-listing-btn" onclick="createListing('${escapeHTML(item.item_id)}')" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                    Create Listing
-                                </button>
-                            ` : ''}
-                        `}
+                        ${item.worth_listing ? `
+                            <button class="create-listing-btn" onclick="createListing('${escapeHTML(item.item_id)}')" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Create Listing
+                            </button>
+                        ` : ''}
                     </div>
                 `).join('');
                 
@@ -1505,16 +1482,16 @@
 
             container.innerHTML = listings.map(listing => `
                 <div class="valuation-item">
-                    <img src="/uploads/${listing.image_filename}" class="item-image" alt="${listing.listing_title}">
+                    <img src="/uploads/${escapeHTML(listing.image_filename)}" class="item-image" alt="${escapeHTML(listing.listing_title)}">
                     <div class="item-details">
-                        <h4>${listing.listing_title}</h4>
-                        <p><strong>$${listing.listing_price?.toFixed(2)}</strong> • eBay ID: ${listing.ebay_listing_id}</p>
-                        <p>Status: ${listing.listing_status?.toUpperCase()} • ${new Date(listing.submission_timestamp).toLocaleDateString()}</p>
-                        <span class="status-badge status-${listing.listing_status}">${listing.listing_status?.toUpperCase()}</span>
+                        <h4>${escapeHTML(listing.listing_title)}</h4>
+                        <p><strong>$${listing.listing_price?.toFixed(2)}</strong> • eBay ID: ${escapeHTML(listing.ebay_listing_id)}</p>
+                        <p>Status: ${escapeHTML(listing.listing_status?.toUpperCase())} • ${new Date(listing.submission_timestamp).toLocaleDateString()}</p>
+                        <span class="status-badge status-${escapeHTML(listing.listing_status)}">${escapeHTML(listing.listing_status?.toUpperCase())}</span>
                     </div>
                     <div class="item-actions">
-                        <button class="create-listing-btn" onclick="editLiveListing('${listing.ebay_listing_id}')">Edit Listing</button>
-                        <button class="cancel-btn" onclick="endListing('${listing.ebay_listing_id}')">End Listing</button>
+                        <button class="create-listing-btn" onclick="editLiveListing('${escapeHTML(listing.ebay_listing_id)}')">Edit Listing</button>
+                        <button class="cancel-btn" onclick="endListing('${escapeHTML(listing.ebay_listing_id)}')">End Listing</button>
                     </div>
                 </div>
             `).join('');
@@ -1530,16 +1507,16 @@
 
             container.innerHTML = valuations.map(item => `
                 <div class="valuation-item ${item.worth_listing ? 'worth-listing' : 'not-worth'}">
-                    <img src="/uploads/${item.image_filename}" class="item-image" alt="${item.item_name}">
+                    <img src="/uploads/${escapeHTML(item.image_filename)}" class="item-image" alt="${escapeHTML(item.item_name)}">
                     <div class="item-details">
-                        <h4>${item.item_name || 'Unknown Item'}</h4>
+                        <h4>${escapeHTML(item.item_name || 'Unknown Item')}</h4>
                         <p><strong>$${item.estimated_value?.toFixed(2) || '0.00'}</strong> • Condition: ${item.condition_score || 0}/10</p>
-                        <p>Profit: ${item.profitability?.toUpperCase() || 'UNKNOWN'} • ${new Date(item.upload_timestamp).toLocaleDateString()}</p>
-                        <span class="status-badge status-${item.status}">${item.status?.toUpperCase() || 'ANALYZED'}</span>
+                        <p>Profit: ${escapeHTML(item.profitability?.toUpperCase() || 'UNKNOWN')} • ${new Date(item.upload_timestamp).toLocaleDateString()}</p>
+                        <span class="status-badge status-${escapeHTML(item.status)}">${escapeHTML(item.status?.toUpperCase() || 'ANALYZED')}</span>
                     </div>
                     <div class="item-actions">
                         ${showApproveBtn && item.worth_listing && item.status === 'analyzed' ? 
-                            `<button class="create-listing-btn" onclick="createListing('${item.id}')">Create Listing</button>` : ''}
+                            `<button class="create-listing-btn" onclick="createListing('${escapeHTML(item.id)}')">Create Listing</button>` : ''}
                     </div>
                 </div>
             `).join('');
