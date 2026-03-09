@@ -222,7 +222,7 @@ def analyze_image():
                 ): item for item in detected_items
             }
 
-            for future in future_to_item:
+            for future in as_completed(future_to_item):
                 item = future_to_item[future]
                 try:
                     valuation = future.result()
