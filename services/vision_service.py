@@ -11,6 +11,7 @@ import httpx
 from shared.models import DetectedItem, BoundingBox
 from services.gemini_rest_client import GeminiRestClient
 import requests
+import httpx
 import base64
 import re
 
@@ -57,13 +58,13 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
             return self._detect_with_gemini(image_base64, media_type)
 
     async def detect_items_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
-        """Detect items using Google Cloud Vision API first, fallback to Gemini (async)."""
+        """Detect items using Google Cloud Vision API first, fallback to Gemini, asynchronously."""
 
         # Try Google Cloud Vision API first
         try:
             return await self._detect_with_cloud_vision_async(image_base64)
         except Exception as e:
-            logger.warning(f"Cloud Vision failed: {e}, falling back to Gemini")
+            print(f"Cloud Vision failed: {e}, falling back to Gemini")
             return await self._detect_with_gemini_async(image_base64, media_type)
     
     def _detect_with_cloud_vision(self, image_base64: str) -> List[DetectedItem]:
@@ -89,7 +90,7 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
         return self._parse_cloud_vision_response(data)
 
     async def _detect_with_cloud_vision_async(self, image_base64: str) -> List[DetectedItem]:
-        """Use Google Cloud Vision API for object detection (async)."""
+        """Use Google Cloud Vision API for object detection asynchronously."""
 
         url = f"https://vision.googleapis.com/v1/images:annotate?key={self.api_key}"
 
@@ -104,7 +105,7 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
             }]
         }
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
