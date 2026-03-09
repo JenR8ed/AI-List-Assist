@@ -4,6 +4,8 @@
 
 ### 1. Install Dependencies
 ```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -25,7 +27,7 @@ Visit: **http://localhost:5000**
 ### Upload & Analyze Items
 1. **Take a photo** of the item you want to sell
 2. **Upload the image** using the web interface
-3. **Click "Analyze Item"** 
+3. **Click "Analyze Item"**
 4. **Get instant valuation** with:
    - Estimated value
    - Condition assessment
@@ -62,8 +64,10 @@ Use the provided test images in `test_data/`:
 
 ### ✅ Working Now
 - Image upload and analysis
-- Mock valuation system (realistic test data)
-- Web interface
+- Real eBay market scraping (sold comps & filters)
+- **NEW**: Actual eBay Listing Creation (Inventory API Offer flow)
+- **NEW**: "Send Offer" to Buyers (Negotiation API support)
+- Web interface & Dashboard
 - API endpoints
 - Postman testing
 

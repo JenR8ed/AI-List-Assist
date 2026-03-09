@@ -35,7 +35,7 @@ class BoundingBox:
     y: int
     width: int
     height: int
-    
+
     def to_dict(self) -> Dict[str, int]:
         return {
             "x": self.x,
@@ -55,7 +55,7 @@ class DetectedItem:
     detected_text: List[str] = field(default_factory=list)
     brand: Optional[str] = None
     model: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "item_id": self.item_id,
@@ -88,7 +88,9 @@ class ItemValuation:
     listing_tips: List[str]
     worth_listing: bool
     confidence: float  # 0.0-1.0
-    
+    sold_comps: List[Dict[str, Any]] = field(default_factory=list)
+    seo_tokens: List[str] = field(default_factory=list)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "item_id": self.item_id,
@@ -107,7 +109,9 @@ class ItemValuation:
             "risks": self.risks,
             "listing_tips": self.listing_tips,
             "worth_listing": self.worth_listing,
-            "confidence": self.confidence
+            "confidence": self.confidence,
+            "sold_comps": self.sold_comps,
+            "seo_tokens": self.seo_tokens
         }
 
 
@@ -122,7 +126,7 @@ class ConversationState:
     questions_asked: List[str] = field(default_factory=list)
     current_question: Optional[str] = None
     is_complete: bool = False
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "session_id": self.session_id,
@@ -151,7 +155,7 @@ class ListingDraft:
     images: List[str] = field(default_factory=list)
     confidence: float = 0.0
     created_at: datetime = field(default_factory=datetime.now)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "listing_id": self.listing_id,
@@ -177,7 +181,7 @@ class ImageSession:
     detected_items: List[DetectedItem] = field(default_factory=list)
     valuations: List[ItemValuation] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "session_id": self.session_id,

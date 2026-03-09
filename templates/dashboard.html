@@ -22,8 +22,13 @@
         .upload-section:hover { border-color: #764ba2; background: #f0f2ff; }
         .upload-section.dragover { border-color: #764ba2; background: #e8e5ff; }
         #imageInput { display: none; }
-        .preview-img { max-width: 200px; max-height: 150px; border-radius: 8px; margin: 10px 0; display: none; }
-        .preview-img.show { display: block; }
+        .photo-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 20px; }
+        .gallery-item { position: relative; border-radius: 8px; overflow: hidden; height: 100px; border: 2px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: all 0.3s; }
+        .gallery-item:hover { transform: scale(1.05); z-index: 10; border-color: #667eea; }
+        .gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+        .gallery-item .remove-photo { position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.8); color: #dc3545; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: all 0.2s; }
+        .gallery-item .remove-photo:hover { background: #dc3545; color: white; }
+        .preview-img { display: none; }
         button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 1em; transition: all 0.3s; }
         button:hover { background: #764ba2; transform: translateY(-2px); }
         button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
@@ -104,9 +109,34 @@
                         <p><strong>Click to upload</strong> or drag & drop</p>
                         <p style="font-size: 0.9em; color: #999;">JPG, PNG, GIF, or WebP (Max 16MB)</p>
                     </div>
-                    <input type="file" id="imageInput" accept="image/*">
-                    <img id="previewImg" class="preview-img" alt="Preview">
+                    <input type="file" id="imageInput" accept="image/*" multiple>
+                    <div id="photoGallery" class="photo-gallery"></div>
                     <div class="error" id="errorMsg"></div>
+
+                    <!-- NEW: Market Filters UI -->
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #764ba2; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <p style="font-weight: bold; font-size: 0.9em; margin-bottom: 15px; color: #764ba2;">🎯 Market Focus (Filters)</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75em; color: #666;">Condition</label>
+                                <select id="marketCondition" style="padding: 6px; font-size: 0.9em;">
+                                    <option value="">Any Condition</option>
+                                    <option value="new">New</option>
+                                    <option value="used" selected>Used</option>
+                                    <option value="parts">For Parts</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75em; color: #666;">Min Price ($)</label>
+                                <input type="number" id="marketMinPrice" placeholder="None" style="padding: 6px; font-size: 0.9em;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75em; color: #666;">Max Price ($)</label>
+                                <input type="number" id="marketMaxPrice" placeholder="None" style="padding: 6px; font-size: 0.9em;">
+                            </div>
+                        </div>
+                    </div>
+
                     <button id="analyzeBtn" disabled onclick="analyzeImage()">Analyze Item</button>
                     <div class="loading" id="loading">
                         <div style="border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
@@ -146,7 +176,7 @@
                 <div class="valuations-grid" id="liveListings">
                     <p style="color: #999; text-align: center;">No live listings yet.</p>
                 </div>
-                
+
                 <!-- Listing Editor for Updates -->
                 <div id="updateListingEditor" class="listing-editor hidden">
                     <h3 style="margin: 30px 0 20px 0; border-top: 2px solid #667eea; padding-top: 20px;">Update eBay Listing</h3>
@@ -162,15 +192,15 @@
                                 <input type="number" id="updatePrice" step="0.01" min="0.99" placeholder="0.00">
                             </div>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>Description</label>
                             <textarea id="updateDescription" rows="6" placeholder="Detailed item description..."></textarea>
                         </div>
-                        
+
                         <!-- Dynamic Category Aspects for Updates -->
                         <div id="updateCategoryAspects" class="category-aspects"></div>
-                        
+
                         <div class="form-actions">
                             <button id="updateListingBtn" class="submit-btn" onclick="updateEbayListing()" disabled>Update Listing</button>
                             <button onclick="hideUpdateEditor()" class="cancel-btn">Cancel</button>
@@ -179,7 +209,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- eBay Listing Editor -->
         <div id="listingEditor" class="listing-editor hidden" style="margin-top: 30px;">
             <h3 style="margin: 30px 0 20px 0; border-top: 2px solid #667eea; padding-top: 20px;">Create eBay Listing</h3>
@@ -200,7 +230,7 @@
                         </select>
                     </div>
                 </div>
-                
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Starting Price</label>
@@ -217,15 +247,15 @@
                         </select>
                     </div>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Description</label>
                     <textarea id="listingDescription" rows="6" placeholder="Detailed item description..."></textarea>
                 </div>
-                
+
                 <!-- Dynamic Category Aspects -->
                 <div id="categoryAspects" class="category-aspects"></div>
-                
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Brand</label>
@@ -236,14 +266,14 @@
                         <input type="text" id="listingModel" placeholder="Model number">
                     </div>
                 </div>
-                
+
                 <div class="form-actions">
                     <button id="createDraftBtn" class="submit-btn" onclick="createDraftListing()" disabled>Create Draft</button>
                     <button onclick="hideListingEditor()" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         </div>
-        
+
         <!-- Stats Dashboard -->
         <div class="stats-grid" id="statsGrid" style="margin-top: 20px;">
             <div class="stat-box" style="padding: 15px;">
@@ -314,7 +344,7 @@
 
         function trackApiCall(apiType, tokens = 0) {
             const counters = loadApiCounters();
-            
+
             switch(apiType) {
                 case 'vision':
                     counters.vision++;
@@ -327,7 +357,7 @@
                     counters.ebay++;
                     break;
             }
-            
+
             saveApiCounters(counters);
             updateApiDisplay(counters);
         }
@@ -335,24 +365,24 @@
         function calculateCosts(counters) {
             let visionCost = 0;
             let geminiCost = 0;
-            
+
             if (counters.vision > API_COSTS.VISION_FREE_TIER) {
                 const paidCalls = counters.vision - API_COSTS.VISION_FREE_TIER;
                 visionCost = paidCalls * API_COSTS.VISION_PAID_RATE;
             }
-            
+
             geminiCost = counters.geminiTokens * API_COSTS.GEMINI_FLASH_INPUT;
-            
+
             return { visionCost, geminiCost, totalCost: visionCost + geminiCost };
         }
 
         function updateApiDisplay(counters) {
             const costs = calculateCosts(counters);
-            
+
             document.getElementById('visionCalls').textContent = counters.vision;
             document.getElementById('geminiCalls').textContent = counters.gemini;
             document.getElementById('ebayCalls').textContent = counters.ebay;
-            
+
             if (counters.vision <= API_COSTS.VISION_FREE_TIER) {
                 document.getElementById('visionCost').textContent = `FREE (${API_COSTS.VISION_FREE_TIER - counters.vision} left)`;
                 document.getElementById('visionCost').style.color = '#28a745';
@@ -360,10 +390,10 @@
                 document.getElementById('visionCost').textContent = `$${costs.visionCost.toFixed(4)}`;
                 document.getElementById('visionCost').style.color = '#856404';
             }
-            
+
             document.getElementById('geminiCost').textContent = `$${costs.geminiCost.toFixed(4)}`;
             document.getElementById('totalCost').textContent = `$${costs.totalCost.toFixed(4)}`;
-            
+
             const totalElement = document.getElementById('totalCost');
             if (costs.totalCost > 1.0) {
                 totalElement.style.color = '#dc3545';
@@ -385,45 +415,45 @@
         let currentValuationId = null;
         let currentListingId = null;
         let selectedFile = null;
-        
+
         async function editLiveListing(ebayListingId) {
             currentListingId = ebayListingId;
-            
+
             try {
                 const response = await fetch(`/api/ebay/listing/${ebayListingId}`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     const listing = data.listing;
-                    
+
                     // Pre-populate update form
                     document.getElementById('updateTitle').value = listing.title || '';
                     document.getElementById('updatePrice').value = listing.price || '';
                     document.getElementById('updateDescription').value = listing.description || '';
-                    
+
                     // Load current aspects for editing
                     if (listing.category_id) {
                         await loadUpdateCategoryAspects(listing.category_id, listing.aspects);
                     }
-                    
+
                     // Show update editor
                     document.getElementById('updateListingEditor').classList.remove('hidden');
                     document.getElementById('updateListingEditor').scrollIntoView({ behavior: 'smooth' });
-                    
+
                     validateUpdateForm();
                 }
             } catch (err) {
                 showError('Error loading listing data: ' + err.message);
             }
         }
-        
+
         async function loadUpdateCategoryAspects(categoryId, currentAspects = {}) {
             const aspectsContainer = document.getElementById('updateCategoryAspects');
-            
+
             try {
                 const response = await fetch(`/api/category/${categoryId}/aspects`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     aspectsContainer.innerHTML = generateUpdateAspectsHTML(data.aspects, currentAspects);
                     validateUpdateForm();
@@ -432,10 +462,10 @@
                 console.error('Error loading aspects:', err);
             }
         }
-        
+
         function generateUpdateAspectsHTML(aspects, currentAspects) {
             let html = '<h4 style="margin-bottom: 15px;">Update Category Fields</h4>';
-            
+
             // Required aspects
             if (aspects.required && aspects.required.length > 0) {
                 html += '<div class="aspect-required"><strong>Required Fields:</strong></div>';
@@ -443,7 +473,7 @@
                     const currentValue = currentAspects[aspect.name] || '';
                     html += `<div class="aspect-group">
                         <label>${aspect.name} *</label>`;
-                    
+
                     if (aspect.mode === 'SELECT' && aspect.values.length > 0) {
                         html += `<select id="update_aspect_${aspect.name.replace(/\s+/g, '_')}" required>`;
                         aspect.values.forEach(value => {
@@ -457,21 +487,21 @@
                     html += '</div>';
                 });
             }
-            
+
             return html;
         }
-        
+
         function validateUpdateForm() {
             const title = document.getElementById('updateTitle').value;
             const price = document.getElementById('updatePrice').value;
-            
+
             const isValid = title.length > 0 && price > 0;
             document.getElementById('updateListingBtn').disabled = !isValid;
         }
-        
+
         async function updateEbayListing() {
             if (!currentListingId) return;
-            
+
             // Collect updated aspects
             const aspects = {};
             const aspectInputs = document.querySelectorAll('#updateCategoryAspects input, #updateCategoryAspects select');
@@ -481,7 +511,7 @@
                     aspects[aspectName] = input.value;
                 }
             });
-            
+
             const updateData = {
                 ebay_listing_id: currentListingId,
                 title: document.getElementById('updateTitle').value,
@@ -489,19 +519,19 @@
                 description: document.getElementById('updateDescription').value,
                 aspects: aspects
             };
-            
+
             try {
                 document.getElementById('updateListingBtn').disabled = true;
                 document.getElementById('updateListingBtn').textContent = 'Updating...';
-                
+
                 const response = await fetch('/api/ebay/update-listing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updateData)
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     alert('Listing updated successfully!');
                     hideUpdateEditor();
@@ -516,19 +546,19 @@
                 document.getElementById('updateListingBtn').textContent = 'Update Listing';
             }
         }
-        
+
         async function endListing(ebayListingId) {
             if (!confirm('Are you sure you want to end this listing?')) return;
-            
+
             try {
                 const response = await fetch('/api/ebay/end-listing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ebay_listing_id: ebayListingId })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     alert('Listing ended successfully!');
                     loadLiveListings();
@@ -539,7 +569,7 @@
                 showError('Error ending listing: ' + err.message);
             }
         }
-        
+
         function hideUpdateEditor() {
             document.getElementById('updateListingEditor').classList.add('hidden');
             currentListingId = null;
@@ -561,17 +591,17 @@
                 console.error('Error loading aspects:', err);
             }
         }
-        
+
         function generateAspectsHTML(aspects) {
             let html = '<h4 style="margin-bottom: 15px;">Category-Specific Fields</h4>';
-            
+
             // Required aspects
             if (aspects.required && aspects.required.length > 0) {
                 html += '<div class="aspect-required"><strong>Required Fields:</strong></div>';
                 aspects.required.forEach(aspect => {
                     html += `<div class="aspect-group">
                         <label>${aspect.name} *</label>`;
-                    
+
                     if (aspect.mode === 'SELECT' && aspect.values.length > 0) {
                         html += `<select id="aspect_${aspect.name.replace(/\s+/g, '_')}" required>
                             <option value="">Select ${aspect.name}</option>`;
@@ -585,14 +615,14 @@
                     html += '</div>';
                 });
             }
-            
+
             // Recommended aspects
             if (aspects.recommended && aspects.recommended.length > 0) {
                 html += '<div class="aspect-recommended"><strong>Recommended Fields:</strong></div>';
                 aspects.recommended.forEach(aspect => {
                     html += `<div class="aspect-group">
                         <label>${aspect.name}</label>`;
-                    
+
                     if (aspect.mode === 'SELECT' && aspect.values.length > 0) {
                         html += `<select id="aspect_${aspect.name.replace(/\s+/g, '_')}">
                             <option value="">Select ${aspect.name}</option>`;
@@ -606,7 +636,7 @@
                     html += '</div>';
                 });
             }
-            
+
             return html;
         }
 
@@ -618,7 +648,7 @@
                     showError('Item data not found');
                     return;
                 }
-                
+
                 // Start conversation to gather missing details
                 const response = await fetch('/api/conversation/start', {
                     method: 'POST',
@@ -632,9 +662,9 @@
                         }
                     })
                 });
-                
+
                 const conversationData = await response.json();
-                
+
                 if (conversationData.success) {
                     if (conversationData.is_complete) {
                         // Skip conversation if we have enough data
@@ -646,12 +676,12 @@
                 } else {
                     showError(conversationData.error || 'Failed to start conversation');
                 }
-                
+
             } catch (err) {
                 showError('Error creating listing: ' + err.message);
             }
         }
-        
+
         function showConversationModal(sessionId, question, itemData) {
             const modal = document.createElement('div');
             modal.id = 'conversationModal';
@@ -660,7 +690,7 @@
                 background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
                 align-items: center; justify-content: center;
             `;
-            
+
             modal.innerHTML = `
                 <div style="background: white; border-radius: 8px; padding: 30px; max-width: 500px; width: 90%;">
                     <h3>📝 Listing Details for ${itemData.item_name}</h3>
@@ -672,10 +702,10 @@
                     </div>
                 </div>
             `;
-            
+
             document.body.appendChild(modal);
             document.getElementById('answerInput').focus();
-            
+
             // Allow Enter key to submit
             document.getElementById('answerInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -683,11 +713,11 @@
                 }
             });
         }
-        
+
         async function submitAnswer(sessionId, itemId) {
             const answer = document.getElementById('answerInput').value.trim();
             if (!answer) return;
-            
+
             try {
                 const response = await fetch('/api/conversation/answer', {
                     method: 'POST',
@@ -697,9 +727,9 @@
                         answer: answer
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     if (data.is_complete) {
                         // Conversation complete, create draft
@@ -719,13 +749,13 @@
                 showError('Error submitting answer: ' + err.message);
             }
         }
-        
+
         function skipConversation(itemId) {
             document.getElementById('conversationModal').remove();
             const itemData = getCurrentItemData(itemId);
             proceedToCreateDraft(itemId, itemData);
         }
-        
+
         async function proceedToCreateDraft(itemId, itemData, conversationData = {}) {
             try {
                 // Get category suggestions from Gemini
@@ -738,17 +768,17 @@
                         description: itemData.description || ''
                     })
                 });
-                
+
                 const categoryData = await categoryResponse.json();
                 let suggestedCategoryId = '293'; // Default to Electronics
-                
+
                 if (categoryData.success && categoryData.suggestions.length > 0) {
                     suggestedCategoryId = categoryData.suggestions[0].category_id;
                 }
-                
+
                 // Merge conversation data with item data
                 const finalData = { ...itemData, ...conversationData };
-                
+
                 // Create draft listing
                 const draftData = {
                     item_id: itemId,
@@ -760,45 +790,45 @@
                     brand: finalData.brand || '',
                     aspects: {}
                 };
-                
+
                 const response = await fetch('/api/listing/create-draft', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(draftData)
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     // Refresh draft listings
                     loadDraftListings();
-                    
+
                     // Show category selection popup
                     showCategorySelector(result.listing_id, suggestedCategoryId, finalData);
                 } else {
                     showError(result.error || 'Failed to create draft listing');
                 }
-                
+
             } catch (err) {
                 showError('Error creating draft: ' + err.message);
             }
         }
-        
+
         function getCurrentItemData(itemId) {
             // Get item data from the last analysis results
             const analysisResults = document.getElementById('itemResults');
             if (!analysisResults || !window.lastAnalysisData) return null;
-            
+
             return window.lastAnalysisData.items.find(item => item.item_id === itemId);
         }
-        
+
         function generateTitle(itemData) {
             let title = '';
             if (itemData.brand) title += itemData.brand + ' ';
             title += itemData.item_name;
             return title.substring(0, 80);
         }
-        
+
         function mapCondition(score) {
             const conditionMap = {
                 10: 'NEW', 9: 'NEW', 8: 'USED_EXCELLENT', 7: 'USED_EXCELLENT',
@@ -807,7 +837,7 @@
             };
             return conditionMap[score] || 'USED_GOOD';
         }
-        
+
         function generateDescription(itemData) {
             let desc = `<h2>${itemData.item_name}</h2>\n`;
             if (itemData.key_factors && itemData.key_factors.length > 0) {
@@ -822,7 +852,7 @@
             }
             return desc;
         }
-        
+
         function showCategorySelector(listingId, suggestedCategoryId, itemData) {
             const modal = document.createElement('div');
             modal.id = 'categoryModal';
@@ -831,7 +861,7 @@
                 background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
                 align-items: center; justify-content: center;
             `;
-            
+
             modal.innerHTML = `
                 <div style="background: white; border-radius: 8px; padding: 30px; max-width: 600px; width: 90%;">
                     <h3>Select Category for ${itemData.item_name}</h3>
@@ -852,23 +882,23 @@
                     </div>
                 </div>
             `;
-            
+
             document.body.appendChild(modal);
-            
+
             // Load initial category fields
             window.currentListingId = listingId;
             window.currentItemData = itemData;
             loadCategoryFields();
         }
-        
+
         async function loadCategoryFields() {
             const categoryId = document.getElementById('categorySelect').value;
             const tableContainer = document.getElementById('categoryFieldsTable');
-            
+
             try {
                 const response = await fetch(`/api/category/${categoryId}/fields`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     displayCategoryFieldsTable(data.required_fields);
                 } else {
@@ -878,15 +908,15 @@
                 tableContainer.innerHTML = '<p>Error loading category fields</p>';
             }
         }
-        
+
         function displayCategoryFieldsTable(fields) {
             const tableContainer = document.getElementById('categoryFieldsTable');
-            
+
             if (fields.length === 0) {
                 tableContainer.innerHTML = '<p>No required fields for this category</p>';
                 return;
             }
-            
+
             let tableHTML = `
                 <h4>Required Fields for this Category:</h4>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -899,11 +929,11 @@
                     </thead>
                     <tbody>
             `;
-            
+
             fields.forEach(field => {
                 const fieldId = `field_${field.name.replace(/\s+/g, '_')}`;
                 let inputHTML = '';
-                
+
                 if (field.input_mode === 'SELECT' && field.allowed_values.length > 0) {
                     inputHTML = `<select id="${fieldId}" style="width: 100%; padding: 5px;">`;
                     inputHTML += '<option value="">Select...</option>';
@@ -915,7 +945,7 @@
                     const suggestedValue = getSuggestedValue(field.name, window.currentItemData);
                     inputHTML = `<input type="text" id="${fieldId}" value="${suggestedValue}" style="width: 100%; padding: 5px;" placeholder="Enter ${field.name}">`;
                 }
-                
+
                 tableHTML += `
                     <tr>
                         <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${field.name}</td>
@@ -924,26 +954,26 @@
                     </tr>
                 `;
             });
-            
+
             tableHTML += '</tbody></table>';
             tableContainer.innerHTML = tableHTML;
         }
-        
+
         function getSuggestedValue(fieldName, itemData) {
             const name = fieldName.toLowerCase();
-            
+
             if (name.includes('brand')) return itemData.brand || '';
             if (name.includes('type')) return itemData.item_name.split(' ')[0] || '';
             if (name.includes('color')) return '';
             if (name.includes('model')) return itemData.model || '';
-            
+
             return '';
         }
-        
+
         async function saveCategorySelection(listingId) {
             const categoryId = document.getElementById('categorySelect').value;
             const aspects = {};
-            
+
             // Collect field values
             const inputs = document.querySelectorAll('#categoryFieldsTable input, #categoryFieldsTable select');
             inputs.forEach(input => {
@@ -952,7 +982,7 @@
                     aspects[fieldName] = input.value;
                 }
             });
-            
+
             try {
                 const response = await fetch('/api/listing/update-draft', {
                     method: 'POST',
@@ -963,9 +993,9 @@
                         aspects: aspects
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     closeCategoryModal();
                     loadDraftListings();
@@ -976,24 +1006,24 @@
                 showError('Error saving category: ' + err.message);
             }
         }
-        
+
         function closeCategoryModal() {
             const modal = document.getElementById('categoryModal');
             if (modal) modal.remove();
         }
-        
+
         function validateForm() {
             const title = document.getElementById('listingTitle').value;
             const price = document.getElementById('listingPrice').value;
             const description = document.getElementById('listingDescription').value;
-            
+
             const isValid = title.length > 0 && price > 0 && description.length > 0;
             document.getElementById('createDraftBtn').disabled = !isValid;
         }
-        
+
         async function createDraftListing() {
             if (!currentValuationId) return;
-            
+
             // Collect category aspects
             const aspects = {};
             const aspectInputs = document.querySelectorAll('#categoryAspects input, #categoryAspects select');
@@ -1003,7 +1033,7 @@
                     aspects[aspectName] = input.value;
                 }
             });
-            
+
             const listingData = {
                 valuation_id: currentValuationId,
                 title: document.getElementById('listingTitle').value,
@@ -1015,19 +1045,19 @@
                 model: document.getElementById('listingModel').value,
                 aspects: aspects
             };
-            
+
             try {
                 document.getElementById('createDraftBtn').disabled = true;
                 document.getElementById('createDraftBtn').textContent = 'Creating...';
-                
+
                 const response = await fetch('/api/listing/create-draft', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(listingData)
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     alert('Draft listing created successfully!');
                     hideListingEditor();
@@ -1042,12 +1072,12 @@
                 document.getElementById('createDraftBtn').textContent = 'Create Draft';
             }
         }
-        
+
         async function loadDraftListings() {
             try {
                 const response = await fetch('/api/listings/drafts');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     displayDraftListings(data.drafts);
                 }
@@ -1055,10 +1085,10 @@
                 console.error('Error loading draft listings:', err);
             }
         }
-        
+
         function displayDraftListings(drafts) {
             const container = document.getElementById('draftListings');
-            
+
             if (drafts.length === 0) {
                 container.innerHTML = '<p style="color: #999; text-align: center;">No draft listings yet.</p>';
                 return;
@@ -1066,10 +1096,10 @@
 
             container.innerHTML = drafts.map(draft => {
                 const photos = draft.listing_data.photos || [draft.image_filename];
-                const thumbnails = photos.map(photo => 
+                const thumbnails = photos.map(photo =>
                     `<img src="/uploads/${photo}" class="photo-thumb" onclick="showFullImage('/uploads/${photo}')" alt="Photo">`
                 ).join('');
-                
+
                 return `
                     <div class="valuation-item">
                         <div style="display: flex; flex-direction: column; align-items: center;">
@@ -1090,7 +1120,7 @@
                 `;
             }).join('');
         }
-        
+
         async function submitDraftToEbay(draftId) {
             // Use existing eBay submission logic
             try {
@@ -1099,9 +1129,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ valuation_id: draftId })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     alert('Listing submitted to eBay successfully!');
                     loadDraftListings();
@@ -1113,10 +1143,10 @@
                 showError('Error submitting to eBay: ' + err.message);
             }
         }
-        
+
         async function submitToEbay() {
             if (!currentValuationId) return;
-            
+
             // Collect category aspects
             const aspects = {};
             const aspectInputs = document.querySelectorAll('#categoryAspects input, #categoryAspects select');
@@ -1126,7 +1156,7 @@
                     aspects[aspectName] = input.value;
                 }
             });
-            
+
             const listingData = {
                 valuation_id: currentValuationId,
                 title: document.getElementById('listingTitle').value,
@@ -1138,19 +1168,19 @@
                 model: document.getElementById('listingModel').value,
                 aspects: aspects
             };
-            
+
             try {
                 document.getElementById('submitToEbay').disabled = true;
                 document.getElementById('submitToEbay').textContent = 'Submitting...';
-                
+
                 const response = await fetch('/api/ebay/submit-listing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(listingData)
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     alert('Listing submitted to eBay successfully!');
                     hideListingEditor();
@@ -1166,18 +1196,18 @@
                 document.getElementById('submitToEbay').textContent = 'Submit to eBay';
             }
         }
-        
+
         function hideListingEditor() {
             document.getElementById('listingEditor').classList.add('hidden');
             currentValuationId = null;
         }
-        
+
         // Add event listeners for form validation
         document.addEventListener('DOMContentLoaded', function() {
             ['listingTitle', 'listingPrice', 'listingDescription'].forEach(id => {
                 document.getElementById(id).addEventListener('input', validateForm);
             });
-            
+
             // Character counter for title
             document.getElementById('listingTitle').addEventListener('input', function() {
                 const count = this.value.length;
@@ -1192,8 +1222,8 @@
 
         // File selection
         document.getElementById('imageInput').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) handleFile(file);
+            const files = e.target.files;
+            if (files.length) handleFiles(files);
         });
 
         // Drag and drop
@@ -1211,38 +1241,68 @@
             e.preventDefault();
             uploadSection.classList.remove('dragover');
             if (e.dataTransfer.files.length) {
-                handleFile(e.dataTransfer.files[0]);
+                handleFiles(e.dataTransfer.files);
             }
         });
 
-        function handleFile(file) {
-            if (!file.type.startsWith('image/')) {
-                showError('Please select a valid image file');
-                return;
-            }
-            if (file.size > 16 * 1024 * 1024) {
-                showError('File too large. Maximum 16MB');
-                return;
-            }
+        const selectedFiles = new Map(); // Use Map to track files by a unique ID
 
-            selectedFile = file;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const preview = document.getElementById('previewImg');
-                preview.src = e.target.result;
-                preview.classList.add('show');
-            };
-            reader.readAsDataURL(file);
-
-            document.getElementById('analyzeBtn').disabled = false;
+        function handleFiles(files) {
             hideError();
+
+            Array.from(files).forEach(file => {
+                if (!file.type.startsWith('image/')) {
+                    showError('One or more files skip because they are not images');
+                    return;
+                }
+                if (file.size > 16 * 1024 * 1024) {
+                    showError('File too large. Maximum 16MB');
+                    return;
+                }
+
+                const fileId = Math.random().toString(36).substr(2, 9);
+                selectedFiles.set(fileId, file);
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    addPhotoToGallery(fileId, e.target.result);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            document.getElementById('analyzeBtn').disabled = selectedFiles.size === 0;
+        }
+
+        function addPhotoToGallery(id, src) {
+            const gallery = document.getElementById('photoGallery');
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+            item.id = `gallery-item-${id}`;
+            item.innerHTML = `
+                <img src="${src}" alt="Preview">
+                <div class="remove-photo" onclick="removePhoto('${id}')">&times;</div>
+            `;
+            gallery.appendChild(item);
+        }
+
+        function removePhoto(id) {
+            selectedFiles.delete(id);
+            const item = document.getElementById(`gallery-item-${id}`);
+            if (item) item.remove();
+            document.getElementById('analyzeBtn').disabled = selectedFiles.size === 0;
         }
 
         async function analyzeImage() {
-            if (!selectedFile) return;
+            if (selectedFiles.size === 0) return;
 
             const formData = new FormData();
-            formData.append('image', selectedFile);
+            // Append all files
+            selectedFiles.forEach((file) => {
+                formData.append('image', file);
+            });
+            formData.append('condition', document.getElementById('marketCondition').value);
+            formData.append('min_price', document.getElementById('marketMinPrice').value);
+            formData.append('max_price', document.getElementById('marketMaxPrice').value);
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('analyzeBtn').disabled = true;
@@ -1262,7 +1322,7 @@
                         const tokens = data.usage_metadata?.totalTokens || API_COSTS.TOKENS_PER_IMAGE;
                         trackApiCall('gemini', tokens);
                     }
-                    
+
                     displayAnalysisResults(data);
                     loadDraftListings();
                     loadStats();
@@ -1276,14 +1336,14 @@
                 document.getElementById('analyzeBtn').disabled = false;
             }
         }
-        
+
         function displayAnalysisResults(data) {
             const resultsContainer = document.getElementById('itemResults');
             const analysisSection = document.getElementById('analysisResults');
-            
+
             // Store analysis data globally for later use
             window.lastAnalysisData = data;
-            
+
             if (data.items && data.items.length > 0) {
                 resultsContainer.innerHTML = data.items.map(item => `
                     <div class="item-result ${item.worth_listing ? 'worth-listing' : 'not-worth'}">
@@ -1310,7 +1370,7 @@
                         ` : ''}
                     </div>
                 `).join('');
-                
+
                 analysisSection.style.display = 'block';
             } else {
                 resultsContainer.innerHTML = '<p style="color: #999;">No items detected in the image.</p>';
@@ -1322,7 +1382,7 @@
             try {
                 const response = await fetch('/api/stats');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     const stats = data.stats;
                     document.getElementById('totalValuations').textContent = stats.total_valuations;
@@ -1338,7 +1398,7 @@
             try {
                 const response = await fetch('/api/valuations/recent');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     displayValuations(data.valuations, 'recentValuations', true);
                 }
@@ -1353,7 +1413,7 @@
                     method: 'POST'
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
                     alert(data.message);
                     displayLiveListings(data.listings);
@@ -1364,12 +1424,12 @@
                 showError('Error refreshing listings: ' + err.message);
             }
         }
-        
+
         async function loadLiveListings() {
             try {
                 const response = await fetch('/api/ebay/live-listings');
                 const data = await response.json();
-                
+
                 if (data.success) {
                     displayLiveListings(data.listings);
                 }
@@ -1377,10 +1437,35 @@
                 console.error('Error loading live listings:', err);
             }
         }
-        
+
+        async function sendOfferToWatchers(ebayListingId, currentPrice) {
+            const suggestedPrice = (currentPrice * 0.9).toFixed(2);
+            const offerPrice = prompt(`Enter offer price to send to watchers (Current: $${currentPrice}):`, suggestedPrice);
+
+            if (!offerPrice || isNaN(offerPrice)) return;
+
+            try {
+                const response = await fetch(`/api/ebay/listing/${ebayListingId}/send-offer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ offer_price: parseFloat(offerPrice) })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Offer of $${offerPrice} sent successfully!`);
+                } else {
+                    showError(data.error || 'Failed to send offer');
+                }
+            } catch (err) {
+                showError('Error sending offer: ' + err.message);
+            }
+        }
+
         function displayLiveListings(listings) {
             const container = document.getElementById('liveListings');
-            
+
             if (listings.length === 0) {
                 container.innerHTML = '<p style="color: #999; text-align: center;">No live listings found.</p>';
                 return;
@@ -1396,6 +1481,7 @@
                         <span class="status-badge status-${listing.listing_status}">${listing.listing_status?.toUpperCase()}</span>
                     </div>
                     <div class="item-actions">
+                        <button class="create-listing-btn" onclick="sendOfferToWatchers('${listing.ebay_listing_id}', ${listing.listing_price})" style="background: #ffc107; border: none; color: #000;">💰 Send Offer</button>
                         <button class="create-listing-btn" onclick="editLiveListing('${listing.ebay_listing_id}')">Edit Listing</button>
                         <button class="cancel-btn" onclick="endListing('${listing.ebay_listing_id}')">End Listing</button>
                     </div>
@@ -1405,7 +1491,7 @@
 
         function displayValuations(valuations, containerId, showApproveBtn) {
             const container = document.getElementById(containerId);
-            
+
             if (valuations.length === 0) {
                 container.innerHTML = '<p style="color: #999; text-align: center;">No items found.</p>';
                 return;
@@ -1421,7 +1507,7 @@
                         <span class="status-badge status-${item.status}">${item.status?.toUpperCase() || 'ANALYZED'}</span>
                     </div>
                     <div class="item-actions">
-                        ${showApproveBtn && item.worth_listing && item.status === 'analyzed' ? 
+                        ${showApproveBtn && item.worth_listing && item.status === 'analyzed' ?
                             `<button class="create-listing-btn" onclick="createListing('${item.id}')">Create Listing</button>` : ''}
                     </div>
                 </div>
@@ -1433,9 +1519,9 @@
                 const response = await fetch(`/api/valuations/${valuationId}/approve`, {
                     method: 'POST'
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     loadRecentValuations();
                     loadApprovedValuations();
@@ -1473,14 +1559,14 @@
         loadStats();
         loadDraftListings();
         loadApiCounters();
-        
+
         // Modal functions
         function showFullImage(imageSrc) {
             const modal = document.getElementById('photoModal') || createPhotoModal();
             modal.querySelector('img').src = imageSrc;
             modal.style.display = 'block';
         }
-        
+
         function createPhotoModal() {
             const modal = document.createElement('div');
             modal.id = 'photoModal';
@@ -1493,11 +1579,11 @@
             document.body.appendChild(modal);
             return modal;
         }
-        
+
         function hideFullImage() {
             document.getElementById('photoModal').style.display = 'none';
         }
-        
+
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') hideFullImage();
         });

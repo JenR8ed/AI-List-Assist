@@ -327,7 +327,7 @@
             <!-- Upload Section -->
             <div class="card">
                 <h2>📤 Upload Item Photo</h2>
-                
+
                 <div class="upload-area" id="uploadArea">
                     <div class="icon">📷</div>
                     <p><strong>Click to upload</strong> or drag & drop</p>
@@ -338,6 +338,30 @@
                 <img id="previewImg" class="preview-img" alt="Preview">
 
                 <div class="error" id="errorMsg"></div>
+
+                <!-- NEW: Market Focus Filters -->
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #667eea;">
+                    <p style="font-weight: bold; font-size: 0.9em; margin-bottom: 12px; color: #667eea;">🎯 Market Focus (Filters)</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div style="display: flex; flex-direction: column;">
+                            <label style="font-size: 0.75em; color: #666; font-weight: bold;">Condition</label>
+                            <select id="marketCondition" style="padding: 6px; border-radius: 4px; border: 1px solid #ddd;">
+                                <option value="">Any Condition</option>
+                                <option value="new">New</option>
+                                <option value="used" selected>Used</option>
+                                <option value="parts">For Parts</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <label style="font-size: 0.75em; color: #666; font-weight: bold;">Min Price ($)</label>
+                            <input type="number" id="marketMinPrice" placeholder="None" style="padding: 6px; border-radius: 4px; border: 1px solid #ddd;">
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <label style="font-size: 0.75em; color: #666; font-weight: bold;">Max Price ($)</label>
+                            <input type="number" id="marketMaxPrice" placeholder="None" style="padding: 6px; border-radius: 4px; border: 1px solid #ddd;">
+                        </div>
+                    </div>
+                </div>
 
                 <button id="submitBtn" disabled>Analyze Item</button>
 
@@ -350,7 +374,7 @@
             <!-- Results Section -->
             <div class="card">
                 <h2>📊 Valuation Results</h2>
-                
+
                 <div class="valuation-result" id="results">
                     <div class="result-row">
                         <span class="result-label">Item:</span>
@@ -503,6 +527,9 @@
 
             const formData = new FormData();
             formData.append('image', selectedFile);
+            formData.append('condition', document.getElementById('marketCondition').value);
+            formData.append('min_price', document.getElementById('marketMinPrice').value);
+            formData.append('max_price', document.getElementById('marketMaxPrice').value);
 
             loading.style.display = 'block';
             submitBtn.disabled = true;
@@ -519,10 +546,10 @@
                 if (data.success && data.items && data.items.length > 0) {
                     // Use the first item for display
                     const firstItem = data.items[0];
-                    
+
                     // Get the actual valuation data from the session
                     const sessionId = data.session_id;
-                    
+
                     // For now, display what we have from the analyze response
                     displayResults({
                         item_name: firstItem.item_name,
@@ -560,7 +587,7 @@
             document.getElementById('value').textContent = '$' + (valuation.estimated_value || 0).toFixed(2);
 
             const range = valuation.value_range;
-            document.getElementById('range').textContent = 
+            document.getElementById('range').textContent =
                 `$${(range?.low || 0).toFixed(2)} - $${(range?.high || 0).toFixed(2)}`;
 
             const condition = valuation.condition_score || 0;
