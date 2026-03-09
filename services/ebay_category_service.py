@@ -4,7 +4,6 @@ Handles category-specific item aspects and mapping from AI valuation
 """
 
 import requests
-import json
 import os
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
@@ -13,13 +12,19 @@ from services.ebay_token_manager import EBayTokenManager
 class EBayCategoryService:
     """Service for handling eBay category-specific item aspects."""
     
-    def __init__(self, access_token: Optional[str] = None):
-        self.token_manager = EBayTokenManager()
+    def __init__(self, access_token: Optional[str] = None, category_tree_id: Optional[str] = None, use_sandbox: bool = True):
+        self.use_sandbox = use_sandbox
+        self.token_manager = EBayTokenManager(use_sandbox=use_sandbox)
         self.access_token = access_token or self.token_manager.get_valid_token() or "sandbox_token"
         self.cache = {}
         self.cache_expiry = {}
-        self.base_url = "https://api.ebay.com/commerce/taxonomy/v1/category_tree"
-        self.category_tree_id = "100"  # US marketplace
+
+        if self.use_sandbox:
+            self.base_url = "https://api.sandbox.ebay.com/commerce/taxonomy/v1/category_tree"
+        else:
+            self.base_url = "https://api.ebay.com/commerce/taxonomy/v1/category_tree"
+
+        self.category_tree_id = category_tree_id or os.getenv('EBAY_CATEGORY_TREE_ID', '0')
         
         # Mock data for testing when API unavailable
         self.mock_aspects = {

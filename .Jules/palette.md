@@ -1,0 +1,3 @@
+## 2025-05-14 - [Keyboard Accessibility & Collapsible API Tracker]
+**Learning:** In data-rich resale applications, secondary tools like API usage trackers can clutter the UI. Making them collapsible while maintaining accessibility (via aria-expanded and keyboard-friendly toggles) provides a better balance between information density and focus. Keyboard-triggerable upload areas (using tabindex="0" and keydown listeners) significantly improve the "quick capture" workflow for power users and users with motor impairments.
+**Action:** Always ensure that custom-styled "Upload" zones are keyboard-focusable and respond to Enter/Space. Use aria-busy for long-running AI analysis tasks to provide clear feedback to assistive technologies.
