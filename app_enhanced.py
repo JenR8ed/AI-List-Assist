@@ -3,7 +3,7 @@ Enhanced Flask App - End-to-End eBay Listing Assistant
 Integrates all services: vision, valuation, conversation, listing synthesis, eBay API
 """
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import base64
