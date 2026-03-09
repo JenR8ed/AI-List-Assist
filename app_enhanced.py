@@ -52,9 +52,9 @@ Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True)
 # Initialize services
 try:
     vision_service = VisionService()
-    print("Vision service initialized")
+    logger.info("Vision service initialized")
 except Exception as e:
-    print(f"Vision service failed: {e}")
+    logger.exception(f"Vision service failed: {e}")
     vision_service = None
 
 # Initialize database and services
@@ -259,6 +259,28 @@ async def analyze_image():
                 item_results.append({
                     "item_id": item.item_id,
                     "item_name": item.probable_category or item.brand or "Unknown Item",
+                    "estimated_value": 0.0,
+                    "worth_listing": False,
+                    "profitability": "not_recommended",
+                    "status": "failed",
+                    **item.to_dict()
+                })
+                valuations.append(valuation)
+                item_results.append({
+                    "item_id": valuation.item_id,
+                    "item_name": valuation.item_name,
+                    "estimated_value": valuation.estimated_value,
+                    "worth_listing": valuation.worth_listing,
+                    "profitability": valuation.profitability.value,
+                    "status": "success"
+                })
+                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
+            except Exception as val_error:
+                logger.exception(f"Valuation error for item {item.item_id}")
+                # Collect failed items for the frontend
+                item_results.append({
+                    "item_id": item.item_id,
+                    "item_name": item.brand or "Unknown Item",
                     "estimated_value": 0.0,
                     "worth_listing": False,
                     "profitability": "not_recommended",
