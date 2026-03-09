@@ -67,7 +67,7 @@ The platform is built on 13 specialized services:
 7.  `EBayTokenManager`: Centralized OAuth 2.0 lifecycle management.
 8.  `CategoryDetailGenerator`: Optimized question generation (~30x speedup via O(N+M) mapping).
 9.  `DraftImageManager`: Lifecycle management for listing images.
-10. `ConsignmentDatabase`: Participant KYC and asset provenance tracking.
+10. `ConsignmentDatabase`: Participant KYC and asset tracking.
 11. `ValuationDatabase`: History and trend analysis storage.
 12. `GeminiRestClient`: Unified sync/async interface for Google AI.
 13. `MockValuationService`: High-fidelity development and testing environment.
@@ -87,9 +87,14 @@ The platform is built on 13 specialized services:
 
 ## ⚙️ Getting Started
 
-### 1. Installation
+### 1. Prerequisites
+- Python 3.12+
+- Google Cloud API access (Gemini + Vision)
+- eBay Developer account
+
+### 2. Installation
 ```bash
-# Clone and enter the repository
+# Clone the repository
 git clone <repository-url>
 cd ai-list-assist
 
@@ -97,8 +102,8 @@ cd ai-list-assist
 pip install -r requirements.txt
 ```
 
-### 2. Configuration
-Create a `.env` file from the following template:
+### 3. Configuration
+Create a `.env` file from the template:
 ```env
 SECRET_KEY=...             # Flask secret key
 API_KEY=...                # Custom API Key for Authorization: Bearer <token>
@@ -110,19 +115,18 @@ EBAY_CATEGORY_TREE_ID=0    # Default eBay Category Tree (0 for US)
 TELEGRAM_BOT_TOKEN=...     # For your_ebay_valuator_bot.py
 ```
 
-### 3. Launching the System
+### 4. Launching the System
 ```bash
 # Start the Flask backend
 python app_enhanced.py
 
-# (Optional) Start the Telegram Bot for field sourcing
-python your_ebay_valuator_bot.py
+# Visit: http://localhost:5000
 ```
 
 ---
 
 ## 🧪 Testing
-Run the comprehensive test suite (Unit + Integration):
+Run the comprehensive test suite:
 ```bash
 export PYTHONPATH=$PYTHONPATH:.
 python -m pytest tests/ -v
@@ -135,6 +139,14 @@ python -m pytest tests/ -v
 - **Phase 1: Automation** (Complete) - Core Hybrid Vision and eBay REST integration.
 - **Phase 2: Reporting & Analytics** (In Progress) - Consignment dashboards and trend analysis.
 - **Phase 3: Scale** (Planned) - Omnichannel support (Mercari, Poshmark).
+
+---
+
+## 📚 Documentation
+- [Setup Guide](SETUP_GUIDE.md)
+- [Valuation Data Guide](VALUATION_DATA_GUIDE.md)
+- [eBay Listing Mapping](EBAY_LISTING_MAPPING.md)
+- [Contributing](CONTRIBUTING.md)
 
 ---
 
