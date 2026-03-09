@@ -48,7 +48,7 @@ graph TD
     I --> J[Live Management]
 ```
 
-1.  **Visual Acquisition**: Upload photos via the Web Dashboard or the Telegram Bot.
+1.  **Visual Acquisition**: Upload photos via the Web Dashboard or the Telegram Bot (`your_ebay_valuator_bot.py`).
 2.  **Hybrid Analysis**: AI detects items, extracts text, and evaluates market potential.
 3.  **The Decision Gate**: Filters items based on 90-day sold history and demand.
 4.  **Guided Refinement**: The Conversational Orchestrator resolves missing eBay aspects.
