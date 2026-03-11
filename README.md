@@ -1,9 +1,9 @@
 # AI List Assist: Enterprise-Grade Reselling Orchestration
 
-![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)
-![Status](https://img.shields.io/badge/status-active-success.svg)
-![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)](https://flask.palletsprojects.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-active-success.svg)](#)
 
 **AI List Assist** is an advanced automation platform for professional online resellers. It transforms unstructured visual data (photos) into structured, category-specific marketplace listings using a **Hybrid AI** architecture (Google Gemini 1.5 Flash + Cloud Vision).
 
@@ -28,6 +28,16 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 | **🔍 Sourcing Mode** | Mobile-first valuation and market analysis in the field. | Thrift/Estate Hunters |
 | **🤝 Consignment** | Tracking third-party assets, commissions, and KYC. | Consignment Businesses |
 | **🏬 Studio Mode** | High-speed, bulk photo intake and batch processing. | Commercial Warehouses |
+
+---
+
+## 🧠 Hybrid AI Architecture
+
+The platform utilizes a multi-layered AI approach to ensure maximum accuracy and depth:
+
+1.  **Vision Layer (Cloud Vision)**: Fast, reliable object detection, OCR, and label detection for initial item identification.
+2.  **Intelligence Layer (Gemini 1.5 Flash)**: Deep reasoning for condition assessment, brand/model verification, and context-aware market analysis.
+3.  **Synthesis Layer (Gemini REST)**: Generates SEO-optimized titles and HTML descriptions using category-specific metadata.
 
 ---
 
@@ -60,19 +70,19 @@ The system maintains data integrity and operational speed by separating concerns
 
 ## 🔄 The Logic Pipeline: From Image to Listing
 
-1.  **Visual Acquisition**: Upload photos via the **Dashboard** or the **Telegram Valuator Bot**.
-2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
-3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
-4.  **Conversational Refinement**: The `ConversationOrchestrator` asks targeted questions to fill required eBay aspects.
-5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated using [eBay Mapping Logic](EBAY_LISTING_MAPPING.md).
-6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
+1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot** (`your_ebay_valuator_bot.py`).
+2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata using Cloud Vision + Gemini.
+3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand. Pricing logic adjusts starting prices based on profitability (e.g., 95% of estimate for High, 90% for Medium).
+4.  **Conversational Refinement**: The `ConversationOrchestrator` asks targeted questions to fill required eBay aspects and resolve missing details.
+5.  **Marketplace Synthesis**: Optimized titles (80 char limit) and HTML descriptions are generated using [eBay Mapping Logic](EBAY_LISTING_MAPPING.md).
+6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the modern REST Inventory API.
 
 ---
 
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- Python 3.12+ (Developed on 3.12.12)
+- Python 3.12+ (Targeting 3.12.12)
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
 
@@ -101,10 +111,9 @@ cp .env.example .env  # Update with your API keys
 Ensure system integrity by running the test suite:
 ```bash
 export PYTHONPATH=$PYTHONPATH:.
+export SECRET_KEY=test_secret EBAY_CLIENT_ID=test EBAY_CERT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
 python -m pytest tests/ -v
 ```
-
-For detailed valuation testing, see the [Valuation Data Guide](VALUATION_DATA_GUIDE.md).
 
 ---
 
@@ -117,9 +126,9 @@ For detailed valuation testing, see the [Valuation Data Guide](VALUATION_DATA_GU
 ---
 
 ## 📚 Specialized Documentation
-- 📖 [Setup Guide](SETUP_GUIDE.md): Detailed installation and Postman testing instructions.
-- 📊 [Valuation Guide](VALUATION_DATA_GUIDE.md): Deep dive into decision logic and price discovery.
-- 🔄 [Mapping Guide](EBAY_LISTING_MAPPING.md): How AI data translates to eBay fields.
+- 📖 [Setup Guide](SETUP_GUIDE.md): Detailed installation and Postman testing.
+- 📊 [Valuation Guide](VALUATION_DATA_GUIDE.md): Deep dive into decision logic and metrics.
+- 🔄 [Mapping Guide](EBAY_LISTING_MAPPING.md): Data translation to eBay fields.
 - 🤝 [Contributing](CONTRIBUTING.md): Guidelines for code standards and PR processes.
 
 ---
