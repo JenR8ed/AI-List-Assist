@@ -101,6 +101,47 @@ class ValuationDatabase:
         
         return valuation_id
     
+
+    def save_valuations(self, image_filename: str, image_hash: str, valuations: List[ItemValuation]) -> List[str]:
+        """Save multiple valuations to database using bulk insert."""
+        if not valuations:
+            return []
+
+        conn = self.conn
+        c = conn.cursor()
+
+        valuation_ids = [str(uuid.uuid4()) for _ in valuations]
+
+        # Prepare parameters for executemany
+        params = [
+            (
+                vid,
+                image_filename,
+                image_hash,
+                v.item_name,
+                v.brand,
+                v.estimated_value,
+                v.condition_score,
+                v.profitability.value if hasattr(v.profitability, 'value') else v.profitability,
+                v.worth_listing,
+                v.confidence,
+                json.dumps(v.to_dict()) if hasattr(v, 'to_dict') else json.dumps(v)
+            )
+            for vid, v in zip(valuation_ids, valuations)
+        ]
+
+        c.executemany('''
+        INSERT INTO valuations (
+            id, image_filename, image_hash, item_name, brand,
+            estimated_value, condition_score, profitability,
+            worth_listing, confidence, valuation_data
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', params)
+
+        conn.commit()
+
+        return valuation_ids
+
     def get_recent_valuations(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Get recent valuations ordered by timestamp."""
         conn = self.conn
