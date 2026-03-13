@@ -45,9 +45,9 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and refresh management.
 8.  **`CategoryDetailGenerator`**: Optimized question generation (~30x speedup via O(N+M) mapping).
 9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets.
-10. **`ConsignmentDatabase`**: specialized tracking for participants, KYC, and asset provenance.
-11. **`ValuationDatabase`**: Persistent storage for analysis history and market trends.
-12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls.
+10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance.
+11. **`ValuationDatabase`**: Persistent storage for analysis history and market trends (with 95% faster bulk inserts).
+12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls, bypassing heavy SDK dependencies.
 13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
 
 ### 💾 Triple-DB Strategy
@@ -60,8 +60,8 @@ The system maintains data integrity and operational speed by separating concerns
 
 ## 🔄 The Logic Pipeline: From Image to Listing
 
-1.  **Visual Acquisition**: Upload photos via the **Dashboard** or the **Telegram Valuator Bot**.
-2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
+1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
+2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata using deterministic image hashing.
 3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
 4.  **Conversational Refinement**: The `ConversationOrchestrator` asks targeted questions to fill required eBay aspects.
 5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated using [eBay Mapping Logic](EBAY_LISTING_MAPPING.md).
@@ -75,6 +75,7 @@ The system maintains data integrity and operational speed by separating concerns
 - Python 3.12+ (Developed on 3.12.12)
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
+- Telegram Bot Token (Optional, for mobile valuation)
 
 ### Quick Start
 ```bash
@@ -86,7 +87,9 @@ cd ai-list-assist
 pip install -r requirements.txt
 
 # Configure environment
-cp .env.example .env  # Update with your API keys
+cp .env.example .env  # Update with your API keys:
+# GOOGLE_API_KEY, EBAY_CLIENT_ID, EBAY_CLIENT_SECRET,
+# SECRET_KEY, API_KEY, EBAY_CATEGORY_TREE_ID=0
 ```
 
 ### Launching
@@ -101,6 +104,8 @@ cp .env.example .env  # Update with your API keys
 Ensure system integrity by running the test suite:
 ```bash
 export PYTHONPATH=$PYTHONPATH:.
+# Set dummy credentials for local testing
+export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
 python -m pytest tests/ -v
 ```
 
