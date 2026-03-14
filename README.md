@@ -47,7 +47,7 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets.
 10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance.
 11. **`ValuationDatabase`**: Persistent storage for analysis history and market trends (with 95% faster bulk inserts).
-12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls, bypassing heavy SDK dependencies.
+12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls.
 13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
 
 ### 💾 Triple-DB Strategy
@@ -72,7 +72,7 @@ The system maintains data integrity and operational speed by separating concerns
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- Python 3.12+ (Developed on 3.12.12)
+- Python 3.12+
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
 - Telegram Bot Token (Optional, for mobile valuation)
@@ -122,7 +122,7 @@ For detailed valuation testing, see the [Valuation Data Guide](VALUATION_DATA_GU
 ---
 
 ## 📚 Specialized Documentation
-- 📖 [Setup Guide](SETUP_GUIDE.md): Detailed installation and Postman testing instructions.
+- 📖 [Setup Guide](SETUP_GUIDE.md): Detailed installation and testing instructions.
 - 📊 [Valuation Guide](VALUATION_DATA_GUIDE.md): Deep dive into decision logic and price discovery.
 - 🔄 [Mapping Guide](EBAY_LISTING_MAPPING.md): How AI data translates to eBay fields.
 - 🤝 [Contributing](CONTRIBUTING.md): Guidelines for code standards and PR processes.
