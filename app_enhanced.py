@@ -274,10 +274,10 @@ async def analyze_image():
         worth_listing = [v for v in valuations if v.worth_listing]
 
         # Save valuations to database
-        for valuation in valuations:
-            image_hash = str(hash(image_base64))
-            valuation_id = db.save_valuation(filename, image_hash, valuation)
-            print(f"Saved valuation {valuation_id} for {valuation.item_name}")
+        image_hash = str(hash(image_base64))
+        valuation_ids = db.save_valuations(filename, image_hash, valuations)
+        for i, val_id in enumerate(valuation_ids):
+            print(f"Saved valuation {val_id} for {valuations[i].item_name}")
 
         # Save to database
         conn = sqlite3.connect('listings.db')
