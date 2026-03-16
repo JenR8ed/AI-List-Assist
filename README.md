@@ -18,6 +18,16 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 
 ---
 
+## ✨ Key Features
+
+- **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
+- **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
+- **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
+- **Secure Architecture**: Protected by HMAC-based API key verification and strict security headers.
+- **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
+
+---
+
 ## 🎮 Operational Modes
 
 AI List Assist adapts to your specific workflow through four dedicated operational modes:
