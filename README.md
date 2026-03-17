@@ -5,16 +5,17 @@
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
 
-**AI List Assist** is an advanced automation platform for professional online resellers. It transforms unstructured visual data (photos) into structured, category-specific marketplace listings using a **Hybrid AI** architecture (Google Gemini 1.5 Flash + Cloud Vision).
+**AI List Assist** is a high-performance automation platform for professional online resellers. It transforms unstructured visual data (photos) into structured, category-specific marketplace listings using a **Hybrid AI** architecture (Google Gemini 1.5 Flash + Cloud Vision).
 
 ---
 
 ## 🚀 The Reselling Problem: Solved
 
-In high-volume reselling, the "Listing Bottleneck" is the primary barrier to scale. AI List Assist eliminates this by:
-- **Instant Valuation**: Moving from manual research to data-backed "List/No-List" decisions in seconds.
-- **Cognitive Automation**: Handling the complex mapping of eBay item specifics that humans often skip.
-- **Operational Scalability**: Enabling a transition from individual sourcing to commercial-grade warehouse intake.
+In high-volume reselling, the "Listing Bottleneck" is the primary barrier to scale. AI List Assist eliminates this by providing:
+- **Instant Valuation**: Shift from manual research to data-backed "List/No-List" decisions in seconds.
+- **Cognitive Automation**: Handle the complex mapping of eBay item specifics automatically.
+- **Operational Scalability**: Transition from individual sourcing to commercial-grade warehouse intake with specialized operational modes.
+- **Financial Transparency**: Integrated **API Usage Tracker** to monitor AI costs (Gemini & Vision) in real-time.
 
 ---
 
@@ -43,7 +44,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 
 ## 🏗️ System Architecture
 
-The platform utilizes a modular, service-oriented architecture designed for reliability and speed.
+The platform utilizes a modular, service-oriented architecture designed for reliability and extreme performance.
 
 ### 📁 13 Specialized Services
 1.  **`VisionService`**: Hybrid OCR and multi-item object detection using Cloud Vision + Gemini.
@@ -54,15 +55,15 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 6.  **`EBayCategoryService`**: Real-time interaction with the eBay Taxonomy API for metadata.
 7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and refresh management.
 8.  **`CategoryDetailGenerator`**: Optimized question generation (~30x speedup via O(N+M) mapping).
-9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets.
+9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets using deterministic hashing.
 10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance.
-11. **`ValuationDatabase`**: Persistent storage for analysis history and market trends (with 95% faster bulk inserts).
-12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls, bypassing heavy SDK dependencies.
+11. **`ValuationDatabase`**: Persistent storage for analysis history (95% faster via bulk `executemany` inserts).
+12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls.
 13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
 
 ### 💾 Triple-DB Strategy
-The system maintains data integrity and operational speed by separating concerns into three SQLite databases (with WAL enabled):
-- **`valuations.db`**: Records analysis history, detection confidence, and market valuations.
+The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases (with WAL enabled):
+- **`valuations.db`**: Stores analysis history, detection confidence, and market valuations.
 - **`listings.db`**: Stores eBay inventory/offer states, draft data, and submission logs.
 - **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset tracking.
 
@@ -71,21 +72,32 @@ The system maintains data integrity and operational speed by separating concerns
 ## 🔄 The Logic Pipeline: From Image to Listing
 
 1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
-2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata using deterministic image hashing.
+2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
 3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
-4.  **Conversational Refinement**: The `ConversationOrchestrator` asks targeted questions to fill required eBay aspects.
-5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated using [eBay Mapping Logic](EBAY_LISTING_MAPPING.md).
+4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
+5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated via [Mapping Logic](EBAY_LISTING_MAPPING.md).
 6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
+
+---
+
+## 💰 Integrated API Usage Tracker
+
+The dashboard includes a real-time **API Usage Tracker** that calculates costs for:
+- **Google Cloud Vision**: Tracks free tier vs. paid calls.
+- **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs.
+- **eBay API**: Monitors handshake and inventory calls (Free tier tracking).
+
+This ensures reselling margins are protected from unexpected AI infrastructure costs.
 
 ---
 
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- Python 3.12+ (Developed on 3.12.12)
+- Python 3.12+ (Targets 3.12.12)
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Telegram Bot Token (Optional, for mobile valuation)
+- Redis & PostgreSQL (Required for `seed_db.py` market trend caching)
 
 ### Quick Start
 ```bash
@@ -105,7 +117,7 @@ cp .env.example .env  # Update with your API keys:
 ### Launching
 - **Web Dashboard**: `python app_enhanced.py` (Visit `http://localhost:5000`)
 - **Telegram Bot**: `python your_ebay_valuator_bot.py`
-- **Database Init**: `python seed_db.py`
+- **Market Seed**: `python seed_db.py` (Seeds PostgreSQL/Redis with market trends)
 
 ---
 
@@ -119,8 +131,6 @@ export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KE
 python -m pytest tests/ -v
 ```
 
-For detailed valuation testing, see the [Valuation Data Guide](VALUATION_DATA_GUIDE.md).
-
 ---
 
 ## 📅 Roadmap
@@ -132,9 +142,9 @@ For detailed valuation testing, see the [Valuation Data Guide](VALUATION_DATA_GU
 ---
 
 ## 📚 Specialized Documentation
-- 📖 [Setup Guide](SETUP_GUIDE.md): Detailed installation and Postman testing instructions.
 - 📊 [Valuation Guide](VALUATION_DATA_GUIDE.md): Deep dive into decision logic and price discovery.
 - 🔄 [Mapping Guide](EBAY_LISTING_MAPPING.md): How AI data translates to eBay fields.
+- 🛠️ [Setup Guide](SETUP_GUIDE.md): Detailed installation and Postman testing instructions.
 - 🤝 [Contributing](CONTRIBUTING.md): Guidelines for code standards and PR processes.
 
 ---
