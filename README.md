@@ -9,6 +9,25 @@
 
 ---
 
+## 🛠️ How It Works: The Hybrid AI Pipeline
+
+AI List Assist utilizes a sophisticated multi-stage pipeline to convert a single photo into a high-quality marketplace listing.
+
+```text
+   +-------------------+       +-------------------+       +-------------------+
+   |  📸 Visual Input  | ----> |  🧠 Vision AI     | ----> |  💰 Market Value  |
+   |  (Dashboard/Bot)  |       |  (OCR & Detection)|       |  (Trend Analysis) |
+   +-------------------+       +-------------------+       +-------------------+
+                                                                     |
+                                                                     v
+   +-------------------+       +-------------------+       +-------------------+
+   |  🚀 Secure Pub.   | <---- |  ✍️ List Synthesis | <---- |  ⚖️ Decision Gate |
+   |  (eBay REST API)  |       |  (SEO & Mapping)  |       |  (List/No-List)   |
+   +-------------------+       +-------------------+       +-------------------+
+```
+
+---
+
 ## 🚀 The Reselling Problem: Solved
 
 In high-volume reselling, the "Listing Bottleneck" is the primary barrier to scale. AI List Assist eliminates this by:
@@ -68,6 +87,34 @@ The system maintains data integrity and operational speed by separating concerns
 
 ---
 
+## 🔒 Security & Reliability
+
+Data integrity and secure access are core pillars of the AI List Assist architecture.
+
+- **HMAC API Protection**: Sensitive endpoints (analysis, publishing) are secured using HMAC-based signature verification against a server-side `API_KEY`.
+- **Deterministic Hashing**: Every uploaded image is processed using SHA-256 hashing. This ensures that identical items receive consistent valuations and prevents redundant, costly AI processing.
+- **Transactional Integrity**: All database operations utilize SQLite's Write-Ahead Logging (WAL) mode to ensure atomic, consistent, isolated, and durable (ACID) transactions even under high load.
+- **Credential Safety**: Strict environment variable enforcement ensures no API secrets or tokens are ever persisted in the source code or build artifacts.
+
+---
+
+## 📱 Primary Interfaces
+
+AI List Assist provides two primary entry points for item intake and valuation.
+
+### 💻 Web Dashboard
+The desktop-optimized central hub for bulk management, eBay publishing, and detailed analytics.
+- **Studio Mode**: Batch image processing.
+- **Reporting**: API usage tracking and profitability insights.
+
+### 🤖 Telegram Valuator Bot
+A mobile-first companion designed specifically for **Sourcing Mode**.
+- **Field Appraisal**: Send a photo from a thrift store or estate sale for instant market analysis.
+- **Real-time Notifications**: Get alerts when listings are published or items are sold.
+- **Zero Latency**: Direct interaction with the Vision pipeline without opening a browser.
+
+---
+
 ## 🔄 The Logic Pipeline: From Image to Listing
 
 1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
@@ -104,7 +151,7 @@ cp .env.example .env  # Update with your API keys:
 
 ### Launching
 - **Web Dashboard**: `python app_enhanced.py` (Visit `http://localhost:5000`)
-- **Telegram Bot**: `python your_ebay_valuator_bot.py`
+- **Telegram Valuator Bot**: `python your_ebay_valuator_bot.py`
 - **Database Init**: `python seed_db.py`
 
 ---
