@@ -26,6 +26,7 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 - **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
 - **Secure Architecture**: Protected by HMAC-based API key verification and strict security headers.
 - **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
+- **Optimized Pricing**: Automatic adjustment of values to market-optimized fractional points (e.g., $179.99).
 
 ---
 
@@ -69,14 +70,41 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 ---
 
-## 🔄 The Logic Pipeline: From Image to Listing
+## 🔄 The Hybrid AI Pipeline
 
-1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
-2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
-3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
-4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
-5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated via [Mapping Logic](EBAY_LISTING_MAPPING.md).
-6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
+```text
++----------------+      +-------------------+      +-------------------+
+|  Image Input   |----->|  Cloud Vision API |----->|  Gemini 1.5 Flash |
+| (Web/Telegram) |      | (OCR & Detection) |      | (Reasoning/Synth) |
++----------------+      +---------+---------+      +---------+---------+
+                                  |                          |
+                                  v                          v
+                        +------------------------------------+
+                        |      Unified Item Metadata         |
+                        | (Brand, Model, Condition, Category)|
+                        +------------------------------------+
+                                  |
+                                  v
+                        +-------------------------+
+                        |   Market Decision Gate  |
+                        | (List vs. No-List Logic)|
+                        +-------------------------+
+                                  |
+                                  v
+                        +-------------------------+
+                        |  Secure Marketplace Pub |
+                        | (eBay REST Inventory)   |
+                        +-------------------------+
+```
+
+---
+
+## 🛡️ Security & Reliability
+
+- **HMAC Verification**: All sensitive API endpoints are secured using HMAC-based signature verification.
+- **WAL Mode**: SQLite databases operate in Write-Ahead Logging mode for safe concurrent access.
+- **Deterministic Hashing**: Item IDs and image processing results are tied to SHA-256 hashes to prevent duplication.
+- **OAuth 2.0 Lifecycle**: Centralized token management with automatic refresh for eBay integration.
 
 ---
 
@@ -85,7 +113,7 @@ The system ensures strict separation of concerns and data integrity by using thr
 The dashboard includes a real-time **API Usage Tracker** that calculates costs for:
 - **Google Cloud Vision**: Tracks free tier vs. paid calls.
 - **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs.
-- **eBay API**: Monitors handshake and inventory calls (Free tier tracking).
+- **eBay API**: Monitors handshake and inventory calls.
 
 This ensures reselling margins are protected from unexpected AI infrastructure costs.
 
@@ -97,7 +125,6 @@ This ensures reselling margins are protected from unexpected AI infrastructure c
 - Python 3.12+ (Targets 3.12.12)
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Redis & PostgreSQL (Required for `seed_db.py` market trend caching)
 
 ### Quick Start
 ```bash
