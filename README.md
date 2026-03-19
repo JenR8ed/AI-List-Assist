@@ -19,29 +19,6 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 
 ---
 
-## ✨ Key Features
-
-- **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
-- **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
-- **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
-- **Secure Architecture**: Protected by HMAC-based API key verification and strict security headers.
-- **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
-
----
-
-## 🎮 Operational Modes
-
-AI List Assist adapts to your specific workflow through four dedicated operational modes:
-
-| Mode | Purpose | Target User |
-| :--- | :--- | :--- |
-| **🏠 Locker Mode** | Secure inventory management for personal collections. | Casual Resellers |
-| **🔍 Sourcing Mode** | Mobile-first valuation and market analysis in the field. | Thrift/Estate Hunters |
-| **🤝 Consignment** | Tracking third-party assets, commissions, and KYC. | Consignment Businesses |
-| **🏬 Studio Mode** | High-speed, bulk photo intake and batch processing. | Commercial Warehouses |
-
----
-
 ## 🏗️ System Architecture
 
 The platform utilizes a modular, service-oriented architecture designed for reliability and extreme performance.
@@ -62,21 +39,52 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
 
 ### 💾 Triple-DB Strategy
-The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases (with WAL enabled):
+The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases (with WAL enabled for concurrent performance):
 - **`valuations.db`**: Stores analysis history, detection confidence, and market valuations.
 - **`listings.db`**: Stores eBay inventory/offer states, draft data, and submission logs.
 - **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset tracking.
 
 ---
 
-## 🔄 The Logic Pipeline: From Image to Listing
+## 🔄 Hybrid AI Workflow: From Image to Listing
 
-1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
-2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
-3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
-4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
-5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated via [Mapping Logic](EBAY_LISTING_MAPPING.md).
-6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
+```text
+[ Photo Intake ] -> [ SHA-256 Hashing ] -> [ Cloud Vision (OCR) ]
+                                                   |
+                                                   v
+[ Gemini 1.5 Flash (Synthesis) ] <- [ Contextual Knowledge ]
+              |
+              v
+[ Decision Gate: List? ] -> NO  -> [ Archive ]
+              |
+              v YES
+[ Conversational Refinement ] -> [ eBay Taxonomy Mapping ]
+              |
+              v
+[ Secure Publishing: eBay REST API ]
+```
+
+---
+
+## 🎮 Operational Modes
+
+AI List Assist adapts to your specific workflow through four dedicated operational modes:
+
+| Mode | Purpose | Target User |
+| :--- | :--- | :--- |
+| **🏠 Locker Mode** | Secure inventory management for personal collections. | Casual Resellers |
+| **🔍 Sourcing Mode** | Mobile-first valuation and market analysis in the field. | Thrift/Estate Hunters |
+| **🤝 Consignment** | Tracking third-party assets, commissions, and KYC. | Consignment Businesses |
+| **🏬 Studio Mode** | High-speed, bulk photo intake and batch processing. | Commercial Warehouses |
+
+---
+
+## 🛡️ Security & Reliability
+
+- **HMAC Verification**: Sensitive API endpoints are secured using HMAC-based signature verification.
+- **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
+- **Strict Headers**: Integrated protection via `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and a robust Content Security Policy (CSP).
+- **Offline-First Resilience**: Local caching and SQLite WAL (Write-Ahead Logging) ensure performance and data integrity under load.
 
 ---
 
@@ -85,19 +93,16 @@ The system ensures strict separation of concerns and data integrity by using thr
 The dashboard includes a real-time **API Usage Tracker** that calculates costs for:
 - **Google Cloud Vision**: Tracks free tier vs. paid calls.
 - **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs.
-- **eBay API**: Monitors handshake and inventory calls (Free tier tracking).
-
-This ensures reselling margins are protected from unexpected AI infrastructure costs.
+- **eBay API**: Monitors handshake and inventory calls.
 
 ---
 
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- Python 3.12+ (Targets 3.12.12)
+- Python 3.12+ (Targets 3.12.13)
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Redis & PostgreSQL (Required for `seed_db.py` market trend caching)
 
 ### Quick Start
 ```bash
@@ -130,14 +135,6 @@ export PYTHONPATH=$PYTHONPATH:.
 export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
 python -m pytest tests/ -v
 ```
-
----
-
-## 📅 Roadmap
-
-- **Phase 1: Automation** (Complete) - Core Hybrid Vision and eBay REST integration.
-- **Phase 2: Reporting** (In Progress) - Consignment dashboards and multi-item trend analysis.
-- **Phase 3: Scale** (Planned) - Omnichannel support (Mercari, Poshmark integration).
 
 ---
 
