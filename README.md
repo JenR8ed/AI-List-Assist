@@ -29,24 +29,11 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 
 ---
 
-## 🎮 Operational Modes
-
-AI List Assist adapts to your specific workflow through four dedicated operational modes:
-
-| Mode | Purpose | Target User |
-| :--- | :--- | :--- |
-| **🏠 Locker Mode** | Secure inventory management for personal collections. | Casual Resellers |
-| **🔍 Sourcing Mode** | Mobile-first valuation and market analysis in the field. | Thrift/Estate Hunters |
-| **🤝 Consignment** | Tracking third-party assets, commissions, and KYC. | Consignment Businesses |
-| **🏬 Studio Mode** | High-speed, bulk photo intake and batch processing. | Commercial Warehouses |
-
----
-
-## 🏗️ System Architecture
+## 🏗️ System Architecture: The 13-Service Engine
 
 The platform utilizes a modular, service-oriented architecture designed for reliability and extreme performance.
 
-### 📁 13 Specialized Services
+### 📁 Core Services
 1.  **`VisionService`**: Hybrid OCR and multi-item object detection using Cloud Vision + Gemini.
 2.  **`ValuationService`**: Market analysis and "Decision Gate" profitability logic.
 3.  **`ConversationOrchestrator`**: AI-driven dialogue management to resolve missing item aspects.
@@ -69,6 +56,19 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 ---
 
+## 🎮 Operational Modes
+
+AI List Assist adapts to your specific workflow through four dedicated operational modes:
+
+| Mode | Purpose | Target User |
+| :--- | :--- | :--- |
+| **🏠 Locker Mode** | Secure inventory management for personal collections. | Casual Resellers |
+| **🔍 Sourcing Mode** | Mobile-first valuation and market analysis in the field. | Thrift/Estate Hunters |
+| **🤝 Consignment** | Tracking third-party assets, commissions, and KYC. | Consignment Businesses |
+| **🏬 Studio Mode** | High-speed, bulk photo intake and batch processing. | Commercial Warehouses |
+
+---
+
 ## 🔄 The Logic Pipeline: From Image to Listing
 
 1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
@@ -84,8 +84,8 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 The dashboard includes a real-time **API Usage Tracker** that calculates costs for:
 - **Google Cloud Vision**: Tracks free tier vs. paid calls.
-- **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs.
-- **eBay API**: Monitors handshake and inventory calls (Free tier tracking).
+- **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs ($0.075/$0.30 per 1M tokens).
+- **eBay API**: Monitors handshake and inventory calls.
 
 This ensures reselling margins are protected from unexpected AI infrastructure costs.
 
@@ -94,10 +94,10 @@ This ensures reselling margins are protected from unexpected AI infrastructure c
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- Python 3.12+ (Targets 3.12.12)
+- Python 3.12+
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Redis & PostgreSQL (Required for `seed_db.py` market trend caching)
+- Redis & PostgreSQL (Optional, for `seed_db.py` market trend caching)
 
 ### Quick Start
 ```bash
