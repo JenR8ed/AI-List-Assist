@@ -1,7 +1,7 @@
 # AI List Assist: Enterprise-Grade Reselling Orchestration
 
 ![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)
+![Flask](https://img.shields.io/badge/flask-3.1.3-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
 
@@ -33,26 +33,38 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 
 The platform utilizes a modular, service-oriented architecture designed for reliability and extreme performance.
 
-### 📁 Core Services
-1.  **`VisionService`**: Hybrid OCR and multi-item object detection using Cloud Vision + Gemini.
-2.  **`ValuationService`**: Market analysis and "Decision Gate" profitability logic.
-3.  **`ConversationOrchestrator`**: AI-driven dialogue management to resolve missing item aspects.
-4.  **`ListingSynthesisEngine`**: SEO-optimized marketplace listing generation.
-5.  **`eBayIntegration`**: Direct interaction with modern eBay REST Inventory/Offer APIs.
-6.  **`EBayCategoryService`**: Real-time interaction with the eBay Taxonomy API for metadata.
-7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and refresh management.
-8.  **`CategoryDetailGenerator`**: Optimized question generation (~30x speedup via O(N+M) mapping).
-9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets using deterministic hashing.
-10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance.
-11. **`ValuationDatabase`**: Persistent storage for analysis history (95% faster via bulk `executemany` inserts).
-12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls.
-13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
+### 🛠️ Service Catalog
+| Service | Purpose | Key Tech |
+| :--- | :--- | :--- |
+| **`VisionService`** | Hybrid OCR and multi-item object detection. | Cloud Vision, Gemini |
+| **`ValuationService`** | Market analysis and "Decision Gate" profitability logic. | Internal Market Model |
+| **`ConversationOrchestrator`** | AI-driven dialogue to resolve missing item aspects. | Gemini 1.5 Flash |
+| **`ListingSynthesisEngine`** | SEO-optimized marketplace listing generation. | Markdown, HTML |
+| **`eBayIntegration`** | Direct interaction with eBay REST Inventory/Offer APIs. | OAuth 2.0, REST |
+| **`EBayCategoryService`** | Real-time interaction with eBay Taxonomy API metadata. | eBay SDK, JSON |
+| **`EBayTokenManager`** | Centralized OAuth 2.0 lifecycle and refresh management. | HMAC, SQLite |
+| **`CategoryDetailGenerator`** | Optimized question generation (~30x speedup via O(N+M)). | Python |
+| **`DraftImageManager`** | Lifecycle management for listing-specific image assets. | `shutil.copy2` |
+| **`ConsignmentDatabase`** | Tracking for participants, KYC, and asset provenance. | SQLite (consignment.db) |
+| **`ValuationDatabase`** | Persistent analysis history (95% faster via bulk inserts). | SQLite (valuations.db) |
+| **`GeminiRestClient`** | Unified sync/async interface for direct Google AI REST calls. | `httpx` |
+| **`MockValuationService`** | High-fidelity environment for development and testing. | Deterministic Mocking |
 
 ### 💾 Triple-DB Strategy
-The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases (with WAL enabled):
+The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases (with **Write-Ahead Logging (WAL)** enabled):
 - **`valuations.db`**: Stores analysis history, detection confidence, and market valuations.
 - **`listings.db`**: Stores eBay inventory/offer states, draft data, and submission logs.
 - **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset tracking.
+
+---
+
+## 🔒 Security & Authentication
+
+AI List Assist implements a multi-layer security model to protect sensitive API data and inventory records:
+- **HMAC Signature Verification**: All sensitive API routes (`/api/analyze`, `/api/listing/publish`) are protected by a custom `@require_api_key` decorator.
+- **Bearer Token Auth**: Clients must provide a valid `API_KEY` via an `Authorization: Bearer <token>` header.
+- **Global Security Headers**: The backend implements `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and strict `Content-Security-Policy`.
+- **Credential Management**: No secrets are hardcoded; all configuration is handled via environment variables and `.env` files.
 
 ---
 
@@ -94,10 +106,22 @@ This ensures reselling margins are protected from unexpected AI infrastructure c
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- Python 3.12+
-- Google Cloud API Key (Gemini + Vision)
-- eBay Developer Account (Sandbox or Production)
-- Redis & PostgreSQL (Optional, for `seed_db.py` market trend caching)
+- **Python 3.12+**
+- **Google Cloud API Key** (Gemini + Vision)
+- **eBay Developer Account** (Sandbox or Production)
+- **Telegram Bot Token** (Optional, for field appraisal)
+
+### Configuration (Environment Variables)
+Create a `.env` file in the root directory with the following keys:
+```env
+SECRET_KEY=your_flask_secret_key
+API_KEY=your_hmac_api_key_for_clients
+GOOGLE_API_KEY=your_google_cloud_api_key
+EBAY_CLIENT_ID=your_ebay_app_id
+EBAY_CLIENT_SECRET=your_ebay_cert_id
+EBAY_CATEGORY_TREE_ID=0  # Default is 0 for US
+TELEGRAM_BOT_TOKEN=your_bot_token  # Optional
+```
 
 ### Quick Start
 ```bash
@@ -108,16 +132,12 @@ cd ai-list-assist
 # Install core dependencies
 pip install -r requirements.txt
 
-# Configure environment
-cp .env.example .env  # Update with your API keys:
-# GOOGLE_API_KEY, EBAY_CLIENT_ID, EBAY_CLIENT_SECRET,
-# SECRET_KEY, API_KEY, EBAY_CATEGORY_TREE_ID=0
-```
+# Launching Web Dashboard
+python app_enhanced.py
 
-### Launching
-- **Web Dashboard**: `python app_enhanced.py` (Visit `http://localhost:5000`)
-- **Telegram Bot**: `python your_ebay_valuator_bot.py`
-- **Market Seed**: `python seed_db.py` (Seeds PostgreSQL/Redis with market trends)
+# Launching Telegram Bot
+python your_ebay_valuator_bot.py
+```
 
 ---
 
@@ -125,8 +145,7 @@ cp .env.example .env  # Update with your API keys:
 
 Ensure system integrity by running the test suite:
 ```bash
-export PYTHONPATH=$PYTHONPATH:.
-# Set dummy credentials for local testing
+# Set dummy credentials for isolated testing
 export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
 python -m pytest tests/ -v
 ```
