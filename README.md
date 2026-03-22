@@ -56,6 +56,16 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 ---
 
+## 🔒 Security & Authentication
+
+AI List Assist implements a multi-layer security model to protect sensitive marketplace operations:
+
+- **HMAC Signature Verification**: All sensitive API endpoints (e.g., `/api/analyze`, `/api/listing/publish`) are protected by a custom `@require_api_key` decorator. This verifies the HMAC signature of the request against the `API_KEY` defined in environment variables.
+- **Global Security Headers**: The Flask backend automatically injects `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and a strict `Content-Security-Policy`.
+- **Credential Isolation**: All marketplace secrets (Client ID, Client Secret, OAuth Tokens) are stored in an encrypted session/database state and never exposed to the frontend.
+
+---
+
 ## 🎮 Operational Modes
 
 AI List Assist adapts to your specific workflow through four dedicated operational modes:
@@ -71,23 +81,25 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 
 ## 🔄 The Logic Pipeline: From Image to Listing
 
-1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
+```text
+[ Image Upload ] ──▶ [ VisionService ] ──▶ [ ValuationService ] ──▶ [ Decision Gate ]
+       │                (OCR + Object)       (Market Analysis)          (List/No-List)
+       │                                                                      │
+       ▼                                                                      ▼
+[ Telegram Bot ] ◀─────────────────────────────────────────────────── [ Listing Engine ]
+       │                                                               (SEO Synthesis)
+       │                                                                      │
+       ▼                                                                      ▼
+[ API Tracker ] ◀─────────────────────────────────────────────────── [ eBay Inventory ]
+(Cost Control)                                                         (Live Listing)
+```
+
+1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot** (`your_ebay_valuator_bot.py`).
 2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
 3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
 4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
 5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated via [Mapping Logic](EBAY_LISTING_MAPPING.md).
 6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
-
----
-
-## 💰 Integrated API Usage Tracker
-
-The dashboard includes a real-time **API Usage Tracker** that calculates costs for:
-- **Google Cloud Vision**: Tracks free tier vs. paid calls.
-- **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs ($0.075/$0.30 per 1M tokens).
-- **eBay API**: Monitors handshake and inventory calls.
-
-This ensures reselling margins are protected from unexpected AI infrastructure costs.
 
 ---
 
@@ -97,9 +109,18 @@ This ensures reselling margins are protected from unexpected AI infrastructure c
 - Python 3.12+
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Redis & PostgreSQL (Optional, for `seed_db.py` market trend caching)
 
-### Quick Start
+### 🐳 Docker Workflow (Recommended)
+The fastest way to get started is using Docker Compose:
+```bash
+# Start the full stack (API + Dashboard + DBs)
+docker-compose -f docker-compose.dev.yml up --build
+
+# Run in background
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+### 🐍 Local Python Workflow
 ```bash
 # Clone the repository
 git clone <repository-url>
