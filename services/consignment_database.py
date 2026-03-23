@@ -308,3 +308,7 @@ def attach_document(
 def get_document(document_id: str) -> Optional[Dict[str, Any]]:
     with _get_conn() as conn:
         row = conn.execute(
+            "SELECT * FROM documents WHERE document_id = ?",
+            (document_id,),
+        ).fetchone()
+    return dict(row) if row else None
