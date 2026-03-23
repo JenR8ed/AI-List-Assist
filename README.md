@@ -1,7 +1,7 @@
 # AI List Assist: Enterprise-Grade Reselling Orchestration
 
 ![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)
+![Flask](https://img.shields.io/badge/flask-3.1.3-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
 
@@ -19,12 +19,29 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 
 ---
 
+## 🔄 The Logic Pipeline: From Image to Listing
+
+The system orchestrates a multi-stage pipeline combining deterministic vision and generative reasoning:
+
+```text
+[ SOURCE ]          [ HYBRID AI ANALYSIS ]          [ DECISION GATE ]          [ PUBLISHING ]
+   |                    |                               |                       |
+   |-- Web Dashboard    |-- Cloud Vision (OCR/Detect)   |-- Market Comparison   |-- SEO Title Gen
+   |-- Telegram Bot ----|-- Gemini 1.5 (Reasoning)      |-- Profitability Calc  |-- Aspect Mapping
+   |-- API Upload       |-- Deterministic Hashing       |-- "List/No-List"      |-- eBay REST API
+   |                    |                               |                       |
+[ IMAGE ] ----------> [ METADATA ] ----------------> [ VALUATION ] ----------> [ LIVE LISTING ]
+```
+
+---
+
 ## ✨ Key Features
 
 - **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
+- **Secure by Design**: All sensitive API endpoints are protected by HMAC-based signature verification.
+- **Mobile Valuator Bot**: Real-time sourcing via Telegram for rapid field appraisal.
 - **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
-- **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
-- **Secure Architecture**: Protected by HMAC-based API key verification and strict security headers.
+- **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent results and prevent redundant API costs.
 - **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
 
 ---
@@ -42,7 +59,7 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 6.  **`EBayCategoryService`**: Real-time interaction with the eBay Taxonomy API for metadata.
 7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and refresh management.
 8.  **`CategoryDetailGenerator`**: Optimized question generation (~30x speedup via O(N+M) mapping).
-9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets using deterministic hashing.
+9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets.
 10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance.
 11. **`ValuationDatabase`**: Persistent storage for analysis history (95% faster via bulk `executemany` inserts).
 12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls.
@@ -60,23 +77,34 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 AI List Assist adapts to your specific workflow through four dedicated operational modes:
 
-| Mode | Purpose | Target User |
+| Mode | Purpose | Key Benefit |
 | :--- | :--- | :--- |
-| **🏠 Locker Mode** | Secure inventory management for personal collections. | Casual Resellers |
-| **🔍 Sourcing Mode** | Mobile-first valuation and market analysis in the field. | Thrift/Estate Hunters |
-| **🤝 Consignment** | Tracking third-party assets, commissions, and KYC. | Consignment Businesses |
-| **🏬 Studio Mode** | High-speed, bulk photo intake and batch processing. | Commercial Warehouses |
+| **🏠 Locker Mode** | Personal collection management. | High-fidelity asset tracking for enthusiasts. |
+| **🔍 Sourcing Mode** | Mobile-first field appraisal. | Instant "Buy/Don't Buy" signals for thrift hunters. |
+| **🤝 Consignment** | Third-party asset management. | Automated commission splits and KYC compliance. |
+| **🏬 Studio Mode** | High-speed, bulk intake. | Optimized for commercial-grade photography setups. |
 
 ---
 
-## 🔄 The Logic Pipeline: From Image to Listing
+## 🔐 Security & Authentication
 
-1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
-2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
-3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
-4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
-5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated via [Mapping Logic](EBAY_LISTING_MAPPING.md).
-6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
+The application implements enterprise-grade security for its API surface:
+
+- **HMAC Verification**: Sensitive routes (e.g., `/api/analyze`, `/api/listing/publish`) require a `Bearer` token that is verified via `hmac.compare_digest` against the server's `API_KEY`.
+- **Global Headers**: The system automatically injects security headers (`X-Frame-Options`, `Content-Security-Policy`, `X-Content-Type-Options`).
+- **Secret Management**: All credentials (Google, eBay, HMAC keys) are managed exclusively through environment variables; never hardcoded.
+
+---
+
+## 🤖 Mobile-First Integration (Telegram Bot)
+
+For field sourcing, use the **eBay Valuator Bot** (`your_ebay_valuator_bot.py`):
+1. **Instant Valuation**: Snap a photo in a thrift store and receive immediate brand, category, and model detection.
+2. **Setup**:
+   - Obtain a bot token from [@BotFather](https://t.me/BotFather).
+   - Set `TELEGRAM_BOT_TOKEN` in your `.env`.
+   - Run `python your_ebay_valuator_bot.py`.
+3. **Usage**: Simply send a photo to the bot to trigger the Hybrid AI analysis pipeline.
 
 ---
 
@@ -84,7 +112,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 
 The dashboard includes a real-time **API Usage Tracker** that calculates costs for:
 - **Google Cloud Vision**: Tracks free tier vs. paid calls.
-- **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs ($0.075/$0.30 per 1M tokens).
+- **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs.
 - **eBay API**: Monitors handshake and inventory calls.
 
 This ensures reselling margins are protected from unexpected AI infrastructure costs.
@@ -97,27 +125,33 @@ This ensures reselling margins are protected from unexpected AI infrastructure c
 - Python 3.12+
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Redis & PostgreSQL (Optional, for `seed_db.py` market trend caching)
 
-### Quick Start
+### Docker Deployment (Recommended)
+The easiest way to launch the full stack is using Docker Compose:
 ```bash
-# Clone the repository
+# Start the database and application containers
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+### Manual Installation
+```bash
+# Clone and install dependencies
 git clone <repository-url>
 cd ai-list-assist
-
-# Install core dependencies
 pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env  # Update with your API keys:
 # GOOGLE_API_KEY, EBAY_CLIENT_ID, EBAY_CLIENT_SECRET,
-# SECRET_KEY, API_KEY, EBAY_CATEGORY_TREE_ID=0
+# SECRET_KEY, API_KEY, TELEGRAM_BOT_TOKEN
+
+# Initialize and Seed Market Trends (Optional)
+python seed_db.py
 ```
 
 ### Launching
 - **Web Dashboard**: `python app_enhanced.py` (Visit `http://localhost:5000`)
 - **Telegram Bot**: `python your_ebay_valuator_bot.py`
-- **Market Seed**: `python seed_db.py` (Seeds PostgreSQL/Redis with market trends)
 
 ---
 
