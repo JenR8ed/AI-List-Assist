@@ -1,7 +1,7 @@
 # AI List Assist: Enterprise-Grade Reselling Orchestration
 
 ![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)
+![Flask](https://img.shields.io/badge/flask-3.1.3-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
 
@@ -24,8 +24,9 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 - **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
 - **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
 - **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
-- **Secure Architecture**: Protected by HMAC-based API key verification and strict security headers.
+- **Secure Architecture**: Protected by HMAC-based API key verification and strict security headers (`X-Content-Type-Options`, `X-Frame-Options`, `CSP`).
 - **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
+- **Mobile-First Appraisals**: Integrated Telegram Valuator Bot for rapid field appraisals and sourcing.
 
 ---
 
@@ -97,7 +98,7 @@ This ensures reselling margins are protected from unexpected AI infrastructure c
 - Python 3.12+
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Redis & PostgreSQL (Optional, for `seed_db.py` market trend caching)
+- Redis & PostgreSQL (For `seed_db.py` market trend caching)
 
 ### Quick Start
 ```bash
@@ -118,6 +119,11 @@ cp .env.example .env  # Update with your API keys:
 - **Web Dashboard**: `python app_enhanced.py` (Visit `http://localhost:5000`)
 - **Telegram Bot**: `python your_ebay_valuator_bot.py`
 - **Market Seed**: `python seed_db.py` (Seeds PostgreSQL/Redis with market trends)
+
+### Docker (Development)
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
 
 ---
 
