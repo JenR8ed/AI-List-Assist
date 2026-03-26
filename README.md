@@ -38,7 +38,7 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 1.  **`VisionService`**: Hybrid OCR and multi-item object detection using Cloud Vision + Gemini. Optimized brand extraction (~32% gain).
 2.  **`ValuationService`**: Market analysis and "Decision Gate" profitability logic.
 3.  **`ConversationOrchestrator`**: AI-driven dialogue management to resolve missing item aspects.
-4.  **`ListingSynthesisEngine`**: SEO-optimized marketplace listing generation. Optimized title generation (~50-60% gain via C-level substring checks).
+4.  **`ListingSynthesisEngine`**: SEO-optimized marketplace listing generation. Optimized title generation (~50-60% gain).
 5.  **`eBayIntegration`**: Direct interaction with modern eBay REST Inventory/Offer APIs.
 6.  **`EBayCategoryService`**: Real-time interaction with the eBay Taxonomy API for metadata.
 7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and refresh management.
@@ -94,7 +94,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
 3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
 4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
-5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated via [Mapping Logic](EBAY_LISTING_MAPPING.md).
+5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated.
 6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
 
 ---
