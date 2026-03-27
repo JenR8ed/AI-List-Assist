@@ -12,21 +12,21 @@
 ## 🚀 The Reselling Problem: Solved
 
 In high-volume reselling, the "Listing Bottleneck" is the primary barrier to scale. AI List Assist eliminates this by providing:
-- **Instant Valuation**: Shift from manual research to data-backed "List/No-List" decisions in seconds.
-- **Cognitive Automation**: Handle the complex mapping of eBay item specifics automatically.
+- **Instant Valuation**: Shift from manual research to data-backed "List/No-List" decisions in seconds using real-time eBay market data.
+- **Cognitive Automation**: Handle the complex mapping of eBay item specifics automatically through AI-driven attribute extraction.
 - **Operational Scalability**: Transition from individual sourcing to commercial-grade warehouse intake with specialized operational modes.
-- **Financial Transparency**: Integrated **API Usage Tracker** to monitor AI costs (Gemini & Vision) in real-time.
+- **Financial Transparency**: Integrated **API Usage Tracker** to monitor AI costs (Gemini & Vision) and eBay API calls in real-time.
 
 ---
 
 ## ✨ Key Features
 
-- **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
-- **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
-- **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
+- **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis) for superior accuracy.
+- **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard, protecting your margins.
+- **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results and prevent duplicate processing.
 - **Secure Architecture**: Protected by HMAC-based API key verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
-- **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
-- **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals.
+- **Market-Driven Logic**: Uses the eBay Browse API to calculate 90-day moving averages for "List/No-List" decision gates.
+- **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals and on-the-go sourcing.
 
 ---
 
@@ -35,22 +35,22 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 The platform utilizes a modular, service-oriented architecture designed for reliability and extreme performance.
 
 ### 📁 Core Services
-1.  **`VisionService`**: Hybrid OCR and multi-item object detection using Cloud Vision + Gemini. Optimized brand extraction (~32% gain).
-2.  **`ValuationService`**: Market analysis and "Decision Gate" profitability logic.
-3.  **`ConversationOrchestrator`**: AI-driven dialogue management to resolve missing item aspects.
-4.  **`ListingSynthesisEngine`**: SEO-optimized marketplace listing generation. Optimized title generation (~50-60% gain via C-level substring checks).
-5.  **`eBayIntegration`**: Direct interaction with modern eBay REST Inventory/Offer APIs.
-6.  **`EBayCategoryService`**: Real-time interaction with the eBay Taxonomy API for metadata.
-7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and refresh management.
-8.  **`CategoryDetailGenerator`**: Optimized question generation (~30x speedup via O(N+M) mapping).
-9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets using deterministic hashing.
-10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance.
+1.  **`VisionService`**: Multi-item detection and OCR using Cloud Vision + Gemini. Optimized brand extraction (~32% gain).
+2.  **`ValuationService`**: Real market analysis using the eBay Browse API to calculate dynamic pricing based on sold items.
+3.  **`ConversationOrchestrator`**: AI-driven dialogue management to resolve missing item aspects through progressive questioning.
+4.  **`ListingSynthesisEngine`**: SEO-optimized marketplace listing generation, mapping extracted data to eBay schemas.
+5.  **`eBayIntegration`**: Direct interaction with modern eBay REST Inventory and Offer APIs.
+6.  **`EBayCategoryService`**: Real-time interaction with the eBay Taxonomy API for category-specific metadata and aspects.
+7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and auto-refresh management for eBay tokens.
+8.  **`CategoryDetailGenerator`**: Generates targeted questions for missing required fields (~30x speedup via O(N+M) mapping).
+9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets using deterministic storage.
+10. **`ConsignmentDatabase`**: Specialized tracking for participants (KYC), asset provenance, and commission calculations.
 11. **`ValuationDatabase`**: Persistent storage for analysis history (95% faster via bulk `executemany` inserts).
-12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls.
-13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
+12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls, avoiding heavy dependencies.
+13. **`MockValuationService`**: High-fidelity environment for development and isolated automated testing.
 
 ### 💾 Triple-DB Strategy
-The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases (with **Write-Ahead Logging (WAL)** enabled for concurrent performance):
+The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases (with **Write-Ahead Logging (WAL)** and `busy_timeout` enabled for concurrent performance):
 - **`valuations.db`**: Stores analysis history, detection confidence, and market valuations.
 - **`listings.db`**: Stores eBay inventory/offer states, draft data, and submission logs.
 - **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset tracking.
@@ -62,7 +62,7 @@ The system ensures strict separation of concerns and data integrity by using thr
 - **HMAC Authentication**: Sensitive API endpoints require HMAC-based signature verification via `Authorization: Bearer <token>`.
 - **Content Security Policy**: Strict CSP headers prevent XSS and data injection attacks.
 - **Secure Handling**: No hardcoded credentials; all secrets are managed via environment variables.
-- **Sanitized Rendering**: Custom helper functions in the frontend ensure dynamic item metadata is rendered securely.
+- **Data Privacy**: Local persistence of valuation data with deterministic hashing for privacy and consistency.
 
 ---
 
@@ -73,8 +73,8 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 | Mode | Purpose | Target User |
 | :--- | :--- | :--- |
 | **🏠 Locker Mode** | Secure inventory management for personal collections. | Casual Resellers |
-| **🔍 Sourcing Mode** | Mobile-first valuation and market analysis in the field. | Thrift/Estate Hunters |
-| **🤝 Consignment** | Tracking third-party assets, commissions, and KYC. | Consignment Businesses |
+| **🔍 Sourcing Mode** | Mobile-first valuation and market analysis in the field via Telegram. | Thrift/Estate Hunters |
+| **🤝 Consignment** | Tracking third-party assets, commissions, and KYC requirements. | Consignment Businesses |
 | **🏬 Studio Mode** | High-speed, bulk photo intake and batch processing. | Commercial Warehouses |
 
 ---
@@ -92,10 +92,10 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 
 1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
 2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
-3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
+3.  **The Decision Gate**: Items are filtered based on real-time 90-day sold history, supply, and demand.
 4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
 5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated via [Mapping Logic](EBAY_LISTING_MAPPING.md).
-6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
+6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the modern Inventory API.
 
 ---
 
@@ -104,7 +104,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 The dashboard includes a real-time **API Usage Tracker** that calculates costs for:
 - **Google Cloud Vision**: Tracks free tier vs. paid calls.
 - **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs ($0.075/$0.30 per 1M tokens).
-- **eBay API**: Monitors handshake and inventory calls.
+- **eBay API**: Monitors handshake, taxonomy, and inventory calls.
 
 This ensures reselling margins are protected from unexpected AI infrastructure costs.
 
@@ -116,7 +116,6 @@ This ensures reselling margins are protected from unexpected AI infrastructure c
 - **Python 3.12+** (Developed and tested on 3.12.13)
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Redis & PostgreSQL (Optional, for `seed_db.py` market trend caching)
 
 ### Quick Start
 ```bash

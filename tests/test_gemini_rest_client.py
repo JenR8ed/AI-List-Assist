@@ -1,10 +1,7 @@
 import pytest
 import sys
 from unittest.mock import patch, MagicMock, AsyncMock
-
-# Mock out modules that might cause ImportErrors during testing
-# sys.modules['dotenv'] = MagicMock()
-# sys.modules['flask'] = MagicMock()
+import httpx
 
 from services.gemini_rest_client import GeminiRestClient
 
