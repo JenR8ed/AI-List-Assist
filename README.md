@@ -94,7 +94,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
 3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
 4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
-5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated.
+5.  **[Marketplace Synthesis](EBAY_LISTING_MAPPING.md)**: Optimized titles and HTML descriptions are generated.
 6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
 
 ---
