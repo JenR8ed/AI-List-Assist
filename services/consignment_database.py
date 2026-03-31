@@ -308,3 +308,21 @@ def attach_document(
 def get_document(document_id: str) -> Optional[Dict[str, Any]]:
     with _get_conn() as conn:
         row = conn.execute(
+            "SELECT * FROM documents WHERE document_id = ?", (document_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def list_documents(asset_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    sql = "SELECT * FROM documents"
+    params = []
+    if asset_id:
+        sql += " WHERE asset_id = ?"
+        params.append(asset_id)
+    sql += " ORDER BY created_at DESC"
+    with _get_conn() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()

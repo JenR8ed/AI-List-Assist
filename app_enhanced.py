@@ -15,6 +15,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import sqlite3
 import uuid
+import asyncio
 
 # Import services
 from shared.models import ListingDraft, ItemCondition
@@ -181,8 +182,7 @@ async def analyze_image():
         safe_filename = secure_filename(file.filename)
         filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_filename}"
         filepath = Path(app.config['UPLOAD_FOLDER']) / filename
-        with open(filepath, 'wb') as f:
-            f.write(image_data)
+        await asyncio.to_thread(filepath.write_bytes, image_data)
 
         # Create session
         session_id = str(uuid.uuid4())
