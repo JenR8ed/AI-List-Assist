@@ -17,6 +17,8 @@ import re
 
 logger = logging.getLogger(__name__)
 
+_MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}')
+
 class VisionService:
     """Service for multi-item detection and OCR using Google Vision APIs."""
     
@@ -187,7 +189,7 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
         """Extract model from detected text."""
         for text in texts:
             # Look for model patterns (letters + numbers)
-            model_match = re.search(r'[A-Z]{2,}[-\s]?\d{3,}', text)
+            model_match = _MODEL_PATTERN.search(text)
             if model_match:
                 return model_match.group()
         return None
