@@ -13,7 +13,13 @@ from typing import Optional, List, Dict, Any
 from pathlib import Path
 
 
+
 DB_PATH = "consignment.db"
+
+def _now() -> str:
+    """Return the current UTC time in ISO-8601 format."""
+    return datetime.now(timezone.utc).isoformat()
+
 
 
 # ---------------------------------------------------------------------------
@@ -308,3 +314,6 @@ def attach_document(
 def get_document(document_id: str) -> Optional[Dict[str, Any]]:
     with _get_conn() as conn:
         row = conn.execute(
+            "SELECT * FROM documents WHERE document_id = ?", (document_id,)
+        ).fetchone()
+    return dict(row) if row else None
