@@ -1,7 +1,7 @@
 # AI List Assist: Enterprise-Grade Reselling Orchestration
 
 ![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)
+![Flask](https://img.shields.io/badge/flask-3.1.3-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
 
@@ -24,7 +24,7 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 - **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
 - **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
 - **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
-- **Secure Architecture**: Protected by HMAC-based API key verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
+- **Secure Architecture**: Protected by HMAC-based Bearer token verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
 - **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
 - **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals.
 
@@ -59,7 +59,7 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 ## 🔐 Security & Compliance
 
-- **HMAC Authentication**: Sensitive API endpoints (e.g., `/api/analyze`, `/api/listing/publish`) require HMAC-based signature verification via `Authorization: Bearer <token>`.
+- **HMAC Bearer Authentication**: Sensitive API endpoints require HMAC-based Bearer token verification via `Authorization: Bearer <token>`.
 - **Content Security Policy**: Strict CSP headers prevent XSS and data injection attacks.
 - **Secure Handling**: No hardcoded credentials; all secrets are managed via environment variables.
 - **Sanitized Rendering**: Custom helper functions in the frontend ensure dynamic item metadata is rendered securely.
@@ -116,9 +116,8 @@ This ensures reselling margins are protected from unexpected AI infrastructure c
 - **Python 3.12+** (Developed and tested on 3.12.13)
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Redis & PostgreSQL (Optional, for `seed_db.py` market trend caching)
 
-### Quick Start
+### Quick Start (Local)
 ```bash
 # Clone the repository
 git clone <repository-url>

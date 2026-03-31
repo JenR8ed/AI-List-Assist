@@ -1,104 +1,74 @@
-# CLAUDE.md — ai-list-assist
+# CLAUDE.md — AI List Assist
 
 ## Project Overview
 
-FastAPI application that generates real estate / marketplace listings using an
-OpenAI-compatible LLM backend (NVIDIA NIM serverless or local Ollama for dev).
-Deployed via GitLab CI. No GPU infra in the app container.
+Flask-based enterprise automation platform for eBay reselling. It uses a Hybrid AI architecture (Google Gemini 1.5 Flash + Google Cloud Vision) to transform item photos into structured marketplace listings.
 
 ---
 
-## Figma MCP Integration Rules
+## Architecture & Tech Stack
 
-### Required Flow (do not skip)
+- **Backend**: Flask 3.1.3 (Python 3.12+)
+- **AI Engine**: Hybrid (Cloud Vision for OCR/Detection + Gemini 1.5 Flash for reasoning)
+- **Databases**: SQLite (Triple-DB strategy with WAL enabled: `valuations.db`, `listings.db`, `consignment.db`)
+- **Integration**: eBay REST APIs (Inventory, Offer, Taxonomy, Account)
+- **Interfaces**: Web Dashboard (Jinja2) + Telegram Valuator Bot
 
-1. Run `get_design_context` for the target node
-2. Run `get_screenshot` for visual reference
-3. Translate output into this project's conventions (Jinja2 templates or plain HTML)
-4. Validate 1:1 against Figma screenshot before marking complete
+---
 
-### Asset Handling
+## Development Rules
 
-- IMPORTANT: Use localhost sources from Figma MCP directly — do not add placeholder images
-- IMPORTANT: DO NOT install new icon packages; use assets from the Figma payload
-- Static assets → `app/static/`
+### Coding Standards
+- **Strict Credential Policy**: NEVER hardcode API keys or secrets. Use environment variables.
+- **Service-Oriented**: Core logic resides in the `services/` directory. `app_enhanced.py` orchestrates these services.
+- **Type Safety**: Use Python dataclasses (defined in `shared/models.py`) and type hints for all public methods.
+- **Security**: All sensitive endpoints must use the `@require_api_key` decorator (HMAC Bearer token comparison).
+
+### External API Rules
+- **eBay**: Always use modern REST APIs (not legacy Trading API).
+- **Gemini**: All calls must go through `services/gemini_rest_client.py`.
+- **Vision**: All calls must go through `services/vision_service.py`.
 
 ---
 
 ## Project Structure
 ```
-app/
-  main.py          # FastAPI app entrypoint
-  llm_client.py    # Swappable OpenAI-compat client (NIM / Ollama / OpenAI)
-  listing.py       # Listing generation logic
-  routers/         # FastAPI routers
-  templates/       # Jinja2 HTML templates (if UI exists)
-  static/          # CSS, JS, images
-scripts/
-  smoke_nim.py     # CI smoke test against NIM endpoint
-tests/
-  test_listing.py  # Unit tests — LLM client always mocked
-.gitlab-ci.yml
-Dockerfile         # CPU-only, ~200MB
+services/              # Core service layer (13 services)
+  vision_service.py    # Hybrid OCR and detection
+  valuation_service.py # Market analysis and pricing logic
+  ebay_integration.py  # eBay REST API client
+  ...
+shared/
+  models.py            # Dataclasses and Enums
+templates/             # Flask Jinja2 templates
+tests/                 # Pytest suite
+app_enhanced.py        # Main Flask application entrypoint
+your_ebay_valuator_bot.py # Telegram bot entrypoint
+Dockerfile             # Python 3.12-slim base
+docker-compose.dev.yml # Development stack configuration
 ```
 
 ---
 
-## LLM Client Rules
+## Testing Protocols
 
-- IMPORTANT: ALL model calls go through `app/llm_client.py` — never instantiate
-  `openai.AsyncOpenAI` directly elsewhere
-- Backend is controlled entirely by env vars — no code changes to swap providers:
-
-| Var | Dev | CI/Prod |
-|-----|-----|---------|
-| `LLM_BASE_URL` | `http://localhost:11434/v1` | `https://integrate.api.nvidia.com/v1` |
-| `LLM_API_KEY` | `ollama` | `nvapi-...` (GitLab CI secret) |
-| `LLM_MODEL` | `llama3.2` | `meta/llama-3.1-70b-instruct` |
-
-- Use `AsyncOpenAI` (async) throughout — this is a FastAPI async app
-- Default model: `meta/llama-3.1-70b-instruct` (NIM) / `glm-4.7-flash` (local DGX)
+- **Execution**: Run `python -m pytest tests/ -v`.
+- **Requirements**: Requires `SECRET_KEY`, `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `GOOGLE_API_KEY`, `API_KEY`, and `EBAY_CATEGORY_TREE_ID` env vars (can be dummy values for unit tests).
+- **Mocking**: Use `@patch` or localized mocks. Avoid global `sys.modules` mocking.
 
 ---
 
-## Styling / Templates
+## Deployment & Setup
 
-- Styling approach: [update once Figma designs confirmed — Tailwind or plain CSS]
-- IMPORTANT: Never hardcode hex colors — use CSS variables or Tailwind tokens
-- Templates live in `app/templates/`; components in `app/templates/components/`
-
----
-
-## GitLab CI Pipeline
-
-Stages: `lint → test → smoke → build → deploy`
-
-- `test` stage: unit tests only — LLM client is always mocked, never hits real API
-- `smoke` stage: `scripts/smoke_nim.py` — validates NIM endpoint reachability
-  (runs on `main` branch only, requires `LLM_BASE_URL` + `LLM_API_KEY` CI vars)
-- `build` stage: builds CPU-only Docker image — no GPU base image, no model weights
-- IMPORTANT: Never bake model weights or API keys into the Docker image
-
----
-
-## Testing Rules
-
-- Mock `app.llm_client.get_client` in all unit tests — never hit real LLM in `test` stage
-- Test file location: `tests/`
-- Use `pytest` + `pytest-asyncio`
-
----
-
-## Code Quality
-
-- IMPORTANT: Never hardcode API keys, base URLs, or model names — always use `os.environ`
-- Prompt templates live in `app/prompts/` (or as constants in `listing.py` for small projects)
-- Keep listing generation logic in `app/listing.py`, not in routers
+- **Local**: `pip install -r requirements.txt && python app_enhanced.py`
+- **Docker**: `docker-compose -f docker-compose.dev.yml up --build`
+- **Environment**: Configuration via `.env` file (copied from `.env.example`).
+- **OAuth**: Handles eBay OAuth 2.0 via a local callback routed through ngrok/tunneling.
 
 ---
 
 ## Resources
 
-- [NVIDIA NIM API](https://integrate.api.nvidia.com/v1) — `nvapi-` key from build.nvidia.com
-- [Figma MCP Server Docs](https://developers.figma.com/docs/figma-mcp-server/)
-- [Ollama + Claude Code guide](https://ollama.com/blog/claude)
+- [eBay Developer Portal](https://developer.ebay.com/)
+- [Google AI Studio (Gemini)](https://aistudio.google.com/)
+- [Google Cloud Vision AI](https://cloud.google.com/vision)
