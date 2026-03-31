@@ -59,7 +59,7 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 ## 🔐 Security & Compliance
 
-- **HMAC Authentication**: Sensitive API endpoints require HMAC-based signature verification via `Authorization: Bearer <token>`.
+- **HMAC Authentication**: Sensitive API endpoints (e.g., `/api/analyze`, `/api/listing/publish`) require HMAC-based signature verification via `Authorization: Bearer <token>`.
 - **Content Security Policy**: Strict CSP headers prevent XSS and data injection attacks.
 - **Secure Handling**: No hardcoded credentials; all secrets are managed via environment variables.
 - **Sanitized Rendering**: Custom helper functions in the frontend ensure dynamic item metadata is rendered securely.
@@ -92,7 +92,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 
 1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
 2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
-3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand.
+3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand using market-optimized fractional pricing strategies.
 4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
 5.  **[Marketplace Synthesis](EBAY_LISTING_MAPPING.md)**: Optimized titles and HTML descriptions are generated.
 6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
@@ -133,6 +133,13 @@ cp .env.example .env  # Update with your API keys:
 # SECRET_KEY, API_KEY, EBAY_CATEGORY_TREE_ID=0
 ```
 
+### Database Initialization
+The system uses `seed_db.py` to initialize market trend data using Perplexity AI, PostgreSQL, and Redis. Ensure these services are running if you intend to use advanced market analytics.
+
+```bash
+python seed_db.py
+```
+
 ### Launching
 - **Web Dashboard**: `python app_enhanced.py` (Visit `http://localhost:5000`)
 - **Telegram Bot**: `python your_ebay_valuator_bot.py`
@@ -147,6 +154,11 @@ Ensure system integrity by running the test suite:
 # Set dummy credentials for local testing
 export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
 python -m pytest tests/ -v
+```
+
+Additionally, use `test_syntax.py` to verify the main application's integrity:
+```bash
+python test_syntax.py
 ```
 
 ---
