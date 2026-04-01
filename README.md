@@ -30,27 +30,37 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 
 ---
 
+## 📊 Measured Performance Benchmarks
+
+The system is optimized for high-volume operations with measurable efficiency gains:
+- **⚡ ~32% Brand Extraction Gain**: Optimized `VisionService` achieves faster identification of manufacturer data.
+- **⚡ ~50-60% Title Generation Gain**: `ListingSynthesisEngine` utilizes C-level joined string operations for SEO title generation.
+- **⚡ ~30x Category Mapping Speedup**: `CategoryDetailGenerator` uses an O(N+M) algorithm for mapping required marketplace fields.
+- **⚡ ~95% Database Performance Gain**: `ValuationDatabase` uses bulk `executemany` inserts and Write-Ahead Logging (WAL).
+
+---
+
 ## 🏗️ System Architecture: The 13-Service Engine
 
 The platform utilizes a modular, service-oriented architecture designed for reliability and extreme performance.
 
 ### 📁 Core Services
-1.  **`VisionService`**: Hybrid OCR and multi-item object detection using Cloud Vision + Gemini. Optimized brand extraction (~32% gain).
+1.  **`VisionService`**: Hybrid OCR and multi-item object detection using Cloud Vision + Gemini.
 2.  **`ValuationService`**: Market analysis and "Decision Gate" profitability logic.
 3.  **`ConversationOrchestrator`**: AI-driven dialogue management to resolve missing item aspects.
-4.  **`ListingSynthesisEngine`**: SEO-optimized marketplace listing generation. Optimized title generation (~50-60% gain).
+4.  **`ListingSynthesisEngine`**: SEO-optimized marketplace listing generation.
 5.  **`eBayIntegration`**: Direct interaction with modern eBay REST Inventory/Offer APIs.
 6.  **`EBayCategoryService`**: Real-time interaction with the eBay Taxonomy API for metadata.
 7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and refresh management.
-8.  **`CategoryDetailGenerator`**: Optimized question generation (~30x speedup via O(N+M) mapping).
-9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets using deterministic hashing.
+8.  **`CategoryDetailGenerator`**: Optimized field requirement mapping and question generation.
+9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets within the `drafts/` directory.
 10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance.
-11. **`ValuationDatabase`**: Persistent storage for analysis history (95% faster via bulk `executemany` inserts).
+11. **`ValuationDatabase`**: Persistent storage for analysis history with WAL performance optimization.
 12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls.
 13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
 
 ### 💾 Triple-DB Strategy
-The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases (with **Write-Ahead Logging (WAL)** enabled for concurrent performance):
+The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases (with **Write-Ahead Logging (WAL)** enabled):
 - **`valuations.db`**: Stores analysis history, detection confidence, and market valuations.
 - **`listings.db`**: Stores eBay inventory/offer states, draft data, and submission logs.
 - **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset tracking.
@@ -59,10 +69,10 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 ## 🔐 Security & Compliance
 
-- **HMAC Bearer Authentication**: Sensitive API endpoints require HMAC-based Bearer token verification via `Authorization: Bearer <token>`.
+- **HMAC Bearer Authentication**: Sensitive API endpoints (e.g., `/api/analyze`, `/api/listing/publish`) require HMAC-based Bearer token verification.
 - **Content Security Policy**: Strict CSP headers prevent XSS and data injection attacks.
-- **Secure Handling**: No hardcoded credentials; all secrets are managed via environment variables.
-- **Sanitized Rendering**: Custom helper functions in the frontend ensure dynamic item metadata is rendered securely.
+- **Sanitized Rendering**: Custom helper functions in the frontend and backend ensure dynamic item metadata is rendered securely and error messages are sanitized.
+- **Secure Credential Policy**: All API credentials and application IDs are fetched via environment variables and never hardcoded.
 
 ---
 
@@ -95,7 +105,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand using market-optimized fractional pricing strategies.
 4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
 5.  **[Marketplace Synthesis](EBAY_LISTING_MAPPING.md)**: Optimized titles and HTML descriptions are generated.
-6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
+6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the modern REST Inventory API.
 
 ---
 
@@ -105,8 +115,6 @@ The dashboard includes a real-time **API Usage Tracker** that calculates costs f
 - **Google Cloud Vision**: Tracks free tier vs. paid calls.
 - **Gemini 1.5 Flash**: Tracks input/output tokens and associated costs ($0.075/$0.30 per 1M tokens).
 - **eBay API**: Monitors handshake and inventory calls.
-
-This ensures reselling margins are protected from unexpected AI infrastructure costs.
 
 ---
 
@@ -152,7 +160,7 @@ Ensure system integrity by running the test suite:
 ```bash
 # Set dummy credentials for local testing
 export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
-python -m pytest tests/ -v
+PYTHONPATH=. python -m pytest tests/ -v
 ```
 
 Additionally, use `test_syntax.py` to verify the main application's integrity:
