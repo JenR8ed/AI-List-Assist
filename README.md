@@ -68,7 +68,7 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 ## 🎮 Operational Modes
 
-AI List Assist adapts to your specific workflow through four dedicated operational modes:
+AI List Assist adapts to your specific workflow through four dedicated operational modes (conceptualized and partially implemented):
 
 | Mode | Purpose | Target User |
 | :--- | :--- | :--- |
@@ -116,6 +116,36 @@ This ensures reselling margins are protected from unexpected AI infrastructure c
 - **Python 3.12+** (Developed and tested on 3.12.13)
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
+- Telegram Bot Token (Optional, for bot support)
+- Redis and PostgreSQL (Optional, for advanced market analytics via `seed_db.py`)
+
+### Environment Configuration
+Create a `.env` file in the root directory:
+```env
+# Flask Security
+SECRET_KEY=your_flask_secret_key
+API_KEY=your_hmac_api_key
+
+# Google AI
+GOOGLE_API_KEY=your_google_cloud_api_key
+
+# eBay API
+EBAY_CLIENT_ID=your_ebay_client_id
+EBAY_CLIENT_SECRET=your_ebay_client_secret
+EBAY_RU_NAME=your_ebay_runame
+EBAY_CATEGORY_TREE_ID=0
+
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+
+# Market Data (Optional)
+PERPLEXITY_API_KEY=your_perplexity_key
+REDIS_HOST=localhost
+POSTGRES_HOST=localhost
+POSTGRES_DB=ebay_market_data
+POSTGRES_USER=ai_user
+POSTGRES_PASSWORD=ai_password
+```
 
 ### Quick Start (Local)
 ```bash
@@ -126,15 +156,12 @@ cd ai-list-assist
 # Install core dependencies
 pip install -r requirements.txt
 
-# Configure environment
-cp .env.example .env  # Update with your API keys:
-# GOOGLE_API_KEY, EBAY_CLIENT_ID, EBAY_CLIENT_SECRET,
-# SECRET_KEY, API_KEY, EBAY_CATEGORY_TREE_ID=0
+# Initialize databases
+python -c "from app_enhanced import init_db; init_db()"
 ```
 
-### Database Initialization
-The system uses `seed_db.py` to initialize market trend data using Perplexity AI, PostgreSQL, and Redis. Ensure these services are running if you intend to use advanced market analytics.
-
+### Database Seeding
+The system can use `seed_db.py` to initialize market trend data. This requires Redis and PostgreSQL to be running.
 ```bash
 python seed_db.py
 ```
@@ -146,18 +173,28 @@ python seed_db.py
 
 ---
 
+## 🛠️ Utility Scripts
+
+The repository includes several utility scripts for development and testing:
+
+| Script | Purpose |
+| :--- | :--- |
+| **`get_token.py`** | Helper to exchange authorization codes for eBay OAuth tokens. |
+| **`simulate_listing_flow.py`** | End-to-end simulation of the listing creation process. |
+| **`test_syntax.py`** | Verifies the Python syntax of the main application. |
+| **`test_vision.py`** | Standalone test for the Vision service. |
+| **`test_upload.py`** | Tests the image upload and analysis endpoint. |
+| **`test_post.py`** | Simple script to test POST requests to the API. |
+
+---
+
 ## 🧪 Verification & Testing
 
 Ensure system integrity by running the test suite:
 ```bash
 # Set dummy credentials for local testing
 export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
-python -m pytest tests/ -v
-```
-
-Additionally, use `test_syntax.py` to verify the main application's integrity:
-```bash
-python test_syntax.py
+PYTHONPATH=. python3 -m pytest tests/ -v
 ```
 
 ---
