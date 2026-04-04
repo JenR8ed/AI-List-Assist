@@ -17,7 +17,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-_MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}')
+_MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}[A-Z0-9]*')
 
 class VisionService:
     """Service for multi-item detection and OCR using Google Vision APIs."""
