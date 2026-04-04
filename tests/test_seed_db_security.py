@@ -58,7 +58,7 @@ class TestSeedDB(unittest.TestCase):
             )
 
     @patch('time.sleep', return_value=None)
-    def test_defaults_used(self, mock_sleep):
+    def test_missing_credentials_exit(self, mock_sleep):
         # Clear environment variables for the test
         # We need to preserve PERPLEXITY_API_KEY if we want to avoid logic branches,
         # but let's see how it behaves with empty env.
@@ -68,27 +68,10 @@ class TestSeedDB(unittest.TestCase):
             mock_psycopg2.connect.reset_mock()
             mock_redis_mod.Redis.reset_mock()
 
-            mock_conn = MagicMock()
-            mock_psycopg2.connect.return_value = mock_conn
-            mock_cur = MagicMock()
-            mock_conn.cursor.return_value = mock_cur
-
-            try:
+            with self.assertRaises(SystemExit) as cm:
                 runpy.run_path('seed_db.py')
-            except SystemExit:
-                pass
 
-            # Verify Redis called with defaults
-            mock_redis_mod.Redis.assert_called_with(host="localhost", port=6379, db=0)
-
-            # Verify Postgres called with defaults
-            mock_psycopg2.connect.assert_called_with(
-                dbname="ebay_market_data",
-                user="ai_user",
-                password="ai_password",
-                host="localhost",
-                port="5432"
-            )
+            self.assertEqual(cm.exception.code, 1)
 
 if __name__ == "__main__":
     unittest.main()
