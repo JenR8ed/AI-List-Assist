@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 class VisionService:
     """Service for multi-item detection and OCR using Google Vision APIs."""
+
+    _COMMON_BRANDS = ["Sony", "Apple", "Samsung", "Nike", "Adidas", "Canon", "Nikon"]
+    _BRAND_DATA = [(brand.lower(), brand) for brand in _COMMON_BRANDS]
+    _MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}')
     
     GEMINI_PROMPT = """Analyze this image and detect ALL distinct items visible.
 
@@ -176,18 +180,18 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
     
     def _extract_brand(self, texts: List[str]) -> Optional[str]:
         """Extract brand from detected text."""
-        common_brands = ["Sony", "Apple", "Samsung", "Nike", "Adidas", "Canon", "Nikon"]
         for text in texts:
-            for brand in common_brands:
-                if brand.lower() in text.lower():
+            text_lower = text.lower()
+            for brand_lower, brand in self._BRAND_DATA:
+                if brand_lower in text_lower:
                     return brand
         return None
-    
+
     def _extract_model(self, texts: List[str]) -> Optional[str]:
         """Extract model from detected text."""
         for text in texts:
             # Look for model patterns (letters + numbers)
-            model_match = re.search(r'[A-Z]{2,}[-\s]?\d{3,}', text)
+            model_match = self._MODEL_PATTERN.search(text)
             if model_match:
                 return model_match.group()
         return None
