@@ -17,10 +17,14 @@ print(f"Connected to Redis at {redis_host}:{redis_port}!")
 
 # Connect to Postgres
 pg_dbname = os.environ.get("POSTGRES_DB", "ebay_market_data")
-pg_user = os.environ.get("POSTGRES_USER", "ai_user")
-pg_password = os.environ.get("POSTGRES_PASSWORD", "ai_password")
+pg_user = os.environ.get("POSTGRES_USER")
+pg_password = os.environ.get("POSTGRES_PASSWORD")
 pg_host = os.environ.get("POSTGRES_HOST", "localhost")
 pg_port = os.environ.get("POSTGRES_PORT", "5432")
+
+if not pg_user or not pg_password:
+    print("Error: POSTGRES_USER and POSTGRES_PASSWORD environment variables must be set.")
+    exit(1)
 
 conn = None
 for i in range(5):
