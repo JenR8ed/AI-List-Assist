@@ -210,8 +210,8 @@ async def analyze_image():
             for i, item in enumerate(detected_items):
                 print(f"DEBUG: Item {i}: brand={item.brand}, category={item.probable_category}, text={item.detected_text}")
         except Exception as vision_error:
-            print(f"DEBUG: Vision service error: {vision_error}")
-            return jsonify({"error": f"Vision service failed: {str(vision_error)}"}), 500
+            logger.exception("Vision service error")
+            return jsonify({"error": "Vision service failed to process the image."}), 500
 
         # Step 2: Value each item
         valuations = []
@@ -306,7 +306,8 @@ async def analyze_image():
         })
 
     except Exception as e:
-        return jsonify({"error": f"Error processing image: {str(e)}"}), 500
+        logger.exception("Error processing image")
+        return jsonify({"error": "An internal error occurred while processing the image."}), 500
 
 @app.route('/api/conversation/start', methods=['POST'])
 @require_api_key
@@ -528,8 +529,9 @@ def publish_listing():
                 "url": ebay_result.get("url")
             })
         except Exception as ebay_err:
+            logger.exception("eBay publishing failed")
             return jsonify({
-                "error": f"eBay publishing failed: {str(ebay_err)}",
+                "error": "eBay publishing failed. Please check your connection and authentication.",
                 "note": "Make sure you have completed the eBay OAuth flow"
             }), 401
 
@@ -734,8 +736,9 @@ def submit_listing_to_ebay():
                 ebay_response=ebay_result
             )
         except Exception as ebay_err:
+            logger.exception("eBay publishing failed")
             return jsonify({
-                "error": f"eBay publishing failed: {str(ebay_err)}",
+                "error": "eBay publishing failed due to an internal error.",
                 "details": "The listing was processed but failed to publish to eBay."
             }), 500
 
