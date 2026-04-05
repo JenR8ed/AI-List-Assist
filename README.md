@@ -23,23 +23,10 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 
 - **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
 - **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
-- **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
+- **Deterministic Analysis**: Uses image hashing to ensure consistent valuation results for identical items.
 - **Secure Architecture**: Protected by HMAC-based Bearer token verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
 - **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
 - **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals.
-
----
-
-## 📊 Measured Performance Benchmarks
-
-The platform is engineered for extreme throughput, achieving significant gains through targeted algorithmic optimizations:
-
-- **⚡ Brand Extraction**: **~51-53% gain** in `VisionService._extract_brand` via pre-calculated lowercase lookups.
-- **⚡ Title Generation**: **~50-60% gain** in `ListingSynthesisEngine._generate_title` using C-level null-byte delimited substring checks.
-- **⚡ Model Extraction**: **~26-35% gain** in `VisionService._extract_model` via class-level regex pre-compilation.
-- **⚡ Database Performance**: **95% faster** ingestion in `ValuationDatabase` using bulk `executemany` patterns.
-- **⚡ Category Mapping**: **~30x speedup** in `CategoryDetailGenerator` using an O(N+M) complexity algorithm.
-- **⚡ Server Concurrency**: **~60% reduction** in concurrent latency for the `analyze_image` route by replacing blocking I/O with `asyncio.to_thread`.
 
 ---
 
@@ -56,8 +43,8 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 6.  **`EBayCategoryService`**: Real-time interaction with the eBay Taxonomy API for metadata.
 7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and refresh management.
 8.  **`CategoryDetailGenerator`**: Optimized field requirement mapping and question generation.
-9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets within `drafts/`.
-10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance.
+9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets.
+10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance (SHA-256).
 11. **`ValuationDatabase`**: Persistent storage for analysis history.
 12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls.
 13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
@@ -72,27 +59,29 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 ## 📊 Measured Performance Benchmarks
 
-AI List Assist is engineered for speed, delivering measurable improvements over standard implementations:
-- **Brand Extraction**: ~32% performance gain in `VisionService._extract_brand`.
-- **Title Generation**: ~50-60% performance gain in `ListingSynthesisEngine._generate_title` via null-byte string joining.
-- **Model Detection**: ~26-35% performance gain in `VisionService._extract_model` via pre-compiled regex patterns.
-- **Category Mapping**: ~30x speedup in `CategoryDetailGenerator` using O(N+M) complexity algorithms.
-- **Database Throughput**: ~95% faster bulk inserts in `ValuationDatabase` using `executemany`.
+The platform is engineered for extreme throughput, achieving significant gains through targeted algorithmic optimizations:
+
+- **⚡ Brand Extraction**: **~51-53% gain** via pre-calculated lowercase lookups.
+- **⚡ Title Generation**: **~50-60% gain** using optimized string manipulation and C-level parity checks.
+- **⚡ Model Extraction**: **~26-35% gain** via class-level regex pre-compilation.
+- **⚡ Database Performance**: **95% faster** ingestion using bulk `executemany` patterns.
+- **⚡ Category Mapping**: **~30x speedup** using an O(N+M) complexity algorithm.
+- **⚡ Server Concurrency**: **~60% reduction** in latency by replacing blocking I/O with `asyncio.to_thread`.
 
 ---
 
 ## 🔐 Security & Compliance
 
 - **HMAC Bearer Authentication**: Sensitive API endpoints require HMAC-based Bearer token verification via `Authorization: Bearer <token>`.
-- **Content Security Policy**: Strict CSP headers prevent XSS and data injection attacks.
-- **XSS Protection**: Secure rendering logic ensures dynamic metadata is safely handled in the dashboard.
-- **Credential Integrity**: Strict policy against hardcoded secrets; all credentials must be managed via environment variables.
+- **Global Security Headers**: Implements `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and strict `Content-Security-Policy`.
+- **Error Sanitization**: Prevents information exposure by sanitizing exception messages in API responses.
+- **Credential Integrity**: Strict policy against hardcoded secrets; all credentials managed via environment variables.
 
 ---
 
 ## 🎮 Operational Modes
 
-AI List Assist adapts to your specific workflow through four dedicated operational modes (conceptualized and partially implemented):
+AI List Assist adapts to your specific workflow through four dedicated operational modes:
 
 | Mode | Purpose | Target User |
 | :--- | :--- | :--- |
@@ -116,9 +105,9 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 
 1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
 2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
-3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand using market-optimized fractional pricing strategies.
+3.  **The Decision Gate**: Items are filtered based on 90-day sold history and demand using market-optimized pricing strategies.
 4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
-5.  **[Marketplace Synthesis](EBAY_LISTING_MAPPING.md)**: Optimized titles and HTML descriptions are generated.
+5.  **Marketplace Synthesis**: SEO-optimized titles and HTML descriptions are generated.
 6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
 
 ---
@@ -126,84 +115,43 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- **Python 3.12+** (Developed and tested on 3.12.13)
+- **Python 3.12+**
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Telegram Bot Token (Optional, for bot support)
-- Redis and PostgreSQL (Optional, for advanced market analytics via `seed_db.py`)
+- Telegram Bot Token (Optional)
 
 ### Environment Configuration
 Create a `.env` file in the root directory:
 ```env
-# Flask Security
 SECRET_KEY=your_flask_secret_key
 API_KEY=your_hmac_api_key
-
-# Google AI
 GOOGLE_API_KEY=your_google_cloud_api_key
-
-# eBay API
 EBAY_CLIENT_ID=your_ebay_client_id
 EBAY_CLIENT_SECRET=your_ebay_client_secret
 EBAY_RU_NAME=your_ebay_runame
 EBAY_CATEGORY_TREE_ID=0
-
-# Telegram Bot
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-
-# Market Data (Optional)
-PERPLEXITY_API_KEY=your_perplexity_key
-REDIS_HOST=localhost
-POSTGRES_HOST=localhost
-POSTGRES_DB=ebay_market_data
-POSTGRES_USER=ai_user
-POSTGRES_PASSWORD=ai_password
 ```
 
-### Quick Start (Local)
+### Quick Start
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd ai-list-assist
-
-# Install core dependencies
+# Install dependencies
 pip install -r requirements.txt
 
 # Initialize databases
 python -c "from app_enhanced import init_db; init_db()"
+python -c "from services.consignment_database import init_db; init_db()"
+python -c "from services.valuation_database import ValuationDatabase; ValuationDatabase().init_database()"
+
+# Launch
+python app_enhanced.py
 ```
-
-### Database Seeding
-The system can use `seed_db.py` to initialize market trend data. This requires Redis and PostgreSQL to be running.
-```bash
-python seed_db.py
-```
-
-### Launching
-- **Web Dashboard**: `python app_enhanced.py` (Visit `http://localhost:5000`)
-- **Telegram Bot**: `python your_ebay_valuator_bot.py`
-- **Docker (Full Stack)**: `docker-compose -f docker-compose.dev.yml up --build`
-
----
-
-## 🛠️ Utility Scripts
-
-The repository includes several utility scripts for development and testing:
-
-| Script | Purpose |
-| :--- | :--- |
-| **`get_token.py`** | Helper to exchange authorization codes for eBay OAuth tokens. |
-| **`simulate_listing_flow.py`** | End-to-end simulation of the listing creation process. |
-| **`test_syntax.py`** | Verifies the Python syntax of the main application. |
-| **`test_vision.py`** | Standalone test for the Vision service. |
-| **`test_upload.py`** | Tests the image upload and analysis endpoint. |
-| **`test_post.py`** | Simple script to test POST requests to the API. |
 
 ---
 
 ## 🧪 Verification & Testing
 
-Ensure system integrity by running the test suite:
+Ensure system integrity by running the full test suite:
 ```bash
 export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
 PYTHONPATH=. python3 -m pytest tests/ -v
@@ -211,11 +159,10 @@ PYTHONPATH=. python3 -m pytest tests/ -v
 
 ---
 
-## 📚 Specialized Documentation
-- 📊 [Valuation Guide](VALUATION_DATA_GUIDE.md): Deep dive into decision logic and price discovery.
-- 🔄 [Mapping Guide](EBAY_LISTING_MAPPING.md): How AI data translates to eBay fields.
-- 🛠️ [Setup Guide](SETUP_GUIDE.md): Detailed installation and Postman testing instructions.
-- 🤝 [Contributing](CONTRIBUTING.md): Guidelines for code standards and PR processes.
+## 📚 Documentation
+- 📊 [Valuation Guide](VALUATION_DATA_GUIDE.md): Deep dive into decision logic.
+- 🔄 [Mapping Guide](EBAY_LISTING_MAPPING.md): AI data to eBay field transformations.
+- 🛠️ [Setup Guide](SETUP_GUIDE.md): Detailed installation instructions.
 
 ---
 
