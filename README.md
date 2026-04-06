@@ -1,7 +1,7 @@
 # AI List Assist: Enterprise-Grade Reselling Orchestration
 
 ![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Flask](https://img.shields.io/badge/flask-3.1.3-green.svg)
+![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
 
@@ -45,7 +45,7 @@ The platform is engineered for extreme throughput, achieving significant gains t
 
 ## 🏗️ System Architecture: The 13-Service Engine
 
-The platform utilizes a modular, service-oriented architecture designed for reliability and extreme performance.
+The platform utilizes a modular, service-oriented architecture managed by `app_enhanced.py`.
 
 ### 📁 Core Services
 1.  **`VisionService`**: Hybrid OCR and multi-item object detection using Cloud Vision + Gemini.
@@ -70,20 +70,9 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 ---
 
-## 📊 Measured Performance Benchmarks
-
-AI List Assist is engineered for speed, delivering measurable improvements over standard implementations:
-- **Brand Extraction**: ~32% performance gain in `VisionService._extract_brand`.
-- **Title Generation**: ~50-60% performance gain in `ListingSynthesisEngine._generate_title` via null-byte string joining.
-- **Model Detection**: ~26-35% performance gain in `VisionService._extract_model` via pre-compiled regex patterns.
-- **Category Mapping**: ~30x speedup in `CategoryDetailGenerator` using O(N+M) complexity algorithms.
-- **Database Throughput**: ~95% faster bulk inserts in `ValuationDatabase` using `executemany`.
-
----
-
 ## 🔐 Security & Compliance
 
-- **HMAC Bearer Authentication**: Sensitive API endpoints require HMAC-based Bearer token verification via `Authorization: Bearer <token>`.
+- **HMAC Bearer Authentication**: Sensitive API endpoints (e.g., `/api/analyze`) require HMAC-based Bearer token verification via `Authorization: Bearer <token>`.
 - **Content Security Policy**: Strict CSP headers prevent XSS and data injection attacks.
 - **XSS Protection**: Secure rendering logic ensures dynamic metadata is safely handled in the dashboard.
 - **Credential Integrity**: Strict policy against hardcoded secrets; all credentials must be managed via environment variables.
@@ -92,7 +81,7 @@ AI List Assist is engineered for speed, delivering measurable improvements over 
 
 ## 🎮 Operational Modes
 
-AI List Assist adapts to your specific workflow through four dedicated operational modes (conceptualized and partially implemented):
+AI List Assist adapts to your specific workflow through four dedicated operational modes:
 
 | Mode | Purpose | Target User |
 | :--- | :--- | :--- |
@@ -126,11 +115,10 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- **Python 3.12+** (Developed and tested on 3.12.13)
+- **Python 3.12+** (Tested on 3.12.13)
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Telegram Bot Token (Optional, for bot support)
-- Redis and PostgreSQL (Optional, for advanced market analytics via `seed_db.py`)
+- Telegram Bot Token (Optional)
 
 ### Environment Configuration
 Create a `.env` file in the root directory:
@@ -150,39 +138,31 @@ EBAY_CATEGORY_TREE_ID=0
 
 # Telegram Bot
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-
-# Market Data (Optional)
-PERPLEXITY_API_KEY=your_perplexity_key
-REDIS_HOST=localhost
-POSTGRES_HOST=localhost
-POSTGRES_DB=ebay_market_data
-POSTGRES_USER=ai_user
-POSTGRES_PASSWORD=ai_password
 ```
 
-### Quick Start (Local)
+### Quick Start
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd ai-list-assist
 
-# Install core dependencies
+# Install dependencies
 pip install -r requirements.txt
 
 # Initialize databases
 python -c "from app_enhanced import init_db; init_db()"
+
+# Launch Web Dashboard
+python app_enhanced.py
+
+# Launch Telegram Bot (Optional)
+python your_ebay_valuator_bot.py
 ```
 
-### Database Seeding
-The system can use `seed_db.py` to initialize market trend data. This requires Redis and PostgreSQL to be running.
+### Docker (Development)
 ```bash
-python seed_db.py
+docker-compose -f docker-compose.dev.yml up --build
 ```
-
-### Launching
-- **Web Dashboard**: `python app_enhanced.py` (Visit `http://localhost:5000`)
-- **Telegram Bot**: `python your_ebay_valuator_bot.py`
-- **Docker (Full Stack)**: `docker-compose -f docker-compose.dev.yml up --build`
 
 ---
 
@@ -197,7 +177,6 @@ The repository includes several utility scripts for development and testing:
 | **`test_syntax.py`** | Verifies the Python syntax of the main application. |
 | **`test_vision.py`** | Standalone test for the Vision service. |
 | **`test_upload.py`** | Tests the image upload and analysis endpoint. |
-| **`test_post.py`** | Simple script to test POST requests to the API. |
 
 ---
 
