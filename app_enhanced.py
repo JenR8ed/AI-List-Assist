@@ -63,7 +63,7 @@ valuation_service = ValuationService(use_sandbox=True)
 category_service = EBayCategoryService()
 category_generator = CategoryDetailGenerator()
 draft_image_manager = DraftImageManager()
-print("Database and services initialized")
+logger.info("Database and services initialized")
 
 conversation_orchestrator = None
 listing_engine = None
@@ -73,9 +73,9 @@ try:
     conversation_orchestrator = ConversationOrchestrator()
     listing_engine = ListingSynthesisEngine()
     ebay_integration = eBayIntegration(use_sandbox=True)
-    print("Other services initialized")
+    logger.info("Other services initialized")
 except Exception as e:
-    print(f"Other services warning: {e}")
+    logger.warning(f"Other services warning: {e}")
 
 
 from functools import wraps
