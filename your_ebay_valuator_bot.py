@@ -1,11 +1,9 @@
-import asyncio
 import base64
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import os
 from dotenv import load_dotenv
 from services.vision_service import VisionService
-from services.mock_valuation_service import MockValuationService
 
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
