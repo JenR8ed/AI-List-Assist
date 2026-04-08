@@ -16,6 +16,14 @@ class ValuationService:
         from services.ebay_token_manager import EBayTokenManager
         self.token_manager = EBayTokenManager(use_sandbox=self.use_sandbox)
 
+        # Performance optimization: reuse TCP connections via a Session
+        self.session = requests.Session()
+
+        # Increase the connection pool size if this service is used concurrently (e.g. ThreadPoolExecutor)
+        adapter = requests.adapters.HTTPAdapter(pool_connections=20, pool_maxsize=20)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+
     def _get_access_token(self) -> Optional[str]:
         # Utilizing the TokenManager or env vars directly as per setup
         # For this service, we assume the environment has an active token, or we pull from token manager
@@ -51,7 +59,7 @@ class ValuationService:
                 "filter": "buyingOptions:{FIXED_PRICE}"
             }
             try:
-                response = requests.get(self.base_url, headers=headers, params=params)
+                response = self.session.get(self.base_url, headers=headers, params=params, timeout=10)
                 print(f"DEBUG VALUATION: [{response.status_code}]")
                 if response.status_code == 200:
                     data = response.json()
