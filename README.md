@@ -1,7 +1,7 @@
 # AI List Assist: Enterprise-Grade Reselling Orchestration
 
 ![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)
-![Flask](https://img.shields.io/badge/flask-3.1.3-green.svg)
+![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
 
@@ -27,19 +27,6 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 - **Secure Architecture**: Protected by HMAC-based Bearer token verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
 - **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
 - **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals.
-
----
-
-## 📊 Measured Performance Benchmarks
-
-The platform is engineered for extreme throughput, achieving significant gains through targeted algorithmic optimizations:
-
-- **⚡ Brand Extraction**: **~51-53% gain** in `VisionService._extract_brand` via pre-calculated lowercase lookups.
-- **⚡ Title Generation**: **~50-60% gain** in `ListingSynthesisEngine._generate_title` using C-level null-byte delimited substring checks.
-- **⚡ Model Extraction**: **~26-35% gain** in `VisionService._extract_model` via class-level regex pre-compilation.
-- **⚡ Database Performance**: **95% faster** ingestion in `ValuationDatabase` using bulk `executemany` patterns.
-- **⚡ Category Mapping**: **~30x speedup** in `CategoryDetailGenerator` using an O(N+M) complexity algorithm.
-- **⚡ Server Concurrency**: **~60% reduction** in concurrent latency for the `analyze_image` route by replacing blocking I/O with `asyncio.to_thread`.
 
 ---
 
@@ -73,11 +60,12 @@ The system ensures strict separation of concerns and data integrity by using thr
 ## 📊 Measured Performance Benchmarks
 
 AI List Assist is engineered for speed, delivering measurable improvements over standard implementations:
-- **Brand Extraction**: ~32% performance gain in `VisionService._extract_brand`.
-- **Title Generation**: ~50-60% performance gain in `ListingSynthesisEngine._generate_title` via null-byte string joining.
-- **Model Detection**: ~26-35% performance gain in `VisionService._extract_model` via pre-compiled regex patterns.
-- **Category Mapping**: ~30x speedup in `CategoryDetailGenerator` using O(N+M) complexity algorithms.
-- **Database Throughput**: ~95% faster bulk inserts in `ValuationDatabase` using `executemany`.
+- **⚡ Brand Extraction**: **~51-53% gain** in `VisionService._extract_brand` via pre-calculated lowercase lookups.
+- **⚡ Title Generation**: **~50-60% gain** in `ListingSynthesisEngine._generate_title` using C-level null-byte delimited substring checks.
+- **⚡ Model Detection**: **~26-35% gain** in `VisionService._extract_model` via class-level regex pre-compilation.
+- **⚡ Category Mapping**: **~30x speedup** in `CategoryDetailGenerator` using O(N+M) complexity algorithms.
+- **⚡ Database Throughput**: **~95% faster** ingestion in `ValuationDatabase` using bulk `executemany` patterns.
+- **⚡ Server Concurrency**: **~60% reduction** in latency for the `analyze_image` route by replacing blocking I/O with `asyncio.to_thread`.
 
 ---
 
@@ -92,7 +80,7 @@ AI List Assist is engineered for speed, delivering measurable improvements over 
 
 ## 🎮 Operational Modes
 
-AI List Assist adapts to your specific workflow through four dedicated operational modes (conceptualized and partially implemented):
+AI List Assist adapts to your specific workflow through four dedicated operational modes:
 
 | Mode | Purpose | Target User |
 | :--- | :--- | :--- |
@@ -118,7 +106,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
 3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand using market-optimized fractional pricing strategies.
 4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
-5.  **[Marketplace Synthesis](EBAY_LISTING_MAPPING.md)**: Optimized titles and HTML descriptions are generated.
+5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated according to [eBay Mapping Rules](EBAY_LISTING_MAPPING.md).
 6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
 
 ---
@@ -126,11 +114,11 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 ## ⚙️ Setup & Installation
 
 ### Prerequisites
-- **Python 3.12+** (Developed and tested on 3.12.13)
+- **Python 3.12+**
 - Google Cloud API Key (Gemini + Vision)
 - eBay Developer Account (Sandbox or Production)
-- Telegram Bot Token (Optional, for bot support)
-- Redis and PostgreSQL (Optional, for advanced market analytics via `seed_db.py`)
+- Telegram Bot Token (Optional)
+- Redis and PostgreSQL (Optional, for advanced market analytics)
 
 ### Environment Configuration
 Create a `.env` file in the root directory:
@@ -150,14 +138,6 @@ EBAY_CATEGORY_TREE_ID=0
 
 # Telegram Bot
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-
-# Market Data (Optional)
-PERPLEXITY_API_KEY=your_perplexity_key
-REDIS_HOST=localhost
-POSTGRES_HOST=localhost
-POSTGRES_DB=ebay_market_data
-POSTGRES_USER=ai_user
-POSTGRES_PASSWORD=ai_password
 ```
 
 ### Quick Start (Local)
@@ -171,12 +151,6 @@ pip install -r requirements.txt
 
 # Initialize databases
 python -c "from app_enhanced import init_db; init_db()"
-```
-
-### Database Seeding
-The system can use `seed_db.py` to initialize market trend data. This requires Redis and PostgreSQL to be running.
-```bash
-python seed_db.py
 ```
 
 ### Launching
@@ -197,7 +171,6 @@ The repository includes several utility scripts for development and testing:
 | **`test_syntax.py`** | Verifies the Python syntax of the main application. |
 | **`test_vision.py`** | Standalone test for the Vision service. |
 | **`test_upload.py`** | Tests the image upload and analysis endpoint. |
-| **`test_post.py`** | Simple script to test POST requests to the API. |
 
 ---
 
