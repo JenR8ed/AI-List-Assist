@@ -1,7 +1,5 @@
 import unittest
 from unittest.mock import patch, MagicMock
-import os
-import json
 from services.ebay_token_manager import EBayTokenManager
 
 class TestEBayTokenManagerRefreshToken(unittest.TestCase):
