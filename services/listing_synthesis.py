@@ -97,16 +97,21 @@ Return strictly valid JSON following this format:
         # Brand
         if data.get("brand"):
             parts.append(data["brand"])
+
+        parts_lower_joined = "\0".join(parts).lower()
         
         # Model
         if data.get("model"):
             model = data["model"]
-            if not any(model.lower() in p.lower() for p in parts):
+            model_lower = model.lower()
+            if model_lower not in parts_lower_joined:
                 parts.append(model)
+                parts_lower_joined += f"\0{model_lower}"
         
         # Item name
         item_name = data.get("item_name", "Item")
-        if not any(item_name.lower() in p.lower() for p in parts):
+        item_name_lower = item_name.lower()
+        if item_name_lower not in parts_lower_joined:
             parts.append(item_name)
         
         # Condition
