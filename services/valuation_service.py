@@ -1,7 +1,6 @@
 from typing import Dict, Any, Optional
 import os
 import requests
-from datetime import datetime, timedelta
 from shared.models import ItemValuation, Profitability
 
 class ValuationService:
