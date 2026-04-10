@@ -23,7 +23,7 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 
 - **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
 - **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
-- **Deterministic Analysis**: Uses SHA-256 image hashing to ensure consistent valuation results for identical items.
+- **Deterministic Analysis**: Uses image hashing to ensure consistent valuation results for identical items.
 - **Secure Architecture**: Protected by HMAC-based Bearer token verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
 - **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
 - **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals.
@@ -61,10 +61,9 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 AI List Assist is engineered for speed, delivering measurable improvements over standard implementations:
 - **⚡ Brand Extraction**: **~51-53% gain** in `VisionService._extract_brand` via pre-calculated lowercase lookups.
-- **⚡ Title Generation**: **~50-60% gain** in `ListingSynthesisEngine._generate_title` using C-level null-byte delimited substring checks.
 - **⚡ Model Detection**: **~26-35% gain** in `VisionService._extract_model` via class-level regex pre-compilation.
 - **⚡ Category Mapping**: **~30x speedup** in `CategoryDetailGenerator` using O(N+M) complexity algorithms.
-- **⚡ Database Throughput**: **~95% faster** ingestion in `ValuationDatabase` using bulk `executemany` patterns.
+- **⚡ Database Throughput**: **~40x faster** ingestion in `ValuationDatabase` using bulk `executemany` patterns.
 - **⚡ Server Concurrency**: **~60% reduction** in latency for the `analyze_image` route by replacing blocking I/O with `asyncio.to_thread`.
 
 ---
@@ -150,27 +149,13 @@ cd ai-list-assist
 pip install -r requirements.txt
 
 # Initialize databases
-python -c "from app_enhanced import init_db; init_db()"
+python3 -c "from app_enhanced import init_db; init_db()"
 ```
 
 ### Launching
-- **Web Dashboard**: `python app_enhanced.py` (Visit `http://localhost:5000`)
-- **Telegram Bot**: `python your_ebay_valuator_bot.py`
+- **Web Dashboard**: `python3 app_enhanced.py` (Visit `http://localhost:5000`)
+- **Telegram Bot**: `python3 your_ebay_valuator_bot.py`
 - **Docker (Full Stack)**: `docker-compose -f docker-compose.dev.yml up --build`
-
----
-
-## 🛠️ Utility Scripts
-
-The repository includes several utility scripts for development and testing:
-
-| Script | Purpose |
-| :--- | :--- |
-| **`get_token.py`** | Helper to exchange authorization codes for eBay OAuth tokens. |
-| **`simulate_listing_flow.py`** | End-to-end simulation of the listing creation process. |
-| **`test_syntax.py`** | Verifies the Python syntax of the main application. |
-| **`test_vision.py`** | Standalone test for the Vision service. |
-| **`test_upload.py`** | Tests the image upload and analysis endpoint. |
 
 ---
 
