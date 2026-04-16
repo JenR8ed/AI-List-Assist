@@ -20,3 +20,21 @@ def test_calculate_smart_price_zero_or_negative(invalid_value):
     assert result.auto_accept_price is None
     assert result.minimum_price is None
     assert result.format == "FIXED_PRICE"
+
+@pytest.mark.parametrize("value, expected_list, expected_auto, expected_min", [
+    (100.0, 115.0, 103.5, 92.0),
+    (50.0, 57.5, 51.75, 46.0),
+    (0.01, 0.01, 0.01, 0.01),
+])
+def test_calculate_smart_price_positive_values(value, expected_list, expected_auto, expected_min):
+    """
+    Test that calculating a smart price with positive values returns
+    the correctly calculated PricingResult.
+    """
+    result = calculate_smart_price(value)
+
+    assert isinstance(result, PricingResult)
+    assert result.list_price == expected_list
+    assert result.auto_accept_price == expected_auto
+    assert result.minimum_price == expected_min
+    assert result.format == "FIXED_PRICE"
