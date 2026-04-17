@@ -37,6 +37,7 @@ class GeminiRestClient:
         self.api_version = api_version
         self.timeout_s = timeout_s
         self.session = requests.Session()
+        self.async_client = httpx.AsyncClient(timeout=self.timeout_s)
 
     def _prepare_payload(
         self,
@@ -127,10 +128,9 @@ class GeminiRestClient:
 
         payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type)
 
-        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+        resp = await self.async_client.post(url, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
 
         return {"totalTokens": data.get("totalTokens", 0)}
 
@@ -169,6 +169,7 @@ class GeminiRestClient:
         temperature: float = 0.2,
         max_output_tokens: int = 1024,
     ) -> tuple[str, Dict[str, Any]]:
+        """Async version of generate_content."""
         url = (
             f"{self.api_base}/{self.api_version}/models/"
             f"{self.model}:generateContent?key={self.api_key}"
@@ -180,75 +181,8 @@ class GeminiRestClient:
         }
         payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type, generation_config)
 
-        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+        resp = await self.async_client.post(url, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
 
         return self._parse_generate_content_response(data)
-
-    async def generate_content_async(
-        self,
-        prompt: str,
-        *,
-        inline_image_base64: Optional[str] = None,
-        inline_image_mime_type: Optional[str] = None,
-        temperature: float = 0.2,
-        max_output_tokens: int = 1024,
-    ) -> tuple[str, Dict[str, Any]]:
-        """Async version of generate_content."""
-        url = (
-            f"{self.api_base}/{self.api_version}/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
-        )
-
-        parts: List[Dict[str, Any]] = [{"text": prompt}]
-        if inline_image_base64:
-            if not inline_image_mime_type:
-                raise ValueError("inline_image_mime_type is required when providing inline_image_base64")
-            parts.append(
-                {
-                    "inlineData": {
-                        "mimeType": inline_image_mime_type,
-                        "data": inline_image_base64,
-                    }
-                }
-            )
-
-        payload: Dict[str, Any] = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": parts,
-                }
-            ],
-            "generationConfig": {
-                "temperature": temperature,
-                "maxOutputTokens": max_output_tokens,
-            },
-        }
-
-        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-
-        # Extract usage metadata
-        usage_metadata = data.get("usageMetadata", {})
-
-        # Typical response path: candidates[0].content.parts[*].text
-        candidates = data.get("candidates") or []
-        if not candidates:
-            raise RuntimeError(f"No candidates in response: {json.dumps(data)[:2000]}")
-
-        content = candidates[0].get("content") or {}
-        parts_out = content.get("parts") or []
-        texts = []
-        for p in parts_out:
-            t = p.get("text")
-            if t:
-                texts.append(t)
-        if not texts:
-            raise RuntimeError(f"No text parts in response: {json.dumps(data)[:2000]}")
-
-        return "\n".join(texts), usage_metadata
