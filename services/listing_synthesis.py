@@ -4,7 +4,7 @@ Transforms gathered data into structured eBay listing format.
 """
 
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from shared.models import ListingDraft, ItemCondition, ConversationState, ItemValuation
 import uuid
 from services.gemini_rest_client import GeminiRestClient
