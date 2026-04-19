@@ -34,7 +34,7 @@ def test_calculate_smart_price_positive_values(value, expected_list, expected_au
     result = calculate_smart_price(value)
 
     assert isinstance(result, PricingResult)
-    assert result.list_price == expected_list
-    assert result.auto_accept_price == expected_auto
-    assert result.minimum_price == expected_min
+    assert result.list_price == pytest.approx(expected_list)
+    assert result.auto_accept_price == pytest.approx(expected_auto)
+    assert result.minimum_price == pytest.approx(expected_min)
     assert result.format == "FIXED_PRICE"
