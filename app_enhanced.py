@@ -280,18 +280,21 @@ async def analyze_image():
             print(f"Saved valuation {v_id} for {val.item_name}")
 
         # Save to database
-        conn = sqlite3.connect('listings.db', check_same_thread=False)
-        c = conn.cursor()
-        c.execute('''
-            INSERT INTO sessions (session_id, status, session_data)
-            VALUES (?, ?, ?)
-        ''', (session_id, "analyzed", json.dumps({
-            "detected_items": [item.to_dict() for item in detected_items],
-            "valuations": [v.to_dict() for v in valuations],
-            "image_filename": filename
-        })))
-        conn.commit()
-        conn.close()
+        def save_session_to_db():
+            conn = sqlite3.connect('listings.db', check_same_thread=False)
+            c = conn.cursor()
+            c.execute('''
+                INSERT INTO sessions (session_id, status, session_data)
+                VALUES (?, ?, ?)
+            ''', (session_id, "analyzed", json.dumps({
+                "detected_items": [item.to_dict() for item in detected_items],
+                "valuations": [v.to_dict() for v in valuations],
+                "image_filename": filename
+            })))
+            conn.commit()
+            conn.close()
+
+        await asyncio.to_thread(save_session_to_db)
 
         return jsonify({
             "success": True,
