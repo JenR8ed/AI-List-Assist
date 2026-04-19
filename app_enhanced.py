@@ -282,17 +282,18 @@ async def analyze_image():
         # Save to database (Offloaded to a thread to prevent event loop blocking)
         def save_session_sync():
             conn = sqlite3.connect('listings.db')
-            c = conn.cursor()
-            c.execute('''
-                INSERT INTO sessions (session_id, status, session_data)
-                VALUES (?, ?, ?)
-            ''', (session_id, "analyzed", json.dumps({
-                "detected_items": [item.to_dict() for item in detected_items],
-                "valuations": [v.to_dict() for v in valuations],
-                "image_filename": filename
-            })))
-            conn.commit()
-            conn.close()
+            try:
+                with conn:
+                    conn.execute('''
+                        INSERT INTO sessions (session_id, status, session_data)
+                        VALUES (?, ?, ?)
+                    ''', (session_id, "analyzed", json.dumps({
+                        "detected_items": [item.to_dict() for item in detected_items],
+                        "valuations": [v.to_dict() for v in valuations],
+                        "image_filename": filename
+                    })))
+            finally:
+                conn.close()
 
         await asyncio.to_thread(save_session_sync)
 
