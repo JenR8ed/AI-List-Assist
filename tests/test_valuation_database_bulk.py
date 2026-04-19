@@ -1,6 +1,5 @@
 import sys
 from unittest.mock import MagicMock
-import pytest
 sys.modules['httpx'] = MagicMock()
 sys.modules['flask'] = MagicMock()
 sys.modules['google'] = MagicMock()
@@ -9,10 +8,8 @@ sys.modules['requests'] = MagicMock()
 sys.modules['dotenv'] = MagicMock()
 
 import os
-import sqlite3
-import json
 from services.valuation_database import ValuationDatabase
-from shared.models import ItemValuation, ItemCondition, Profitability
+from shared.models import ItemValuation, Profitability
 
 class TestValuationDatabaseBulk:
     def setup_method(self):
