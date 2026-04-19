@@ -10,6 +10,7 @@ sys.modules['requests'] = MagicMock()
 sys.modules['dotenv'] = MagicMock()
 sys.modules['google'] = MagicMock()
 sys.modules['google.generativeai'] = MagicMock()
+sys.modules['pydantic'] = MagicMock()
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -83,6 +84,13 @@ class TestCategoryDetailGenerator(unittest.TestCase):
         suggestions = self.generator.suggest_category_from_data(item_data)
         self.assertEqual(suggestions[0]['category_id'], '293')
         self.assertEqual(suggestions[0]['confidence'], 0.3)
+
+    @patch('services.category_detail_generator.GeminiRestClient')
+    def test_init_exception_handling(self, mock_gemini_client):
+        # Test exception block during initialization
+        mock_gemini_client.side_effect = Exception("Mocked initialization error")
+        generator_with_error = CategoryDetailGenerator()
+        self.assertIsNone(generator_with_error.gemini_client)
 
 if __name__ == '__main__':
     unittest.main()
