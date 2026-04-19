@@ -2,7 +2,6 @@
 Mock Valuation Service for testing
 """
 
-import random
 from typing import Dict, Any, Optional
 from shared.models import ItemValuation, Profitability
 
