@@ -13,7 +13,7 @@
 
 In high-volume reselling, the "Listing Bottleneck" is the primary barrier to scale. AI List Assist eliminates this by providing:
 - **Instant Valuation**: Shift from manual research to data-backed "List/No-List" decisions in seconds.
-- **Cognitive Automation**: Handle the complex mapping of eBay item specifics automatically.
+- **Cognitive Automation**: Handle the complex mapping of eBay item specifics automatically via the `CategoryDetailGenerator` and `EBayCategoryService`.
 - **Operational Scalability**: Transition from individual sourcing to commercial-grade warehouse intake with specialized operational modes.
 - **Consignment Ready**: Integrated participant and asset tracking for third-party reselling operations.
 - **Financial Transparency**: Integrated **API Usage Tracker** to monitor AI costs (Gemini & Vision) in real-time.
@@ -53,8 +53,8 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 
 ### 💾 Triple-DB Strategy
 The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases with **Write-Ahead Logging (WAL)** enabled:
-- **`valuations.db`**: Stores analysis history, detection confidence, and market valuations.
-- **`listings.db`**: Stores eBay inventory/offer states, session drafts, and submission logs.
+- **`valuations.db`**: Stores analysis history, market valuations, and eBay submission logs.
+- **`listings.db`**: Stores active session metadata, item detection states, and marketplace offer drafts.
 - **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, asset tracking, and transaction history.
 
 ---
@@ -101,11 +101,15 @@ AI List Assist adapts to your specific workflow through four dedicated operation
                                      V                         V
 [ SECURE PUBLISHING ] <-- [ LISTING SYNTHESIS ] <--- [ CONVERSATIONAL FLOW ]
    (eBay REST API)         (SEO Optimization)         (Attribute Resolution)
+                                     ^
+                                     |
+                          [ CONSIGNMENT PROTOCOL ]
+                           (Participant Tracking)
 ```
 
 1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
 2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
-3.  **The Decision Gate**: Items are filtered based on 90-day sold history and demand using market-optimized pricing strategies.
+3.  **The Decision Gate**: Items are filtered based on 90-day sold history and demand using market-optimized pricing strategies. Assets can be optionally logged into the **Consignment Protocol** at this stage.
 4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
 5.  **Marketplace Synthesis**: Optimized titles and descriptions are generated according to [eBay Mapping Rules](EBAY_LISTING_MAPPING.md).
 6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
