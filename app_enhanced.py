@@ -105,7 +105,7 @@ def require_api_key(f):
 
 def init_db():
     """Initialize SQLite database."""
-    conn = sqlite3.connect('listings.db')
+    conn = sqlite3.connect('listings.db', check_same_thread=False)
     c = conn.cursor()
 
     # Sessions table
@@ -280,7 +280,7 @@ async def analyze_image():
             print(f"Saved valuation {v_id} for {val.item_name}")
 
         # Save to database
-        conn = sqlite3.connect('listings.db')
+        conn = sqlite3.connect('listings.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('''
             INSERT INTO sessions (session_id, status, session_data)
@@ -383,7 +383,7 @@ def create_listing():
             return jsonify({"error": "Conversation session not found"}), 404
 
         # Get original image path from session
-        conn = sqlite3.connect('listings.db')
+        conn = sqlite3.connect('listings.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('SELECT session_data FROM sessions WHERE session_id = ?', (session_id,))
         session_row = c.fetchone()
@@ -436,7 +436,7 @@ def create_listing():
             listing_draft.images = draft_images
 
         # Save to database
-        conn = sqlite3.connect('listings.db')
+        conn = sqlite3.connect('listings.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('''
             INSERT INTO listings (listing_id, item_id, title, price, status, draft_data)
@@ -478,7 +478,7 @@ def publish_listing():
 
     try:
         # Get listing from database
-        conn = sqlite3.connect('listings.db')
+        conn = sqlite3.connect('listings.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('SELECT draft_data FROM listings WHERE listing_id = ?', (listing_id,))
         row = c.fetchone()
@@ -511,7 +511,7 @@ def publish_listing():
             ebay_listing_id = ebay_result.get("listing_id")
 
             # Update database status
-            conn = sqlite3.connect('listings.db')
+            conn = sqlite3.connect('listings.db', check_same_thread=False)
             c = conn.cursor()
             c.execute('''
                 UPDATE listings
@@ -617,7 +617,7 @@ def get_stats():
 def get_valuation(valuation_id):
     """Get a specific valuation by ID."""
     try:
-        conn = sqlite3.connect('valuations.db')
+        conn = sqlite3.connect('valuations.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
         row = c.fetchone()
@@ -663,7 +663,7 @@ def submit_listing_to_ebay():
 
     try:
         # Get valuation data for mapping
-        conn = sqlite3.connect('valuations.db')
+        conn = sqlite3.connect('valuations.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
         row = c.fetchone()
