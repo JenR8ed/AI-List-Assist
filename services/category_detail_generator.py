@@ -107,20 +107,9 @@ class CategoryDetailGenerator:
         item_name = item_data.get('item_name', '').lower()
         
         # Performance optimization: use pre-allocated tuples and for-loops to avoid list and generator overhead
-        for word in self.ELECTRONICS_KEYWORDS:
-            if word in item_name:
-                return [{"category_id": "293", "confidence": 0.8}]
-
-        for word in self.CLOTHING_KEYWORDS:
-            if word in item_name:
-                return [{"category_id": "1059", "confidence": 0.7}]
-
-        for word in self.VINTAGE_KEYWORDS:
-            if word in item_name:
-                return [{"category_id": "20081", "confidence": 0.6}]
-
-        for word in self.AUTO_KEYWORDS:
-            if word in item_name:
-                return [{"category_id": "6024", "confidence": 0.7}]
+        for keywords, category_id, confidence in self.CATEGORY_MAPPING:
+            for word in keywords:
+                if word in item_name:
+                    return [{"category_id": category_id, "confidence": confidence}]
 
         return [{"category_id": "293", "confidence": 0.3}]  # Default to electronics
