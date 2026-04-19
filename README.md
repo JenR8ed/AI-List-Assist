@@ -26,8 +26,8 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 *   **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
 *   **Deterministic Analysis**: Uses image hashing to ensure consistent valuation results for identical items.
 *   **Secure Architecture**: Protected by HMAC-based Bearer token verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
-*   **Omnichannel Readiness**: Modular design ready to expand beyond eBay to Mercari, Poshmark, and more.
 *   **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals.
+*   **Progressive Questioning**: Intelligent dialogue flow to resolve missing item aspects via a state-machine orchestrator.
 
 ---
 
@@ -37,24 +37,24 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 
 ### 📁 Core Services
 1.  **`VisionService`**: Hybrid OCR and multi-item object detection using Cloud Vision + Gemini.
-2.  **`ValuationService`**: Market analysis and "Decision Gate" profitability logic.
+2.  **`ValuationService`**: Market analysis and "Decision Gate" profitability logic using real-time eBay sold data.
 3.  **`ConversationOrchestrator`**: AI-driven dialogue management to resolve missing item aspects.
-4.  **`ListingSynthesisEngine`**: SEO-optimized marketplace listing generation.
+4.  **`ListingSynthesisEngine`**: LLM-powered marketplace listing generation and SEO optimization.
 5.  **`eBayIntegration`**: Direct interaction with modern eBay REST Inventory/Offer APIs.
 6.  **`EBayCategoryService`**: Real-time interaction with the eBay Taxonomy API for metadata.
 7.  **`EBayTokenManager`**: Centralized OAuth 2.0 lifecycle and refresh management.
 8.  **`CategoryDetailGenerator`**: Optimized field requirement mapping and question generation.
-9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets within `drafts/`.
+9.  **`DraftImageManager`**: Lifecycle management for listing-specific image assets.
 10. **`ConsignmentDatabase`**: Specialized tracking for participants, KYC, and asset provenance.
-11. **`ValuationDatabase`**: Persistent storage for analysis history.
-12. **`GeminiRestClient`**: Unified sync/async interface for direct Google AI REST calls.
+11. **`ValuationDatabase`**: Persistent storage for analysis history and market trends.
+12. **`GeminiRestClient`**: Unified sync/async interface for Google AI REST calls.
 13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
 
 ### 💾 Triple-DB Strategy
 The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases with **Write-Ahead Logging (WAL)** enabled:
 *   **`valuations.db`**: Stores analysis history, detection confidence, and market valuations.
-*   **`listings.db`**: Stores eBay inventory/offer states, draft data, and submission logs.
-*   **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset tracking.
+*   **`listings.db`**: Stores eBay inventory/offer states, draft data, and session tracking.
+*   **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset provenance.
 
 ---
 
@@ -62,20 +62,20 @@ The system ensures strict separation of concerns and data integrity by using thr
 
 AI List Assist is engineered for speed, delivering measurable improvements over standard implementations:
 
-*   **⚡ Brand Extraction**: **~51-53% gain** in `VisionService._extract_brand` via pre-calculated lowercase lookups.
-*   **⚡ Model Detection**: **~26-35% gain** in `VisionService._extract_model` via class-level regex pre-compilation.
+*   **⚡ Brand Extraction**: **~51-53% gain** in `VisionService` via pre-calculated lowercase lookups.
+*   **⚡ Model Detection**: **~26-35% gain** via class-level regex pre-compilation.
 *   **⚡ Category Mapping**: **~30x speedup** in `CategoryDetailGenerator` using O(N+M) complexity algorithms.
 *   **⚡ Database Throughput**: **~40x faster** ingestion in `ValuationDatabase` using bulk `executemany` patterns.
-*   **⚡ Server Concurrency**: **~60% reduction** in latency for the `analyze_image` route by replacing blocking I/O with `asyncio.to_thread`.
+*   **⚡ Server Concurrency**: **~60% reduction** in latency for the `analyze_image` route by delegating blocking I/O to threads.
 
 ---
 
 ## 🔐 Security & Compliance
 
-*   **HMAC Bearer Authentication**: Sensitive API endpoints require HMAC-based Bearer token verification via `Authorization: Bearer <token>`.
+*   **HMAC Bearer Authentication**: Sensitive API endpoints require HMAC-based Bearer token verification.
 *   **Content Security Policy**: Strict CSP headers prevent XSS and data injection attacks.
-*   **XSS Protection**: Secure rendering logic ensures dynamic metadata is safely handled in the dashboard.
-*   **Credential Integrity**: Strict policy against hardcoded secrets; all credentials must be managed via environment variables.
+*   **XSS Protection**: Secure rendering logic ensures dynamic metadata is safely handled.
+*   **Credential Integrity**: Strict policy against hardcoded secrets; all credentials managed via environment variables.
 
 ---
 
@@ -100,15 +100,8 @@ AI List Assist adapts to your specific workflow through four dedicated operation
                                      |                         |
                                      V                         V
 [ SECURE PUBLISHING ] <-- [ LISTING SYNTHESIS ] <--- [ CONVERSATIONAL FLOW ]
-   (eBay REST API)         (SEO Optimization)         (Attribute Resolution)
+   (eBay REST API)         (LLM Optimization)         (Attribute Resolution)
 ```
-
-1.  **Visual Acquisition**: Upload photos via the **Web Dashboard** or the **Telegram Valuator Bot**.
-2.  **Hybrid Analysis**: AI detects items, assesses condition, and extracts brand/model metadata.
-3.  **The Decision Gate**: Items are filtered based on 90-day sold history, supply, and demand using market-optimized fractional pricing strategies.
-4.  **Conversational Refinement**: The orchestrator asks targeted questions to fill required eBay aspects.
-5.  **Marketplace Synthesis**: Optimized titles and HTML descriptions are generated according to [eBay Mapping Rules](EBAY_LISTING_MAPPING.md).
-6.  **Secure Publishing**: Direct deployment to eBay via OAuth 2.0 and the Inventory API.
 
 ---
 
@@ -117,47 +110,33 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 ### Prerequisites
 *   **Python 3.12+**
 *   Google Cloud API Key (Gemini + Vision)
-*   eBay Developer Account (Sandbox or Production)
+*   eBay Developer Account
 *   Telegram Bot Token (Optional)
-*   Redis and PostgreSQL (Optional, for advanced market analytics)
 
 ### Environment Configuration
-Create a `.env` file in the root directory:
+Create a `.env` file based on the provided `.env.example`:
 ```env
-# Flask Security
 SECRET_KEY=your_flask_secret_key
 API_KEY=your_hmac_api_key
-
-# Google AI
 GOOGLE_API_KEY=your_google_cloud_api_key
-
-# eBay API
 EBAY_CLIENT_ID=your_ebay_client_id
 EBAY_CLIENT_SECRET=your_ebay_client_secret
 EBAY_RU_NAME=your_ebay_runame
 EBAY_CATEGORY_TREE_ID=0
-
-# Telegram Bot
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 ```
 
-### Quick Start (Local)
+### Quick Start
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd ai-list-assist
-
-# Install core dependencies
+# Install dependencies
 pip install -r requirements.txt
 
 # Initialize databases
 python3 -c "from app_enhanced import init_db; from services.consignment_database import init_db as init_consignment; init_db(); init_consignment()"
-```
 
-### Launching
-*   **Web Dashboard**: `python3 app_enhanced.py` (Visit `http://localhost:5000`)
-*   **Telegram Bot**: `python3 your_ebay_valuator_bot.py`
-*   **Docker (Full Stack)**: `docker-compose -f docker-compose.dev.yml up --build`
+# Launch application
+python3 app_enhanced.py
+```
 
 ---
 
@@ -166,7 +145,7 @@ python3 -c "from app_enhanced import init_db; from services.consignment_database
 Ensure system integrity by running the test suite:
 ```bash
 export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
-PYTHONPATH=. python3 -m pytest tests/ -v
+PYTHONPATH=. pytest tests/ -v
 ```
 
 ---
