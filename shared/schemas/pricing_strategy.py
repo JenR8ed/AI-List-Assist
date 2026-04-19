@@ -6,7 +6,7 @@ This separates the 'Business Logic' (math) from the 'Service Logic' (code).
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional
 
 @dataclass
 class PricingResult:
