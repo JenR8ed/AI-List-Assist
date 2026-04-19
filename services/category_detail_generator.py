@@ -8,6 +8,12 @@ from services.gemini_rest_client import GeminiRestClient
 import os
 
 class CategoryDetailGenerator:
+    # Class constants for keyword matching to avoid list recreation on every call
+    ELECTRONICS_KEYWORDS = ('phone', 'headphone', 'electronic', 'computer', 'laptop')
+    CLOTHING_KEYWORDS = ('shirt', 'pants', 'clothing', 'jacket')
+    VINTAGE_KEYWORDS = ('vintage', 'collectible', 'antique')
+    AUTO_KEYWORDS = ('car', 'auto', 'vehicle', 'engine')
+
     def __init__(self):
         self.category_service = EBayCategoryService()
         try:
@@ -100,13 +106,10 @@ class CategoryDetailGenerator:
         # Simple keyword-based category mapping
         item_name = item_data.get('item_name', '').lower()
         
-        if any(word in item_name for word in ['phone', 'headphone', 'electronic', 'computer', 'laptop']):
-            return [{"category_id": "293", "confidence": 0.8}]
-        elif any(word in item_name for word in ['shirt', 'pants', 'clothing', 'jacket']):
-            return [{"category_id": "1059", "confidence": 0.7}]
-        elif any(word in item_name for word in ['vintage', 'collectible', 'antique']):
-            return [{"category_id": "20081", "confidence": 0.6}]
-        elif any(word in item_name for word in ['car', 'auto', 'vehicle', 'engine']):
-            return [{"category_id": "6024", "confidence": 0.7}]
-        else:
-            return [{"category_id": "293", "confidence": 0.3}]  # Default to electronics
+        # Performance optimization: use pre-allocated tuples and for-loops to avoid list and generator overhead
+        for keywords, category_id, confidence in self.CATEGORY_MAPPING:
+            for word in keywords:
+                if word in item_name:
+                    return [{"category_id": category_id, "confidence": confidence}]
+
+        return [{"category_id": "293", "confidence": 0.3}]  # Default to electronics
