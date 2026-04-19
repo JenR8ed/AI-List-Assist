@@ -1,6 +1,10 @@
-🧹 [Remove unused imports in Telegram bot]
+🎯 **What:** Removed the unused `ItemCondition` import from `services/ebay_integration.py`.
 
-🎯 **What:** Removed unused `import asyncio` and `from services.mock_valuation_service import MockValuationService` from `your_ebay_valuator_bot.py`.
-💡 **Why:** These imports were not being used anywhere in the file. Removing dead code improves maintainability and readability by reducing clutter and potential confusion for future developers reading the file.
-✅ **Verification:** Verified that the removed imports were not used in the file using `grep`. Tested syntax with `python -m py_compile your_ebay_valuator_bot.py` and `python test_syntax.py`. Ran the full test suite (`python -m pytest tests`), ensuring no new regressions were introduced (existing failures are related to missing env variables).
-✨ **Result:** A cleaner `your_ebay_valuator_bot.py` file with unnecessary dependencies removed, slightly improving code health.
+💡 **Why:** The `ItemCondition` class was imported from `shared.models` but never referenced within the `eBayIntegration` class or the file's logic. Removing it cleans up the namespace, adheres to Python linting best practices, and improves overall code maintainability by eliminating dead code.
+
+✅ **Verification:**
+1. Verified via `grep` that `ItemCondition` is not used anywhere else in the file.
+2. Successfully executed the full test suite (`pytest tests/ -v`). The changes caused no regressions. Existing failures related to mocked external dependencies were unaffected.
+3. Code review completed without issues.
+
+✨ **Result:** A cleaner `services/ebay_integration.py` file with unnecessary dependencies removed, slightly reducing module load overhead and preventing potential confusion for future contributors.
