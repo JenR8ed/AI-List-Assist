@@ -9,6 +9,7 @@ sys.modules['requests'] = MagicMock()
 sys.modules['dotenv'] = MagicMock()
 sys.modules['google'] = MagicMock()
 sys.modules['google.generativeai'] = MagicMock()
+sys.modules['pydantic'] = MagicMock()
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -85,6 +86,37 @@ class TestConsignmentDatabase(unittest.TestCase):
         self.assertEqual(result["sale_price"], 0.0)
         self.assertEqual(result["commission_amount"], 0.0)
         self.assertEqual(result["participant_payout"], 0.0)
+
+    @patch('services.consignment_database.list_transactions')
+    @patch('services.consignment_database.get_asset')
+    def test_calculate_commission_rounding(self, mock_get_asset, mock_list_transactions):
+        mock_get_asset.return_value = {
+            "current_status": "SOLD",
+            "sale_price": 99.99
+        }
+        mock_list_transactions.return_value = [
+            {"call_type": "SALE_RECORD", "commission_multiplier": 0.15}
+        ]
+        # 99.99 * 0.15 = 14.9985 -> round(14.9985, 2) = 15.0
+        # 99.99 - 15.0 = 84.99
+        result = calculate_commission("asset_rounding")
+        self.assertEqual(result["commission_amount"], 15.0)
+        self.assertEqual(result["participant_payout"], 84.99)
+
+    @patch('services.consignment_database.list_transactions')
+    @patch('services.consignment_database.get_asset')
+    def test_calculate_commission_most_recent_sale_record(self, mock_get_asset, mock_list_transactions):
+        mock_get_asset.return_value = {
+            "current_status": "SOLD",
+            "sale_price": 100.0
+        }
+        mock_list_transactions.return_value = [
+            {"call_type": "SALE_RECORD", "commission_multiplier": 0.10},  # Most recent
+            {"call_type": "SALE_RECORD", "commission_multiplier": 0.20}   # Older
+        ]
+        result = calculate_commission("asset_multi_sale")
+        self.assertEqual(result["commission_multiplier"], 0.10)
+        self.assertEqual(result["commission_amount"], 10.0)
 
 if __name__ == '__main__':
     unittest.main()
