@@ -10,6 +10,7 @@ import json
 import os
 import logging
 import hmac
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -274,7 +275,7 @@ async def analyze_image():
         worth_listing = [v for v in valuations if v.worth_listing]
 
         # Save valuations to database
-        image_hash = str(hash(image_base64))
+        image_hash = hashlib.sha256(image_base64.encode()).hexdigest()
         valuation_ids = db.save_valuations(filename, image_hash, valuations)
         for val, v_id in zip(valuations, valuation_ids):
             print(f"Saved valuation {v_id} for {val.item_name}")
