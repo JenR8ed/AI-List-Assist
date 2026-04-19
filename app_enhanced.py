@@ -64,7 +64,7 @@ valuation_service = ValuationService(use_sandbox=True)
 category_service = EBayCategoryService()
 category_generator = CategoryDetailGenerator()
 draft_image_manager = DraftImageManager()
-print("Database and services initialized")
+logger.info("Database and services initialized")
 
 conversation_orchestrator = None
 listing_engine = None
@@ -74,9 +74,9 @@ try:
     conversation_orchestrator = ConversationOrchestrator()
     listing_engine = ListingSynthesisEngine()
     ebay_integration = eBayIntegration(use_sandbox=True)
-    print("Other services initialized")
+    logger.info("Other services initialized")
 except Exception as e:
-    print(f"Other services warning: {e}")
+    logger.warning(f"Other services warning: {e}")
 
 
 from functools import wraps
@@ -106,7 +106,7 @@ def require_api_key(f):
 
 def init_db():
     """Initialize SQLite database."""
-    conn = sqlite3.connect('listings.db')
+    conn = sqlite3.connect('listings.db', check_same_thread=False)
     c = conn.cursor()
 
     # Sessions table
@@ -211,8 +211,8 @@ async def analyze_image():
             for i, item in enumerate(detected_items):
                 print(f"DEBUG: Item {i}: brand={item.brand}, category={item.probable_category}, text={item.detected_text}")
         except Exception as vision_error:
-            print(f"DEBUG: Vision service error: {vision_error}")
-            return jsonify({"error": f"Vision service failed: {str(vision_error)}"}), 500
+            logger.exception("Vision service error")
+            return jsonify({"error": "Vision service failed to process the image."}), 500
 
         # Step 2: Value each item
         valuations = []
@@ -281,18 +281,21 @@ async def analyze_image():
             print(f"Saved valuation {v_id} for {val.item_name}")
 
         # Save to database
-        conn = sqlite3.connect('listings.db')
-        c = conn.cursor()
-        c.execute('''
-            INSERT INTO sessions (session_id, status, session_data)
-            VALUES (?, ?, ?)
-        ''', (session_id, "analyzed", json.dumps({
-            "detected_items": [item.to_dict() for item in detected_items],
-            "valuations": [v.to_dict() for v in valuations],
-            "image_filename": filename
-        })))
-        conn.commit()
-        conn.close()
+        def save_session_to_db():
+            conn = sqlite3.connect('listings.db', check_same_thread=False)
+            c = conn.cursor()
+            c.execute('''
+                INSERT INTO sessions (session_id, status, session_data)
+                VALUES (?, ?, ?)
+            ''', (session_id, "analyzed", json.dumps({
+                "detected_items": [item.to_dict() for item in detected_items],
+                "valuations": [v.to_dict() for v in valuations],
+                "image_filename": filename
+            })))
+            conn.commit()
+            conn.close()
+
+        await asyncio.to_thread(save_session_to_db)
 
         return jsonify({
             "success": True,
@@ -307,7 +310,8 @@ async def analyze_image():
         })
 
     except Exception as e:
-        return jsonify({"error": f"Error processing image: {str(e)}"}), 500
+        logger.exception("Error processing image")
+        return jsonify({"error": "An internal error occurred while processing the image."}), 500
 
 @app.route('/api/conversation/start', methods=['POST'])
 @require_api_key
@@ -383,7 +387,7 @@ def create_listing():
             return jsonify({"error": "Conversation session not found"}), 404
 
         # Get original image path from session
-        conn = sqlite3.connect('listings.db')
+        conn = sqlite3.connect('listings.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('SELECT session_data FROM sessions WHERE session_id = ?', (session_id,))
         session_row = c.fetchone()
@@ -436,7 +440,7 @@ def create_listing():
             listing_draft.images = draft_images
 
         # Save to database
-        conn = sqlite3.connect('listings.db')
+        conn = sqlite3.connect('listings.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('''
             INSERT INTO listings (listing_id, item_id, title, price, status, draft_data)
@@ -478,7 +482,7 @@ def publish_listing():
 
     try:
         # Get listing from database
-        conn = sqlite3.connect('listings.db')
+        conn = sqlite3.connect('listings.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('SELECT draft_data FROM listings WHERE listing_id = ?', (listing_id,))
         row = c.fetchone()
@@ -511,7 +515,7 @@ def publish_listing():
             ebay_listing_id = ebay_result.get("listing_id")
 
             # Update database status
-            conn = sqlite3.connect('listings.db')
+            conn = sqlite3.connect('listings.db', check_same_thread=False)
             c = conn.cursor()
             c.execute('''
                 UPDATE listings
@@ -529,8 +533,9 @@ def publish_listing():
                 "url": ebay_result.get("url")
             })
         except Exception as ebay_err:
+            logger.exception("eBay publishing failed")
             return jsonify({
-                "error": f"eBay publishing failed: {str(ebay_err)}",
+                "error": "eBay publishing failed. Please check your connection and authentication.",
                 "note": "Make sure you have completed the eBay OAuth flow"
             }), 401
 
@@ -616,7 +621,7 @@ def get_stats():
 def get_valuation(valuation_id):
     """Get a specific valuation by ID."""
     try:
-        conn = sqlite3.connect('valuations.db')
+        conn = sqlite3.connect('valuations.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
         row = c.fetchone()
@@ -662,7 +667,7 @@ def submit_listing_to_ebay():
 
     try:
         # Get valuation data for mapping
-        conn = sqlite3.connect('valuations.db')
+        conn = sqlite3.connect('valuations.db', check_same_thread=False)
         c = conn.cursor()
         c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
         row = c.fetchone()
@@ -735,8 +740,9 @@ def submit_listing_to_ebay():
                 ebay_response=ebay_result
             )
         except Exception as ebay_err:
+            logger.exception("eBay publishing failed")
             return jsonify({
-                "error": f"eBay publishing failed: {str(ebay_err)}",
+                "error": "eBay publishing failed due to an internal error.",
                 "details": "The listing was processed but failed to publish to eBay."
             }), 500
 
@@ -1038,6 +1044,7 @@ def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    response.headers['X-XSS-Protection'] = '1; mode=block'
     return response
 
 # ============================================================================
