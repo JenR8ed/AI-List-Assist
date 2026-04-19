@@ -1,5 +1,3 @@
-import re
-
 with open('tests/test_listing_synthesis.py', 'r') as f:
     content = f.read()
 
