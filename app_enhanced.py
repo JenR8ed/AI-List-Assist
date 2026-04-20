@@ -44,6 +44,12 @@ if not app.config['SECRET_KEY']:
     raise ValueError("SECRET_KEY environment variable must be set")
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_file(filename):
+    """Check if file extension is allowed."""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 # Ensure folders exist
 Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True)
@@ -171,6 +177,9 @@ async def analyze_image():
     file = request.files['image']
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file type. Only images are allowed."}), 400
 
     try:
         # Read and encode image
