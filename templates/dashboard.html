@@ -13,19 +13,22 @@
         .tabs { display: flex; background: white; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
         .tab { flex: 1; padding: 15px; background: #f8f9ff; border: none; cursor: pointer; font-size: 1em; transition: all 0.3s; }
         .tab.active { background: white; color: #667eea; font-weight: bold; }
+        .tab:focus-visible { outline: 2px solid #667eea; outline-offset: -2px; }
         .tab-content { background: white; border-radius: 0 0 12px 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .stat-box { background: #f8f9ff; padding: 15px; border-radius: 8px; text-align: center; border-left: 4px solid #667eea; }
         .stat-number { font-size: 1.5em; color: #667eea; font-weight: bold; margin-bottom: 5px; }
         .stat-label { color: #666; font-size: 0.8em; }
         .upload-section { background: #f8f9ff; border: 2px dashed #667eea; border-radius: 8px; padding: 30px; text-align: center; margin-bottom: 30px; cursor: pointer; transition: all 0.3s ease; }
-        .upload-section:hover { border-color: #764ba2; background: #f0f2ff; }
+        .upload-section:hover,
+        .upload-section:focus-visible { border-color: #764ba2; background: #f0f2ff; outline: 2px solid #667eea; outline-offset: 2px; }
         .upload-section.dragover { border-color: #764ba2; background: #e8e5ff; }
         #imageInput { display: none; }
         .preview-img { max-width: 200px; max-height: 150px; border-radius: 8px; margin: 10px 0; display: none; }
         .preview-img.show { display: block; }
         button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 1em; transition: all 0.3s; }
-        button:hover { background: #764ba2; transform: translateY(-2px); }
+        button:hover,
+        button:focus-visible { background: #764ba2; transform: translateY(-2px); outline: 2px solid #667eea; outline-offset: 2px; }
         button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
         .valuations-grid { display: grid; gap: 15px; }
         .valuation-item { background: #f8f9ff; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; display: grid; grid-template-columns: 100px 1fr auto; gap: 15px; align-items: center; }
