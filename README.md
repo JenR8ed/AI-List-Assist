@@ -5,7 +5,7 @@
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
 
-**AI List Assist** is a high-performance automation platform designed for professional online resellers. It transforms unstructured visual data into structured, category-specific marketplace listings using a sophisticated **Hybrid AI** architecture (Google Gemini 1.5 Flash + Cloud Vision).
+**AI List Assist** is a high-performance automation platform designed for professional online resellers. It transforms unstructured visual data into structured, category-specific marketplace listings using a sophisticated **Hybrid AI** architecture (Google Gemini 1.5 Flash + Cloud Vision) and a real-time **Market Intelligence** engine.
 
 ---
 
@@ -23,10 +23,11 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 ## ✨ Key Features
 
 *   **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
+*   **Market Intelligence System**: Real-time trend ingestion via **Perplexity AI (Sonar)**, persistent tracking in **PostgreSQL**, and low-latency caching in **Redis**.
 *   **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
+*   **Mobile-First Sourcing**: Integrated **Telegram Valuator Bot** for rapid field appraisals.
 *   **Deterministic Analysis**: Uses image hashing to ensure consistent valuation results for identical items.
 *   **Secure Architecture**: Protected by HMAC-based Bearer token verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
-*   **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals.
 *   **Progressive Questioning**: Intelligent dialogue flow to resolve missing item aspects via a state-machine orchestrator.
 
 ---
@@ -50,11 +51,22 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 12. **`GeminiRestClient`**: Unified sync/async interface for Google AI REST calls.
 13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
 
-### 💾 Triple-DB Strategy
-The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases with **Write-Ahead Logging (WAL)** enabled:
+### 💾 Triple-DB + Intelligence Strategy
+The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases with **Write-Ahead Logging (WAL)** enabled, plus a persistent Market Intelligence stack:
 *   **`valuations.db`**: Stores analysis history, detection confidence, and market valuations.
 *   **`listings.db`**: Stores eBay inventory/offer states, draft data, and session tracking.
 *   **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset provenance.
+*   **PostgreSQL (`ebay_market_data`)**: Stores long-term market trends and Perplexity AI insights.
+*   **Redis**: High-speed cache for the latest market pricing and trend snapshots.
+
+---
+
+## 🤖 Mobile Appraisal: Telegram Valuator Bot
+
+The **Telegram Valuator Bot** (`your_ebay_valuator_bot.py`) provides an instant, field-ready interface for resellers.
+*   **Instant Valuation**: Send a photo, receive a structured breakdown of category, brand, and model.
+*   **Seamless Integration**: Powered by the same `VisionService` as the core dashboard.
+*   **Field-to-Draft**: Decisions made in the field are synchronized with the central database for final listing production.
 
 ---
 
@@ -95,8 +107,8 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 ## 🔄 The Logic Pipeline: From Image to Listing
 
 ```text
-[ PHOTO ACQUISITION ] --> [ HYBRID AI ANALYSIS ] --> [ PROFITABILITY GATE ]
-      (Web/Bot)             (Vision + Gemini)         (Market Price Scan)
+[ PHOTO ACQUISITION ] --> [ HYBRID AI ANALYSIS ] --> [ MARKET INTEL GATE ]
+      (Web/Bot)             (Vision + Gemini)         (Perplexity + Redis)
                                      |                         |
                                      V                         V
 [ SECURE PUBLISHING ] <-- [ LISTING SYNTHESIS ] <--- [ CONVERSATIONAL FLOW ]
@@ -109,9 +121,11 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 
 ### Prerequisites
 *   **Python 3.12+**
+*   **Docker & Docker Compose** (for Market Intelligence stack)
 *   Google Cloud API Key (Gemini + Vision)
 *   eBay Developer Account
 *   Telegram Bot Token (Optional)
+*   Perplexity API Key (Optional)
 
 ### Environment Configuration
 Create a `.env` file based on the provided `.env.example`:
@@ -124,17 +138,27 @@ EBAY_CLIENT_SECRET=your_ebay_client_secret
 EBAY_RU_NAME=your_ebay_runame
 EBAY_CATEGORY_TREE_ID=0
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+PERPLEXITY_API_KEY=your_perplexity_api_key
+POSTGRES_USER=ai_user
+POSTGRES_PASSWORD=ai_password
+POSTGRES_DB=ebay_market_data
 ```
 
 ### Quick Start
 ```bash
-# Install dependencies
+# 1. Start Infrastructure (Postgres & Redis)
+docker-compose -f docker-compose.db.yml up -d
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# Initialize databases
+# 3. Initialize databases
 python3 -c "from app_enhanced import init_db; from services.consignment_database import init_db as init_consignment; init_db(); init_consignment()"
 
-# Launch application
+# 4. Ingest Market Intelligence
+python3 seed_db.py
+
+# 5. Launch application
 python3 app_enhanced.py
 ```
 
