@@ -16,17 +16,17 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 *   **Instant Valuation**: Shift from manual research to data-backed "List/No-List" decisions in seconds.
 *   **Cognitive Automation**: Handle the complex mapping of eBay item specifics automatically.
 *   **Operational Scalability**: Transition from individual sourcing to commercial-grade warehouse intake with specialized operational modes.
-*   **Financial Transparency**: Integrated **API Usage Tracker** to monitor AI costs (Gemini & Vision) in real-time.
+*   **Market Intelligence**: Real-time trend analysis and pricing data via integrated Perplexity AI insights.
 
 ---
 
 ## ✨ Key Features
 
 *   **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
-*   **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
-*   **Deterministic Analysis**: Uses image hashing to ensure consistent valuation results for identical items.
+*   **Market Intelligence System**: Fetches real-time market trends via Perplexity AI (Sonar model), persisting data in PostgreSQL 15 and caching via Redis 7.
+*   **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals and instant valuations.
+*   **API Usage Tracker**: Real-time cost transparency and token monitoring for AI services directly in the dashboard.
 *   **Secure Architecture**: Protected by HMAC-based Bearer token verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
-*   **Mobile-First Sourcing**: Includes a **Telegram Valuator Bot** for rapid field appraisals.
 *   **Progressive Questioning**: Intelligent dialogue flow to resolve missing item aspects via a state-machine orchestrator.
 
 ---
@@ -56,6 +56,12 @@ The system ensures strict separation of concerns and data integrity by using thr
 *   **`listings.db`**: Stores eBay inventory/offer states, draft data, and session tracking.
 *   **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset provenance.
 
+### 📊 Market Intelligence Stack
+For enterprise-grade market analysis, the system extends its capability via:
+*   **PostgreSQL 15**: Dedicated storage for historical market trends (`market_trends` table).
+*   **Redis 7**: High-speed caching for latest trend data.
+*   **Perplexity AI Integration**: Uses the Sonar model to ingest real-time marketplace insights.
+
 ---
 
 ## 📊 Measured Performance Benchmarks
@@ -75,7 +81,7 @@ AI List Assist is engineered for speed, delivering measurable improvements over 
 *   **HMAC Bearer Authentication**: Sensitive API endpoints require HMAC-based Bearer token verification.
 *   **Content Security Policy**: Strict CSP headers prevent XSS and data injection attacks.
 *   **XSS Protection**: Secure rendering logic ensures dynamic metadata is safely handled.
-*   **Credential Integrity**: Strict policy against hardcoded secrets; all credentials managed via environment variables.
+*   **Credential Integrity**: All credentials managed via environment variables; strict no-hardcode policy.
 
 ---
 
@@ -112,6 +118,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 *   Google Cloud API Key (Gemini + Vision)
 *   eBay Developer Account
 *   Telegram Bot Token (Optional)
+*   Docker & Docker Compose (for full Market Intelligence stack)
 
 ### Environment Configuration
 Create a `.env` file based on the provided `.env.example`:
@@ -124,9 +131,13 @@ EBAY_CLIENT_SECRET=your_ebay_client_secret
 EBAY_RU_NAME=your_ebay_runame
 EBAY_CATEGORY_TREE_ID=0
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+PERPLEXITY_API_KEY=your_perplexity_key
+POSTGRES_USER=ai_user
+POSTGRES_PASSWORD=ai_password
+REDIS_HOST=localhost
 ```
 
-### Quick Start
+### Quick Start (Local SQLite Mode)
 ```bash
 # Install dependencies
 pip install -r requirements.txt
@@ -136,6 +147,18 @@ python3 -c "from app_enhanced import init_db; from services.consignment_database
 
 # Launch application
 python3 app_enhanced.py
+```
+
+### Enterprise Start (Docker Stack)
+```bash
+# Launch Postgres & Redis
+docker-compose -f docker-compose.db.yml up -d
+
+# Seed market intelligence data
+python3 seed_db.py
+
+# Launch development environment
+docker-compose -f docker-compose.dev.yml up --build
 ```
 
 ---
