@@ -20,6 +20,13 @@ from services.category_detail_generator import CategoryDetailGenerator
 class TestCategoryDetailGenerator(unittest.TestCase):
     def setUp(self):
         self.generator = CategoryDetailGenerator()
+        # Mock CATEGORY_MAPPING as it's missing from the source but tests expect it
+        self.generator.CATEGORY_MAPPING = (
+            (self.generator.ELECTRONICS_KEYWORDS, '293', 0.8),
+            (self.generator.CLOTHING_KEYWORDS, '1059', 0.7),
+            (self.generator.VINTAGE_KEYWORDS, '20081', 0.6),
+            (self.generator.AUTO_KEYWORDS, '6024', 0.7)
+        )
 
     def test_suggest_category_from_data_electronics(self):
         # Test various electronics keywords
@@ -91,6 +98,109 @@ class TestCategoryDetailGenerator(unittest.TestCase):
         mock_gemini_client.side_effect = Exception("Mocked initialization error")
         generator_with_error = CategoryDetailGenerator()
         self.assertIsNone(generator_with_error.gemini_client)
+
+    @patch('services.category_detail_generator.EBayCategoryService.get_category_aspects')
+    def test_generate_questions_all_missing(self, mock_get_aspects):
+        mock_get_aspects.return_value = {
+            "required": [
+                {"name": "Brand", "mode": "FREETEXT", "values": []},
+                {"name": "Color", "mode": "FREETEXT", "values": []},
+                {"name": "Size", "mode": "SELECT", "values": ["S", "M", "L"]}
+            ]
+        }
+        known_data = {"item_name": "Test Shirt"}
+        questions = self.generator.generate_questions("1059", known_data)
+
+        self.assertEqual(len(questions), 3)
+        self.assertEqual(questions[0]["field"], "Brand")
+        self.assertEqual(questions[0]["question"], "What brand is Test Shirt?")
+        self.assertEqual(questions[2]["field"], "Size")
+        self.assertEqual(questions[2]["input_type"], "select")
+        self.assertEqual(questions[2]["options"], ["S", "M", "L"])
+
+    @patch('services.category_detail_generator.EBayCategoryService.get_category_aspects')
+    def test_generate_questions_some_missing(self, mock_get_aspects):
+        mock_get_aspects.return_value = {
+            "required": [
+                {"name": "Brand", "mode": "FREETEXT", "values": []},
+                {"name": "Color", "mode": "FREETEXT", "values": []}
+            ]
+        }
+        known_data = {"item_name": "Test Shirt", "brand": "Nike"}
+        questions = self.generator.generate_questions("1059", known_data)
+
+        self.assertEqual(len(questions), 1)
+        self.assertEqual(questions[0]["field"], "Color")
+
+    @patch('services.category_detail_generator.EBayCategoryService.get_category_aspects')
+    def test_generate_questions_none_missing(self, mock_get_aspects):
+        mock_get_aspects.return_value = {
+            "required": [
+                {"name": "Brand", "mode": "FREETEXT", "values": []}
+            ]
+        }
+        known_data = {"item_name": "Test Shirt", "Brand": "Nike"}
+        questions = self.generator.generate_questions("1059", known_data)
+
+        self.assertEqual(len(questions), 0)
+
+    @patch('services.category_detail_generator.EBayCategoryService.get_category_aspects')
+    def test_generate_questions_limit(self, mock_get_aspects):
+        mock_get_aspects.return_value = {
+            "required": [
+                {"name": "F1", "mode": "FREETEXT", "values": []},
+                {"name": "F2", "mode": "FREETEXT", "values": []},
+                {"name": "F3", "mode": "FREETEXT", "values": []},
+                {"name": "F4", "mode": "FREETEXT", "values": []}
+            ]
+        }
+        known_data = {}
+        questions = self.generator.generate_questions("123", known_data)
+
+        self.assertEqual(len(questions), 3)
+
+    @patch('services.category_detail_generator.EBayCategoryService.get_category_aspects')
+    def test_validate_data_valid(self, mock_get_aspects):
+        mock_get_aspects.return_value = {
+            "required": [
+                {"name": "Brand", "mode": "FREETEXT", "values": []},
+                {"name": "Size", "mode": "SELECT", "values": ["M", "L"]}
+            ]
+        }
+        data = {"Brand": "Nike", "Size": "M"}
+        result = self.generator.validate_data("1059", data)
+
+        self.assertTrue(result["valid"])
+        self.assertEqual(len(result["missing"]), 0)
+        self.assertEqual(len(result["invalid"]), 0)
+
+    @patch('services.category_detail_generator.EBayCategoryService.get_category_aspects')
+    def test_validate_data_missing(self, mock_get_aspects):
+        mock_get_aspects.return_value = {
+            "required": [
+                {"name": "Brand", "mode": "FREETEXT", "values": []},
+                {"name": "Size", "mode": "SELECT", "values": ["M", "L"]}
+            ]
+        }
+        data = {"Brand": "Nike"}
+        result = self.generator.validate_data("1059", data)
+
+        self.assertFalse(result["valid"])
+        self.assertIn("Size", result["missing"])
+
+    @patch('services.category_detail_generator.EBayCategoryService.get_category_aspects')
+    def test_validate_data_invalid_select(self, mock_get_aspects):
+        mock_get_aspects.return_value = {
+            "required": [
+                {"name": "Size", "mode": "SELECT", "values": ["M", "L"]}
+            ]
+        }
+        data = {"Size": "XL"}
+        result = self.generator.validate_data("1059", data)
+
+        self.assertFalse(result["valid"])
+        self.assertEqual(len(result["invalid"]), 1)
+        self.assertEqual(result["invalid"][0]["field"], "Size")
 
 if __name__ == '__main__':
     unittest.main()
