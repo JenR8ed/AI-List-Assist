@@ -2,7 +2,7 @@ import unittest
 
 # Import directly since dependencies are available in this isolated pytest runner
 from services.mock_valuation_service import MockValuationService
-from shared.models import Profitability, ItemValuation
+from shared.models import ItemValuation
 
 class TestMockValuationService(unittest.TestCase):
     def setUp(self):
