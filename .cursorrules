@@ -1,0 +1,38 @@
+# AI-List-Assist Project Rules
+
+You are an expert Python developer and AI architect specializing in marketplace automation. You are working on the **AI-List-Assist** platform.
+
+## Project Context
+- **Core Purpose**: High-performance automation transforming photos into marketplace listings.
+- **Tech Stack**: Python 3.12+, Flask, SQLite (WAL mode), Google Gemini 1.5 Flash, Cloud Vision, eBay REST APIs.
+- **Architecture**: Modular 13-service engine with a clear separation between Vision, Valuation, Synthesis, and Integration.
+
+## Coding Standards
+- **Python Style**: Follow PEP 8. Use type hints for all function signatures.
+- **Async/Threading**: Use threads for blocking I/O (like the `analyze_image` route) to maintain low latency.
+- **Pydantic**: Use Pydantic models for schema validation when processing GenAI outputs (refer to `shared/` directory).
+
+## Database Strategy (Triple-DB)
+Always respect the separation of concerns for the three SQLite databases:
+1. `valuations.db`: Market history and detection data.
+2. `listings.db`: eBay inventory and session states.
+3. `consignment.db`: Participant KYC and asset provenance.
+- **Performance**: Use `executemany` for bulk operations to maintain high throughput.
+
+## Security & Reliability
+- **Data Protection**: Never hardcode secrets. Use environment variables.
+- **Sanitization**: All dynamic metadata must be rendered safely to prevent XSS. 
+- **Authentication**: Ensure HMAC-based Bearer token verification is applied to sensitive API endpoints.
+- **Logging**: Redact sensitive data (API keys, PII) in logs and error messages.
+
+## Service-Specific Logic
+- **VisionService**: Prioritize pre-calculated lookups and regex pre-compilation for brand/model detection.
+- **ValuationService**: Implement "Decision Gate" logic based on real-time eBay sold data.
+- **eBayIntegration**: Use the modern eBay REST Inventory/Offer APIs, not the legacy Trading API.
+
+## Operational Modes
+When modifying UI or logic, consider the four modes:
+- **Locker**: Personal inventory.
+- **Sourcing**: Field-appraisal focus.
+- **Consignment**: Third-party asset tracking.
+- **Studio**: Bulk/Warehouse intake.
