@@ -1,0 +1,75 @@
+# AI-List-Assist — LLM Context Map
+
+## Project purpose
+AI-List-Assist is an AI-assisted resale and listing workflow application for product intake, valuation, listing draft generation, image analysis, category/aspect selection, and marketplace publishing.
+
+## Target architecture
+The repository is migrating to a FARM-style stack:
+
+- Backend: FastAPI
+- Validation / ORM: Pydantic + SQLModel
+- Database: PostgreSQL (Neon or managed Postgres)
+- Frontend: React / Next.js with TailwindCSS
+- Async / cache: Redis-backed background jobs
+
+Deprecated patterns:
+- Flask
+- SQLite as primary production database
+- Jinja2 + large vanilla JS DOM workflows
+- Blocking request wrappers for external APIs
+
+## Non-negotiable rules
+- Use strict WSL2 Linux pathing only.
+- Do not reference or generate Windows drive-letter paths.
+- Do not create or suggest local `.env` files with hardcoded secrets.
+- Read secrets from environment variables with `os.getenv()` or typed settings.
+- Prefer native async/await for external API calls.
+- Avoid `dangerouslySetInnerHTML` in React.
+- Eliminate stored XSS risk by default.
+- Keep code modular, typed, and production-oriented.
+
+## Core integrations
+- Gemini API for generative AI workflows
+- Google Cloud Vision for image analysis / OCR
+- eBay APIs for taxonomy, pricing, and listing workflows
+- PostgreSQL for application state
+- Redis for caching and background tasks
+
+## What the assistant should optimize for
+1. FastAPI-first backend design
+2. Typed Pydantic/SQLModel data models
+3. React component-based frontend migration
+4. Safe API boundaries and request validation
+5. WSL2-safe developer workflows
+6. Secrets hygiene and deploy-safe configuration
+7. Clear migration paths from legacy Flask/SQLite/Jinja code
+
+## Important repo control files
+- `.cursorrules`: primary project AI behavior and architectural guardrails
+- `.cursorignore`: excludes sensitive / noisy files from indexing
+- `llms.txt`: high-level context map for LLM tooling
+- `docs/renderblueprintreference.md`: deployment blueprint reference, if present
+- `render.yaml` / infrastructure files: deployment truth for hosted environments
+
+## Preferred implementation style
+- Python: FastAPI, SQLModel, async httpx, Pydantic settings, clear typing
+- Frontend: React, TypeScript preferred, TanStack Query where helpful
+- Infra: Docker Compose for local dev, managed Postgres/Redis in hosted deploys
+- Validation: explicit schemas and narrow request/response contracts
+- Security: default-safe rendering, no secret leakage, minimal agent/tool sprawl
+
+## Migration priorities
+1. Replace Flask routes with FastAPI routers
+2. Convert legacy models to Pydantic + SQLModel
+3. Move SQLite data to PostgreSQL
+4. Replace Jinja/vanilla JS dynamic UI with React components
+5. Move expensive tasks to Redis-backed workers
+6. Preserve marketplace and AI service integrations during refactor
+
+## Assistant behavior
+When editing code in this repo:
+- prefer updating existing architecture toward FARM, not reinforcing deprecated patterns
+- suggest incremental migrations with minimal breakage
+- keep diffs focused and reversible
+- explain schema, API, and frontend boundary changes clearly
+- favor maintainability over cleverness
