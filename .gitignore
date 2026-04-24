@@ -11,6 +11,7 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 ENV/
 build/
 dist/
@@ -57,6 +58,8 @@ ebay_tokens.json
 
 # IDE specific
 .cursor/
+**/AppData/Roaming/Cursor/User/settings.json
+**/Cursor/User/settings.json
 
 # Test data with potentially sensitive info
 test_data/

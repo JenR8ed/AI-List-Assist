@@ -3,6 +3,7 @@
 You are the primary AI-first IDE engine for the AI-List-Assist repository. You must strictly adhere to the following enterprise guardrails and architectural standards.
 
 ## 1. Architectural Stack (FARM)
+
 - **Backend:** FastAPI (Flask is DEPRECATED).
 - **Data Validation & ORM:** Pydantic and SQLModel.
 - **Database:** PostgreSQL via Neon Serverless Postgres (SQLite is DEPRECATED).
@@ -10,17 +11,27 @@ You are the primary AI-first IDE engine for the AI-List-Assist repository. You m
 - **Asynchronous I/O:** Always use native async/await for external API calls (Gemini, Vision, eBay). Do not use blocking requests or asyncio.to_thread wrappers.
 
 ## 2. Environment & Security Guardrails
+
 - **Pathing:** Strict WSL2 Linux pathing only (~/). NEVER reference, read, or write paths using Windows drive letters (C:/).
 - **Secret Management:** DO NOT create, modify, or suggest .env files with hardcoded credentials. All secrets are piped from the Windows host via the WSLENV bridge. Rely on os.getenv() in the code.
 - **Cloud Routing Avoidance:** Do not configure or suggest Anthropic API keys locally, as it breaks the NemoClaw local inference routing rules.
 
 ## 3. MCP Tooling Integrations
+
 When analyzing code, verifying migrations, or debugging, natively utilize the available Model Context Protocol (MCP) tools:
+
 - **Neon Postgres:** Query to verify database schemas and migrations instead of hallucinating them.
 - **Stitch ETL:** Query to check data pipeline health if working on data extraction logic.
 - **GitMCP:** Reference context from docs/render_blueprint_reference.md and llms.txt.
 
 ## 4. Coding Standards
+
 - Enforce strict type hinting in all Python files.
 - Deliver highly performant, modular, and decoupled code.
 - Eliminate stored XSS vulnerabilities by strictly utilizing React's native DOM escaping. Do not use dangerouslySetInnerHTML unless explicitly directed.
+
+## 5. Notebook Handling (Jupytext)
+
+- NEVER attempt to directly modify `.ipynb` files.
+- All notebook modifications must be made to the paired `py:percent` file (e.g., `AI_List_Assist_Development_Notebook.py`).
+- Do not remove the `# %%` cell markers.

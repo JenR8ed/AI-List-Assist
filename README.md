@@ -5,7 +5,7 @@
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
 
-**AI List Assist** is a high-performance automation platform designed for professional online resellers. It transforms unstructured visual data into structured, category-specific marketplace listings using a sophisticated **Hybrid AI** architecture (Google Gemini 1.5 Flash + Cloud Vision).
+**AI List Assist** is a high-performance automation platform designed for professional online resellers. It transforms unstructured visual data into structured, category-specific marketplace listings using a sophisticated **Hybrid AI** architecture combining Google Gemini 1.5 Flash, Cloud Vision, and Perplexity AI.
 
 ---
 
@@ -17,12 +17,13 @@ In high-volume reselling, the "Listing Bottleneck" is the primary barrier to sca
 *   **Cognitive Automation**: Handle the complex mapping of eBay item specifics automatically.
 *   **Operational Scalability**: Transition from individual sourcing to commercial-grade warehouse intake with specialized operational modes.
 *   **Financial Transparency**: Integrated **API Usage Tracker** to monitor AI costs (Gemini & Vision) in real-time.
+*   **Market Intelligence**: Real-time trend analysis powered by Perplexity AI (Sonar model).
 
 ---
 
 ## ✨ Key Features
 
-*   **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis).
+*   **Hybrid AI Pipeline**: Combines Google Cloud Vision (OCR/Object Detection) with Gemini 1.5 Flash (Reasoning/Synthesis) and Perplexity AI (Real-time Market Trends).
 *   **API Usage Tracker**: Real-time cost transparency and token monitoring directly in the dashboard.
 *   **Deterministic Analysis**: Uses image hashing to ensure consistent valuation results for identical items.
 *   **Secure Architecture**: Protected by HMAC-based Bearer token verification, strict security headers (CSP, X-Frame-Options), and XSS-safe rendering.
@@ -50,17 +51,18 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 12. **`GeminiRestClient`**: Unified sync/async interface for Google AI REST calls.
 13. **`MockValuationService`**: High-fidelity environment for development and automated testing.
 
-### 💾 Triple-DB Strategy
-The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases with **Write-Ahead Logging (WAL)** enabled:
+### 💾 Triple-DB Strategy & Intelligence Stack
+The system ensures strict separation of concerns and data integrity by using three dedicated SQLite databases with **Write-Ahead Logging (WAL)** enabled, plus a dedicated intelligence stack:
 *   **`valuations.db`**: Stores analysis history, detection confidence, and market valuations.
 *   **`listings.db`**: Stores eBay inventory/offer states, draft data, and session tracking.
 *   **`consignment.db`**: Manages participant profiles (KYC), tax nexus codes, and asset provenance.
+*   **PostgreSQL 15 & Redis 7**: Power the Market Intelligence system, fetching real-time trends via Perplexity AI and caching results for high-speed access.
 
 ---
 
 ## 📊 Measured Performance Benchmarks
 
-AI List Assist is engineered for speed, delivering measurable improvements over standard implementations:
+AI List Assist is engineered for speed, delivering measurable improvements:
 
 *   **⚡ Brand Extraction**: **~51-53% gain** in `VisionService` via pre-calculated lowercase lookups.
 *   **⚡ Model Detection**: **~26-35% gain** via class-level regex pre-compilation.
@@ -72,7 +74,7 @@ AI List Assist is engineered for speed, delivering measurable improvements over 
 
 ## 🔐 Security & Compliance
 
-*   **HMAC Bearer Authentication**: Sensitive API endpoints require HMAC-based Bearer token verification.
+*   **HMAC Bearer Authentication**: Sensitive API endpoints require HMAC-based Bearer token verification against the `API_KEY`.
 *   **Content Security Policy**: Strict CSP headers prevent XSS and data injection attacks.
 *   **XSS Protection**: Secure rendering logic ensures dynamic metadata is safely handled.
 *   **Credential Integrity**: Strict policy against hardcoded secrets; all credentials managed via environment variables.
@@ -111,6 +113,7 @@ AI List Assist adapts to your specific workflow through four dedicated operation
 *   **Python 3.12+**
 *   Google Cloud API Key (Gemini + Vision)
 *   eBay Developer Account
+*   Perplexity API Key (for Market Intelligence)
 *   Telegram Bot Token (Optional)
 
 ### Environment Configuration
@@ -124,6 +127,10 @@ EBAY_CLIENT_SECRET=your_ebay_client_secret
 EBAY_RU_NAME=your_ebay_runame
 EBAY_CATEGORY_TREE_ID=0
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+PERPLEXITY_API_KEY=your_perplexity_api_key
+POSTGRES_USER=ai_user
+POSTGRES_PASSWORD=ai_password
+REDIS_HOST=localhost
 ```
 
 ### Quick Start
@@ -131,8 +138,14 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 # Install dependencies
 pip install -r requirements.txt
 
+# Start Databases (PostgreSQL + Redis)
+docker-compose -f docker-compose.db.yml up -d
+
 # Initialize databases
 python3 -c "from app_enhanced import init_db; from services.consignment_database import init_db as init_consignment; init_db(); init_consignment()"
+
+# Seed Market Intelligence
+python3 seed_db.py
 
 # Launch application
 python3 app_enhanced.py

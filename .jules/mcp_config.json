@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "neon-postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "${NEON_DATABASE_URL}"],
+      "description": "Allows Jules to read schemas and verify database migrations directly against the Neon Serverless Postgres instance."
+    },
+    "stitch-etl": {
+      "command": "npx",
+      "args": ["-y", "@google-labs/mcp-stitch-data", "--token", "${STITCH_TOKEN}"],
+      "description": "Allows Jules to verify data pipeline health, check extraction logs, and validate eBay API data flow."
+    }
+  }
+}
