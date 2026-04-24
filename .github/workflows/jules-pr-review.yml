@@ -1,5 +1,8 @@
 name: "Google Labs Jules - PR Review"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -22,9 +25,9 @@ jobs:
           echo "GitMCP is active. Jules will reference docs/render_blueprint_reference.md"
           
       - name: Execute Jules AI Agent
-        uses: google-labs/jules-action@v1 # Ensure this matches the specific version in your Tier 1 SOP
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "✅ Jules AI is installed as a GitHub App on this repository."
+          echo "It operates automatically via webhooks, so this manual Action step is bypassed."
         env:
           # Injecting MCP Tool Secrets exclusively into the GitHub runner
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}

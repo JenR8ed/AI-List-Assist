@@ -1,0 +1,87 @@
+image: python:3.12-slim
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHONPATH: "."
+
+cache:
+  paths:
+    - .cache/pip
+
+stages:
+  - contract-tests
+  - handoff-tests
+  - session-replay
+  - full-agent-workflows
+  - evaluation
+
+# Fast: Contract & Schema Enforcement (MR Gating)
+contract-tests:
+  stage: contract-tests
+  script:
+    - pip install -r requirements.txt
+    - pytest tests/contracts/
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# Medium: Agent Handoff Validation
+handoff-tests:
+  stage: handoff-tests
+  timeout: 10m
+  script:
+    - pip install -r requirements.txt
+    - pytest tests/workflows/ -m "handoff"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# Medium: Deterministic Session Replay
+session-replay:
+  stage: session-replay
+  script:
+    - pip install -r requirements.txt
+    - pytest tests/workflows/ -m "session_replay"
+  artifacts:
+    when: on_failure
+    paths:
+      - tests/fixtures/sessions/failed_traces/
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# Slow: End-to-End Workflow & Guardrails (Nightly or Manual MR)
+full-agent-workflows:
+  stage: full-agent-workflows
+  timeout: 30m
+  script:
+    - pip install -r requirements.txt
+    - pytest tests/workflows/ -m "full_agent"
+  artifacts:
+    when: always
+    paths:
+      - logs/agent_sessions/
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
+
+# Evaluation: Cost & Token Tracking (Nightly)
+evaluation:
+  stage: evaluation
+  script:
+    - pip install -r requirements.txt
+    - python scripts/evaluate_token_usage.py --max-cost-usd 0.50
+  artifacts:
+    when: on_failure
+    paths:
+      - logs/agent_sessions/
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
