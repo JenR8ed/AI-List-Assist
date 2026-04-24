@@ -153,7 +153,7 @@ The system includes a comprehensive test suite covering all services.
 
 **Run full test suite:**
 ```bash
-export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
+export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0 PERPLEXITY_API_KEY=test
 PYTHONPATH=. pytest tests/ -v
 ```
 
