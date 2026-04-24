@@ -66,5 +66,16 @@ class TestEBayApiError(unittest.TestCase):
 
         self.assertIn("eBay API error in publish_offer: 500 - [REDACTED]", str(context.exception))
 
+
+    def test_handle_api_error_key_error(self):
+        mock_response = MagicMock(spec=requests.Response)
+        mock_response.status_code = 400
+        mock_response.json.side_effect = KeyError("missing key")
+
+        with self.assertRaises(RuntimeError) as context:
+            self.ebay._handle_api_error(mock_response, "update_inventory_item")
+
+        self.assertIn("eBay API error in update_inventory_item: 400 - [REDACTED]", str(context.exception))
+
 if __name__ == '__main__':
     unittest.main()
