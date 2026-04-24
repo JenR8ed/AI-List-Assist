@@ -6,8 +6,8 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AI-List-Assist FARM Migration"
 
     # Strictly piped from Windows via WSLENV. No local .env loading.
-    NEON_DATABASE_URL: str = os.getenv("NEON_DATABASE_URL", "")
-    STITCH_TOKEN: str = os.getenv("STITCH_TOKEN", "")
+    NEON_DATABASE_URL: str = ""
+    STITCH_TOKEN: str = ""
 
     @property
     def async_database_url(self) -> str:
