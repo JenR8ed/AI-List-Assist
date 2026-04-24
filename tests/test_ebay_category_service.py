@@ -52,5 +52,49 @@ class TestEBayCategoryService(unittest.TestCase):
         expected_url = f"{service.base_url}/{service.category_tree_id}/get_item_aspects_for_category"
         self.assertEqual(args[0], expected_url)
 
+    def test_map_aspect_value(self):
+        service = EBayCategoryService()
+
+        # Test Brand mapping
+        self.assertEqual(service._map_aspect_value('Brand', {'brand': 'Sony'}, {}), 'Sony')
+        self.assertEqual(service._map_aspect_value('brand_name', {'brand': 'Nike'}, {}), 'Nike')
+
+        # Test Type mapping
+        self.assertEqual(service._map_aspect_value('Type', {'item_name': 'Sony Wireless Headphones'}, {}), 'Headphones')
+        self.assertEqual(service._map_aspect_value('type', {'item_name': 'Apple iPhone 13'}, {}), 'Phone')
+        self.assertEqual(service._map_aspect_value('TYPE', {'item_name': 'Gaming Keyboard'}, {}), 'Gaming')
+        self.assertIsNone(service._map_aspect_value('Type', {}, {}))
+
+        # Test Condition mapping
+        self.assertEqual(service._map_aspect_value('Condition', {'condition_score': 10}, {}), 'New')
+        self.assertEqual(service._map_aspect_value('Condition', {'condition_score': 9}, {}), 'Like New')
+        self.assertEqual(service._map_aspect_value('Condition', {'condition_score': 6}, {}), 'Fair')
+        self.assertEqual(service._map_aspect_value('Condition', {'condition_score': 3}, {}), 'Good') # Fallback
+        self.assertEqual(service._map_aspect_value('Condition', {}, {}), 'Poor') # Default 5 fallback -> "Poor"
+
+        # Test Size mapping
+        self.assertEqual(service._map_aspect_value('Size', {'key_factors': ['Small tear', 'Blue']}, {}), 'Small Tear')
+        self.assertEqual(service._map_aspect_value('Size', {'key_factors': ['Extra Large', 'Blue']}, {}), 'Extra Large')
+        self.assertEqual(service._map_aspect_value('Size', {'key_factors': ['Blue']}, {}), 'M') # Fallback
+
+        # Test Era/Year mapping
+        self.assertEqual(service._map_aspect_value('Era', {'estimated_age': '1980s retro'}, {}), '1980s')
+        self.assertEqual(service._map_aspect_value('Year', {'estimated_age': 'From 1990'}, {}), '1990s')
+        self.assertEqual(service._map_aspect_value('Era', {'estimated_age': 'Vintage 70s'}, {}), '1970s')
+        self.assertIsNone(service._map_aspect_value('Era', {'estimated_age': 'Modern'}, {}))
+        self.assertIsNone(service._map_aspect_value('Era', {}, {}))
+
+        # Test Color mapping
+        self.assertEqual(service._map_aspect_value('Color', {'key_factors': ['Red', 'Small']}, {}), 'Red')
+        self.assertEqual(service._map_aspect_value('Color', {'key_factors': ['Black', 'silver']}, {}), 'Black')
+        self.assertIsNone(service._map_aspect_value('Color', {'key_factors': ['Purple']}, {}))
+
+        # Test Features mapping
+        self.assertEqual(service._map_aspect_value('Features', {'key_factors': ['Bluetooth', 'Noise Cancelling', 'Wireless', 'Extra']}, {}), 'Bluetooth, Noise Cancelling, Wireless')
+        self.assertIsNone(service._map_aspect_value('Features', {}, {}))
+
+        # Test Unmatched mapping
+        self.assertIsNone(service._map_aspect_value('UnknownAspect', {'brand': 'Sony'}, {}))
+
 if __name__ == '__main__':
     unittest.main()
