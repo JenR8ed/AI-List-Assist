@@ -47,7 +47,7 @@ The platform utilizes a modular, service-oriented architecture designed for reli
 9.  **`DraftImageManager`**: Manages the lifecycle of temporary listing images, including secure storage, hashing, and automatic cleanup after submission.
 10. **`ConsignmentDatabase`**: A specialized service for managing high-trust transactions, participant KYC, tax nexus codes, and asset provenance tracking.
 11. **`ValuationDatabase`**: Persistent storage layer for analysis history, detection confidence, and localized market trend snapshots.
-12. ****`Market Intelligence System`**: A sophisticated sub-system utilizing **Perplexity AI (Sonar model)** to fetch real-time trends, persisted in **PostgreSQL 15** and cached in **Redis 7** for sub-millisecond retrieval.
+12. **Market Intelligence System**: A sophisticated sub-system utilizing **Perplexity AI (Sonar model)** to fetch real-time trends, persisted in **PostgreSQL 15** and cached in **Redis 7** for sub-millisecond retrieval.
 13. **`GeminiRestClient`**: A unified, high-performance interface for both synchronous and asynchronous communication with the Google Generative Language REST API.
 
 ### 💾 Triple-DB Strategy
@@ -153,7 +153,7 @@ The system includes a comprehensive test suite covering all services.
 
 **Run full test suite:**
 ```bash
-export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0 PERPLEXITY_API_KEY=test
+export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
 PYTHONPATH=. pytest tests/ -v
 ```
 
