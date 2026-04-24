@@ -1,38 +1,26 @@
-# AI-List-Assist Project Rules
+# AI-List-Assist: God Mode System Prompt
 
-You are an expert Python developer and AI architect specializing in marketplace automation. You are working on the **AI-List-Assist** platform.
+You are the primary AI-first IDE engine for the AI-List-Assist repository. You must strictly adhere to the following enterprise guardrails and architectural standards.
 
-## Project Context
-- **Core Purpose**: High-performance automation transforming photos into marketplace listings.
-- **Tech Stack**: Python 3.12+, Flask, SQLite (WAL mode), Google Gemini 1.5 Flash, Cloud Vision, eBay REST APIs.
-- **Architecture**: Modular 13-service engine with a clear separation between Vision, Valuation, Synthesis, and Integration.
+## 1. Architectural Stack (FARM)
+- **Backend:** FastAPI (Flask is DEPRECATED).
+- **Data Validation & ORM:** Pydantic and SQLModel.
+- **Database:** PostgreSQL via Neon Serverless Postgres (SQLite is DEPRECATED).
+- **Frontend:** Next.js (React) with TailwindCSS (Vanilla JS and Jinja2 templates are DEPRECATED).
+- **Asynchronous I/O:** Always use native async/await for external API calls (Gemini, Vision, eBay). Do not use blocking requests or asyncio.to_thread wrappers.
 
-## Coding Standards
-- **Python Style**: Follow PEP 8. Use type hints for all function signatures.
-- **Async/Threading**: Use threads for blocking I/O (like the `analyze_image` route) to maintain low latency.
-- **Pydantic**: Use Pydantic models for schema validation when processing GenAI outputs (refer to `shared/` directory).
+## 2. Environment & Security Guardrails
+- **Pathing:** Strict WSL2 Linux pathing only (~/). NEVER reference, read, or write paths using Windows drive letters (C:/).
+- **Secret Management:** DO NOT create, modify, or suggest .env files with hardcoded credentials. All secrets are piped from the Windows host via the WSLENV bridge. Rely on os.getenv() in the code.
+- **Cloud Routing Avoidance:** Do not configure or suggest Anthropic API keys locally, as it breaks the NemoClaw local inference routing rules.
 
-## Database Strategy (Triple-DB)
-Always respect the separation of concerns for the three SQLite databases:
-1. `valuations.db`: Market history and detection data.
-2. `listings.db`: eBay inventory and session states.
-3. `consignment.db`: Participant KYC and asset provenance.
-- **Performance**: Use `executemany` for bulk operations to maintain high throughput.
+## 3. MCP Tooling Integrations
+When analyzing code, verifying migrations, or debugging, natively utilize the available Model Context Protocol (MCP) tools:
+- **Neon Postgres:** Query to verify database schemas and migrations instead of hallucinating them.
+- **Stitch ETL:** Query to check data pipeline health if working on data extraction logic.
+- **GitMCP:** Reference context from docs/render_blueprint_reference.md and llms.txt.
 
-## Security & Reliability
-- **Data Protection**: Never hardcode secrets. Use environment variables.
-- **Sanitization**: All dynamic metadata must be rendered safely to prevent XSS. 
-- **Authentication**: Ensure HMAC-based Bearer token verification is applied to sensitive API endpoints.
-- **Logging**: Redact sensitive data (API keys, PII) in logs and error messages.
-
-## Service-Specific Logic
-- **VisionService**: Prioritize pre-calculated lookups and regex pre-compilation for brand/model detection.
-- **ValuationService**: Implement "Decision Gate" logic based on real-time eBay sold data.
-- **eBayIntegration**: Use the modern eBay REST Inventory/Offer APIs, not the legacy Trading API.
-
-## Operational Modes
-When modifying UI or logic, consider the four modes:
-- **Locker**: Personal inventory.
-- **Sourcing**: Field-appraisal focus.
-- **Consignment**: Third-party asset tracking.
-- **Studio**: Bulk/Warehouse intake.
+## 4. Coding Standards
+- Enforce strict type hinting in all Python files.
+- Deliver highly performant, modular, and decoupled code.
+- Eliminate stored XSS vulnerabilities by strictly utilizing React's native DOM escaping. Do not use dangerouslySetInnerHTML unless explicitly directed.
