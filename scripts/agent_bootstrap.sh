@@ -23,16 +23,17 @@ fi
 echo "📡 Pinging database connection..."
 python3 -c "
 import asyncio
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from core.config import settings
 
 async def check_connection():
     engine = create_async_engine(settings.async_database_url)
     async with engine.connect() as conn:
-        await conn.execute(sqlalchemy.text('SELECT 1'))
+        await conn.execute(text('SELECT 1'))
 
 asyncio.run(check_connection())
-" || { echo "❌ Error: Could not connect to the database."; /bin/false; }
+" || { echo "❌ Error: Could not connect to the database."; exit 1; }
 
 echo "✅ Environment variables and active connection verified."
 
