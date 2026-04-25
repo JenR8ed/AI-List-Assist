@@ -52,7 +52,9 @@ class TestEBayCategoryService(unittest.TestCase):
         expected_url = f"{service.base_url}/{service.category_tree_id}/get_item_aspects_for_category"
         self.assertEqual(args[0], expected_url)
 
-    def test_map_aspect_value(self):
+    @patch('services.ebay_token_manager.EBayTokenManager.get_valid_token')
+    def test_map_aspect_value(self, mock_token):
+        mock_token.return_value = "mock_token"
         service = EBayCategoryService()
 
         # Test Brand mapping
