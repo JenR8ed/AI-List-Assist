@@ -16,7 +16,7 @@ echo "🔍 Performing strict health checks..."
 if [ -z "$NEON_DATABASE_URL" ]; then
   echo "❌ Error: NEON_DATABASE_URL environment variable is not set."
   echo "Please provide a valid connection string to proceed."
-  /bin/false
+  exit 1
 fi
 
 # Verify active database connection
