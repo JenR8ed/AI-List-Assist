@@ -30,7 +30,7 @@ Agent inputs, outputs, and handoff boundaries are strictly modeled and validated
 
 ## 5. Development & Tooling Standards
 * **Runtime Environment:** The project is built for Python 3.12+ to utilize specific async features and type hinting.
-* **Dependency Management:** Strictly use `pip` for package management. If you introduce a new package, you must append it to `requirements.txt` or install it via the `agent_bootstrap.sh` sequence.
+* **Dependency Management:** Strictly use pip for package management. If you introduce a new package, you must append it to requirements.txt.
 * **Local Execution:** The standard command to run the full stack in development mode is `docker-compose -f docker-compose.dev.yml up --build`, or run `scripts/agent_bootstrap.sh` to scaffold the environment.
 * **Tunneling:** Assume the local development environment relies on ngrok routing to port 8000 for handling OAuth 2.0 HTTPS callbacks.
 * **Data Persistence:** The application relies on Neon Serverless Postgres.
