@@ -14,7 +14,7 @@ sys.modules["google.cloud.vision"] = MagicMock()
 sys.modules["dotenv"] = MagicMock()
 
 from services.valuation_database import ValuationDatabase
-from shared.models import ItemValuation, Profitability
+from models.agent_contracts import ItemValuation, Profitability
 
 class TestValuationDatabase(unittest.TestCase):
     def setUp(self):

@@ -8,7 +8,7 @@ import uuid
 import threading
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from shared.models import ItemValuation
+from models.agent_contracts import ItemValuation
 
 class ValuationDatabase:
     """Database service for tracking all valuations and eBay submissions."""
@@ -94,7 +94,7 @@ class ValuationDatabase:
             valuation.profitability.value,
             valuation.worth_listing,
             valuation.confidence,
-            json.dumps(valuation.to_dict())
+            json.dumps(valuation.model_dump())
         ))
         
         conn.commit()
@@ -125,7 +125,7 @@ class ValuationDatabase:
                 v.profitability.value if hasattr(v.profitability, 'value') else v.profitability,
                 v.worth_listing,
                 v.confidence,
-                json.dumps(v.to_dict()) if hasattr(v, 'to_dict') else json.dumps(v)
+                json.dumps(v.model_dump()) if hasattr(v, 'model_dump') else json.dumps(v)
             )
             for vid, v in zip(valuation_ids, valuations)
         ]

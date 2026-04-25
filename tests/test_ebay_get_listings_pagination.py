@@ -10,27 +10,26 @@ from services.ebay_integration import eBayIntegration
 
 class TestEBayGetListingsPagination(unittest.TestCase):
     def setUp(self):
-        self.app_id = "test_app_id"
-        self.cert_id = "test_cert_id"
-        os.environ['EBAY_CLIENT_ID'] = self.app_id
-        os.environ['EBAY_CLIENT_SECRET'] = self.cert_id
+        os.environ['EBAY_CLIENT_ID'] = "test_app_id"
+        os.environ['EBAY_CLIENT_SECRET'] = "test_cert_id"
         self.ebay = eBayIntegration(use_sandbox=True)
-        self.ebay.access_token = "valid_token"
+        self.ebay.token_manager.get_valid_token = MagicMock(return_value="valid_token")
 
-    @patch('requests.get')
+    @patch('services.ebay_integration.requests.get')
     def test_get_active_listings_pagination_success(self, mock_get):
         # 1. Mock Offer Responses (2 pages)
         mock_offer_resp_p1 = MagicMock()
         mock_offer_resp_p1.status_code = 200
         mock_offer_resp_p1.json.return_value = {
+            "total": 2,
             "offers": [
                 {
                     "offerId": "off1",
-                    "listingId": "L1",
+                    "listingId": "123",
                     "status": "PUBLISHED",
                     "sku": "SKU1",
-                    "listing": {"title": "Title 1"},
-                    "pricingSummary": {"price": {"value": "10.00", "currency": "USD"}}
+                    "listing": {"title": "Test Listing 1"},
+                    "pricingSummary": {"price": {"value": "249.99", "currency": "USD"}}
                 }
             ],
             "next": "https://api.sandbox.ebay.com/sell/inventory/v1/offer?offset=1&limit=1"
@@ -42,14 +41,13 @@ class TestEBayGetListingsPagination(unittest.TestCase):
             "offers": [
                 {
                     "offerId": "off2",
-                    "listingId": "L2",
+                    "listingId": "456",
                     "status": "PUBLISHED",
                     "sku": "SKU2",
-                    "listing": {"title": "Title 2"},
-                    "pricingSummary": {"price": {"value": "20.00", "currency": "USD"}}
+                    "listing": {"title": "Test Listing 2"},
+                    "pricingSummary": {"price": {"value": "199.99", "currency": "USD"}}
                 }
             ]
-            # No 'next' key here
         }
 
         # 2. Mock Inventory Responses (2 pages)
@@ -91,10 +89,9 @@ class TestEBayGetListingsPagination(unittest.TestCase):
 
         self.assertEqual(len(listings), 2)
         self.assertEqual(listings[0]['sku'], "SKU1")
+        self.assertEqual(listings[0].get('image_filename', ''), "img1.jpg")
         self.assertEqual(listings[1]['sku'], "SKU2")
-        self.assertEqual(listings[0]['image_filename'], "img1.jpg")
-        self.assertEqual(listings[1]['image_filename'], "img2.jpg")
-
+        self.assertEqual(listings[1].get('image_filename', ''), "img2.jpg")
         self.assertEqual(mock_get.call_count, 4)
 
 if __name__ == '__main__':

@@ -14,6 +14,13 @@ class CategoryDetailGenerator:
     VINTAGE_KEYWORDS = ('vintage', 'collectible', 'antique')
     AUTO_KEYWORDS = ('car', 'auto', 'vehicle', 'engine')
 
+    CATEGORY_MAPPING = (
+        (ELECTRONICS_KEYWORDS, '293', 0.8),
+        (CLOTHING_KEYWORDS, '1059', 0.7),
+        (VINTAGE_KEYWORDS, '20081', 0.6),
+        (AUTO_KEYWORDS, '6024', 0.7)
+    )
+
     def __init__(self):
         self.category_service = EBayCategoryService()
         try:

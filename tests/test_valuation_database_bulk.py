@@ -1,15 +1,8 @@
 import sys
 from unittest.mock import MagicMock
-sys.modules['httpx'] = MagicMock()
-sys.modules['flask'] = MagicMock()
-sys.modules['google'] = MagicMock()
-sys.modules['google.generativeai'] = MagicMock()
-sys.modules['requests'] = MagicMock()
-sys.modules['dotenv'] = MagicMock()
-
 import os
 from services.valuation_database import ValuationDatabase
-from shared.models import ItemValuation, Profitability
+from models.agent_contracts import ItemValuation, Profitability
 
 class TestValuationDatabaseBulk:
     def setup_method(self):
@@ -27,7 +20,7 @@ class TestValuationDatabaseBulk:
             item_id="1", item_name="Item 1", brand="Brand 1", estimated_value=10.0,
             estimated_age=None,
             condition_score=8, condition_notes="Good", is_complete=True,
-            value_range=(5, 15), resale_score=8, recommended_platforms=[],
+            value_range={'low': 5, 'high': 15}, resale_score=8, recommended_platforms=[],
             key_factors=[], risks=[], listing_tips=[],
             profitability=Profitability.MEDIUM, worth_listing=True, confidence=0.9
         )
@@ -35,7 +28,7 @@ class TestValuationDatabaseBulk:
             item_id="2", item_name="Item 2", brand="Brand 2", estimated_value=20.0,
             estimated_age=None,
             condition_score=7, condition_notes="Good", is_complete=True,
-            value_range=(15, 25), resale_score=8, recommended_platforms=[],
+            value_range={'low': 15, 'high': 25}, resale_score=8, recommended_platforms=[],
             key_factors=[], risks=[], listing_tips=[],
             profitability=Profitability.HIGH, worth_listing=True, confidence=0.8
         )
@@ -43,7 +36,7 @@ class TestValuationDatabaseBulk:
             item_id="3", item_name="Item 3", brand="Brand 3", estimated_value=30.0,
             estimated_age=None,
             condition_score=6, condition_notes="Fair", is_complete=True,
-            value_range=(25, 35), resale_score=8, recommended_platforms=[],
+            value_range={'low': 25, 'high': 35}, resale_score=8, recommended_platforms=[],
             key_factors=[], risks=[], listing_tips=[],
             profitability=Profitability.LOW, worth_listing=False, confidence=0.7
         )

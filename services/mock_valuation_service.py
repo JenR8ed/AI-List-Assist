@@ -3,7 +3,7 @@ Mock Valuation Service for testing
 """
 
 from typing import Dict, Any, Optional
-from shared.models import ItemValuation, Profitability
+from models.agent_contracts import ItemValuation, Profitability
 
 class MockValuationService:
     """Mock valuation service that returns varied test data."""
