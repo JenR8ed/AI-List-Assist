@@ -2,14 +2,6 @@ import sys
 from unittest.mock import MagicMock
 
 # Mock required dependencies to test isolated logic
-sys.modules['dotenv'] = MagicMock()
-sys.modules['google.generativeai'] = MagicMock()
-sys.modules['google'] = MagicMock()
-sys.modules['httpx'] = MagicMock()
-sys.modules['PIL'] = MagicMock()
-sys.modules['PIL.Image'] = MagicMock()
-sys.modules['flask'] = MagicMock()
-
 import unittest
 from services.conversation_orchestrator import ConversationOrchestrator
 

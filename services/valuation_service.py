@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional
 import requests
-from shared.models import ItemValuation, Profitability
+from models.agent_contracts import ItemValuation, Profitability
 
 class ValuationService:
     """Real market valuation service utilizing eBay Browse API for dynamic pricing based on sold items."""

@@ -8,7 +8,7 @@ import json
 import os
 from typing import List, Dict, Any, Optional
 import httpx
-from shared.models import DetectedItem, BoundingBox
+from models.agent_contracts import DetectedItem, BoundingBox
 from services.gemini_rest_client import GeminiRestClient
 import requests
 import httpx
