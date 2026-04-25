@@ -15,6 +15,12 @@ class CategoryDetailGenerator:
     AUTO_KEYWORDS = ('car', 'auto', 'vehicle', 'engine')
 
     def __init__(self):
+        self.CATEGORY_MAPPING = [
+            (self.ELECTRONICS_KEYWORDS, "293", 0.8),
+            (self.CLOTHING_KEYWORDS, "1059", 0.7),
+            (self.VINTAGE_KEYWORDS, "20081", 0.6),
+            (self.AUTO_KEYWORDS, "6024", 0.7)
+        ]
         self.category_service = EBayCategoryService()
         try:
             self.gemini_client = GeminiRestClient(api_key=os.getenv('GOOGLE_API_KEY'))

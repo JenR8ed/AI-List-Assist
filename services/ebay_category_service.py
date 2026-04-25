@@ -153,19 +153,19 @@ class EBayCategoryService:
         
         # Map required aspects
         for aspect in aspects_def.get("required", []):
-            value = self._map_aspect_value(aspect["name"], valuation, aspect)
+            value = self._map_aspect_value(aspect["name"], valuation)
             if value:
                 mapped_aspects[aspect["name"]] = value
         
         # Map recommended aspects if data available
         for aspect in aspects_def.get("recommended", []):
-            value = self._map_aspect_value(aspect["name"], valuation, aspect)
+            value = self._map_aspect_value(aspect["name"], valuation)
             if value:
                 mapped_aspects[aspect["name"]] = value
         
         return mapped_aspects
     
-    def _map_aspect_value(self, aspect_name: str, valuation: Dict, aspect_def: Dict) -> Optional[str]:
+    def _map_aspect_value(self, aspect_name: str, valuation: Dict) -> Optional[str]:
         """Map a single aspect from valuation data."""
         
         name_lower = aspect_name.lower()
