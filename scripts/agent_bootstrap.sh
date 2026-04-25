@@ -8,7 +8,7 @@ echo "🚀 Starting Agent Bootstrap Sequence..."
 
 # Dependency Installation
 echo "📦 Installing required Python packages..."
-pip install -r requirements.txt fastapi sqlmodel pydantic pydantic-settings asyncpg sqlalchemy
+pip install -r requirements.txt
 echo "✅ Dependencies installed."
 
 # Health Checks
