@@ -1,5 +1,12 @@
-🎯 **What:** Added a comprehensive test suite for `_map_aspect_value` in `EBayCategoryService` to explicitly test mapping functions for common categorical conditions (e.g. Brand, Type, Condition, Size, Era/Year, Color, Features).
+🎯 **What:**
+Added unit tests to `tests/test_mock_valuation_service.py` to cover the previously untested `evaluate_item` method in `MockValuationService`.
 
-📊 **Coverage:** Increased the coverage metric of `services/ebay_category_service.py` from 32% to 61% by ensuring that edge cases, capitalization mappings, fallback defaults, and array joining behavior from the unstructured dictionary valuation are covered. The `test_map_aspect_value` asserts the precise behavior previously untested.
+📊 **Coverage:**
+The tests cover the deterministic nature of the mock service:
+- Correct selection of fallback output based on hashing when no `detected_item` is provided.
+- Correct matching logic when `brand` is present in `detected_item`.
+- Correct matching logic when `probable_category` is present in `detected_item`.
+- Correct handling and fallback logic when `detected_item` fails to match specific mock items.
 
-✨ **Result:** Enhanced the reliability of listing creations mapping functions. Future refactors to condition string extraction strategies are fully protected.
+✨ **Result:**
+The `evaluate_item` method is now tested and proven to safely return `ItemValuation` objects deterministically without external API calls, increasing test coverage for the mock service layer.
