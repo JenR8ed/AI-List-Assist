@@ -4,14 +4,6 @@ import sys
 import os
 
 # Mock missing dependencies to avoid ImportErrors from services/__init__.py
-sys.modules['httpx'] = MagicMock()
-sys.modules['flask'] = MagicMock()
-sys.modules['requests'] = MagicMock()
-sys.modules['dotenv'] = MagicMock()
-sys.modules['google'] = MagicMock()
-sys.modules['google.generativeai'] = MagicMock()
-sys.modules['pydantic'] = MagicMock()
-
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 

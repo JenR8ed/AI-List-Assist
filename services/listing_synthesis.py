@@ -5,7 +5,7 @@ Transforms gathered data into structured eBay listing format.
 
 
 from typing import Dict, Any
-from shared.models import ListingDraft, ItemCondition, ConversationState, ItemValuation
+from models.agent_contracts import ListingDraft, ItemCondition, ConversationState, ItemValuation
 import uuid
 from services.gemini_rest_client import GeminiRestClient
 import os
@@ -32,7 +32,7 @@ class ListingSynthesisEngine:
         """
         Create a listing draft using an LLM to generate the structured payload.
         """
-        all_data = {**valuation.to_dict(), **conversation_state.known_fields}
+        all_data = {**valuation.model_dump(), **conversation_state.known_fields}
         
         schema_instruction = """
 Return strictly valid JSON following this format:

@@ -4,12 +4,6 @@ import sys
 import os
 
 # Mock missing dependencies
-sys.modules['httpx'] = MagicMock()
-sys.modules['requests'] = MagicMock()
-sys.modules['dotenv'] = MagicMock()
-sys.modules['google'] = MagicMock()
-sys.modules['google.generativeai'] = MagicMock()
-
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 

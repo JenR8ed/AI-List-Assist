@@ -4,7 +4,7 @@ Manages progressive questioning to gather missing listing details.
 """
 
 from typing import Dict, List, Optional, Any
-from shared.models import ConversationState
+from models.agent_contracts import ConversationState
 import uuid
 import re
 
