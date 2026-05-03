@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 from core.database import init_db
+from sqlmodel import SQLModel
 
 @pytest.mark.asyncio
 @patch('core.database.engine')
