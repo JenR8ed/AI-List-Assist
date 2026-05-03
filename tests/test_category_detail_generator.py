@@ -201,6 +201,8 @@ class TestCategoryDetailGenerator(unittest.TestCase):
         self.assertFalse(result["valid"])
         self.assertEqual(len(result["invalid"]), 1)
         self.assertEqual(result["invalid"][0]["field"], "Size")
+        self.assertEqual(result["invalid"][0]["value"], "XL")
+        self.assertEqual(result["invalid"][0]["allowed"], ["M", "L"])
 
 if __name__ == '__main__':
     unittest.main()
