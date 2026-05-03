@@ -18,7 +18,7 @@ async def test_init_db_success(mock_logger, mock_engine):
     await init_db()
 
     # Verify run_sync was called
-    mock_conn.run_sync.assert_called_once()
+    mock_conn.run_sync.assert_called_once_with(SQLModel.metadata.create_all)
 
     # Verify logger.info was called with the success message
     mock_logger.info.assert_called_once_with("✅ Database schema synchronized with Neon Postgres.")
