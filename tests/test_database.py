@@ -43,6 +43,7 @@ async def test_init_db_failure(mock_logger, mock_engine):
         await init_db()
 
     assert str(exc_info.value) == "Test Database Error"
+    mock_conn.run_sync.assert_called_once_with(SQLModel.metadata.create_all)
 
     # Verify logger.error was called
     mock_logger.error.assert_called_once_with(f"❌ Database initialization failed: {test_exception}")
