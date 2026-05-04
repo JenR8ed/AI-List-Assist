@@ -1,6 +1,5 @@
 import unittest
 import os
-import json
 from io import BytesIO
 
 # Set environment variables for testing

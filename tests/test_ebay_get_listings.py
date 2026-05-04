@@ -16,40 +16,61 @@ class TestEBayGetListings(unittest.TestCase):
         os.environ['EBAY_CLIENT_SECRET'] = self.cert_id
         self.ebay = eBayIntegration(use_sandbox=True)
         self.ebay.access_token = "valid_token"
+        self.ebay.token_manager = MagicMock()
+        self.ebay.token_manager.get_valid_token.return_value = "valid_token"
 
     @patch('requests.get')
     def test_get_active_listings_success(self, mock_get):
-        # Mock successful eBay API response
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "total": 2,
-            "offers": [
-                {
-                    "offerId": "off1",
-                    "listingId": "123456789",
-                    "status": "PUBLISHED",
-                    "sku": "SKU1",
-                    "listing": {"title": "Test Listing 1"},
-                    "pricingSummary": {"price": {"value": "249.99", "currency": "USD"}}
-                },
-                {
-                    "offerId": "off2",
-                    "listingId": "987654321",
-                    "status": "PUBLISHED",
-                    "sku": "SKU2",
-                    "listing": {"title": "Test Listing 2"},
-                    "pricingSummary": {"price": {"value": "899.99", "currency": "USD"}}
-                },
-                {
-                    "offerId": "off3",
-                    "listingId": "456",
-                    "status": "DRAFT",
-                    "sku": "SKU3"
+        # Mock successful eBay API responses via side_effect to distinguish URL paths
+        def mock_get_side_effect(url, headers=None, params=None):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            if "offer" in url:
+                mock_resp.json.return_value = {
+                    "total": 2,
+                    "offers": [
+                        {
+                            "offerId": "off1",
+                            "listingId": "123456789",
+                            "status": "PUBLISHED",
+                            "sku": "SKU1",
+                            "listing": {"title": "Test Listing 1"},
+                            "pricingSummary": {"price": {"value": "249.99", "currency": "USD"}}
+                        },
+                        {
+                            "offerId": "off2",
+                            "listingId": "987654321",
+                            "status": "PUBLISHED",
+                            "sku": "SKU2",
+                            "listing": {"title": "Test Listing 2"},
+                            "pricingSummary": {"price": {"value": "899.99", "currency": "USD"}}
+                        },
+                        {
+                            "offerId": "off3",
+                            "listingId": "456",
+                            "status": "DRAFT",
+                            "sku": "SKU3"
+                        }
+                    ],
+                    "next": None
                 }
-            ]
-        }
-        mock_get.return_value = mock_response
+            elif "inventory_item" in url:
+                mock_resp.json.return_value = {
+                    "total": 2,
+                    "inventoryItems": [
+                        {
+                            "sku": "SKU1",
+                            "product": {"title": "Test Listing 1"}
+                        },
+                        {
+                            "sku": "SKU2",
+                            "product": {"title": "Test Listing 2"}
+                        }
+                    ]
+                }
+            return mock_resp
+
+        mock_get.side_effect = mock_get_side_effect
 
         listings = self.ebay.get_active_listings()
 
@@ -62,34 +83,62 @@ class TestEBayGetListings(unittest.TestCase):
         self.assertEqual(listings[0]['listing_price'], 249.99)
         self.assertEqual(listings[0]['listing_status'], "active")
 
-        # Verify API call
-        mock_get.assert_called_once()
-        args, kwargs = mock_get.call_args
-        self.assertIn('/sell/inventory/v1/offer', args[0])
-        self.assertEqual(kwargs['headers']['Authorization'], "Bearer valid_token")
-        self.assertEqual(kwargs['params']['marketplace_id'], "EBAY_US")
+        # Verify API calls
+        self.assertEqual(mock_get.call_count, 2)
+        args_offer, kwargs_offer = mock_get.call_args_list[0]
+        self.assertIn('/sell/inventory/v1/offer', args_offer[0])
+        self.assertEqual(kwargs_offer['headers']['Authorization'], "Bearer valid_token")
+        self.assertEqual(kwargs_offer['params']['marketplace_id'], "EBAY_US")
+
+        args_inv, kwargs_inv = mock_get.call_args_list[1]
+        self.assertIn('/sell/inventory/v1/inventory_item', args_inv[0])
+        self.assertEqual(kwargs_inv['headers']['Authorization'], "Bearer valid_token")
+        self.assertEqual(kwargs_inv['params']['limit'], 100)
+        self.assertEqual(kwargs_inv['params']['offset'], 0)
 
     @patch('requests.get')
     @patch('services.ebay_integration.eBayIntegration.refresh_access_token')
     def test_get_active_listings_token_refresh(self, mock_refresh, mock_get):
         # Mock 401 Unauthorized then 200 Success
-        mock_response_401 = MagicMock()
-        mock_response_401.status_code = 401
+        call_count = [0]
+        def mock_get_side_effect(url, headers=None, params=None):
+            mock_resp = MagicMock()
+            if "offer" in url:
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    mock_resp.status_code = 401
+                    return mock_resp
 
-        mock_response_200 = MagicMock()
-        mock_response_200.status_code = 200
-        mock_response_200.json.return_value = {
-            "offers": [
-                {
-                    "listingId": "123",
-                    "status": "PUBLISHED",
-                    "listing": {"title": "Refreshed"},
-                    "pricingSummary": {"price": {"value": "10.0", "currency": "USD"}}
+                mock_resp.status_code = 200
+                mock_resp.json.return_value = {
+                    "offers": [
+                        {
+                            "listingId": "123",
+                            "status": "PUBLISHED",
+                            "listing": {"title": "Refreshed"},
+                            "pricingSummary": {"price": {"value": "10.0", "currency": "USD"}},
+                            "sku": "SKU_REFRESHED"
+                        }
+                    ],
+                    "next": None
                 }
-            ]
-        }
+            elif "inventory_item" in url:
+                mock_resp.status_code = 200
+                mock_resp.json.return_value = {
+                    "total": 1,
+                    "inventoryItems": [
+                        {
+                            "sku": "SKU_REFRESHED",
+                            "product": {"title": "Refreshed Inventory"}
+                        }
+                    ]
+                }
+            else:
+                 mock_resp.status_code = 500
 
-        mock_get.side_effect = [mock_response_401, mock_response_200]
+            return mock_resp
+
+        mock_get.side_effect = mock_get_side_effect
         mock_refresh.return_value = True
         self.ebay.access_token = "expired_token"
 
@@ -99,7 +148,7 @@ class TestEBayGetListings(unittest.TestCase):
         self.assertEqual(listings[0]['listing_title'], "Refreshed")
 
         # Verify refresh was called and then retry happened
-        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(mock_get.call_count, 3) # 401 offer, 200 offer, 200 inventory
         mock_refresh.assert_called_once()
 
     @patch('requests.get')

@@ -1,0 +1,34 @@
+name: "Google Labs Jules - PR Review"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  jules-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for Jules to analyze diff history
+
+      - name: Initialize GitMCP Context
+        run: |
+          echo "GitMCP is active. Jules will reference docs/render_blueprint_reference.md"
+          
+      - name: Execute Jules AI Agent
+        run: |
+          echo "✅ Jules AI is installed as a GitHub App on this repository."
+          echo "It operates automatically via webhooks, so this manual Action step is bypassed."
+        env:
+          # Injecting MCP Tool Secrets exclusively into the GitHub runner
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          STITCH_TOKEN: ${{ secrets.STITCH_TOKEN }}

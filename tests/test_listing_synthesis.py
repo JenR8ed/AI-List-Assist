@@ -1,7 +1,7 @@
 import unittest
 import os
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -57,7 +57,27 @@ class TestListingSynthesis(unittest.TestCase):
             confidence=0.9
         )
 
-    def test_create_listing_draft_happy_path(self):
+    @patch('services.gemini_rest_client.GeminiRestClient.generate_content')
+    def test_create_listing_draft_happy_path(self, mock_generate_content):
+        # Mock LLM response matching ListingDraft Pydantic model
+        import json
+        mock_response_dict = {
+            "listing_id": "will_be_replaced",
+            "item_id": "will_be_replaced",
+            "title": "Canon AE-1 Vintage Camera",
+            "description": "<h2>Vintage Camera</h2>",
+            "category_id": "20081",
+            "condition": "Used",
+            "price": 150.0,
+            "item_specifics": {"Brand": "Canon", "Model": "AE-1", "Color": "Silver/Black"},
+            "shipping_details": {},
+            "images": [],
+            "confidence": 0.9,
+            "missing_required_specifics": [],
+            "ready_for_api": True
+        }
+        mock_generate_content.return_value = (json.dumps(mock_response_dict), {})
+
         valuation = self.create_mock_valuation()
         conv_state = self.create_mock_conversation_state()
         images = ["img1.jpg", "img2.jpg"]

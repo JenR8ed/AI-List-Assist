@@ -12,7 +12,7 @@
 * **Pre-commit Constraints:** Ensure your commits do not include large binaries (>10MB) or any private keys, as the pre-commit configuration will reject them.
 
 ## 3. Development & Tooling Standards
-* **Runtime Environment:** The project is built for Python 3.14.2 to utilize specific async features and type hinting.
+* **Runtime Environment:** The project is built for Python 3.12+ to utilize specific async features and type hinting.
 * **Dependency Management:** Strictly use `pip` for package management. If you introduce a new package, you must append it to `requirements.txt`. 
 * **Local Execution:** The standard command to run the full stack in development mode is `docker-compose -f docker-compose.dev.yml up --build`.
 * **Tunneling:** Assume the local development environment relies on ngrok routing to port 5000 for handling OAuth 2.0 HTTPS callbacks. 

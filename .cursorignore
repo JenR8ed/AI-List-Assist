@@ -1,0 +1,88 @@
+# Dependencies
+node_modules/
+.bun/
+.pnpm-store/
+
+# Python environments
+.venv/
+venv/
+env/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# Package manager / lock noise
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/.ropeproject/
+
+# Git / repo internals
+.git/
+
+# Local databases and dumps
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+*.dump
+
+# Logs
+logs/
+*.log
+
+# Runtime / temp files
+tmp/
+temp/
+.tmp/
+.cache/
+
+# Binary and generated assets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.avif
+*.pdf
+*.zip
+*.tar
+*.gz
+*.mp4
+*.mov
+*.wav
+*.mp3
+
+# Secrets and env files
+.env
+.env.*
+*.pem
+*.key
+secrets/
+credentials/
+service-account*.json
+
+# Notebook clutter
+.ipynb_checkpoints/
+
+# Large data / exports
+data/
+datasets/
+exports/
+artifacts/

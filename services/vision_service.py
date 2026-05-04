@@ -11,7 +11,6 @@ import httpx
 from shared.models import DetectedItem, BoundingBox
 from services.gemini_rest_client import GeminiRestClient
 import requests
-import httpx
 import base64
 import re
 

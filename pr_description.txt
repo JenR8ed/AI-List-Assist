@@ -1,0 +1,5 @@
+Title: "🧪 Add tests for security headers modifier"
+
+🎯 **What:** Added tests to verify the security headers modifier in the Flask application.
+📊 **Coverage:** The test coverage now includes happy paths (status 200) and error paths (status 404), validating that the `add_security_headers` function correctly appends all expected headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, and `Content-Security-Policy`).
+✨ **Result:** Test coverage for the security headers modifier is now complete and ensures correct behavior universally.
