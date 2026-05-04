@@ -19,8 +19,8 @@ for i in range(15):
         r.ping()
         redis_connected = True
         break
-    except redis.exceptions.ConnectionError:
-        print(f"Redis connection failed, retrying in 1s...")
+    except redis.RedisError as e:
+        print(f"Redis connection failed, retrying in 1s... ({e})")
         time.sleep(1)
 
 if not redis_connected:
