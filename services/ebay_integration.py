@@ -7,6 +7,8 @@ import logging
 from typing import Dict, Any, Optional, List
 import os
 import requests
+import threading
+import concurrent.futures
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition
 from services.ebay_token_manager import EBayTokenManager
@@ -50,6 +52,7 @@ class eBayIntegration:
             client_secret=self.cert_id,
             use_sandbox=use_sandbox
         )
+        self._token_lock = threading.Lock()
 
         # Load initial tokens if available
         self.access_token: Optional[str] = os.getenv('EBAY_ACCESS_TOKEN')
@@ -74,20 +77,19 @@ class eBayIntegration:
         return False
 
     def refresh_access_token(self) -> bool:
-        """
-        Refresh the access token using the refresh token.
-
-        Returns:
-            True if refresh successful
-        """
-        # The token manager handles the refresh logic internally using stored refresh token
-        token_data = self.token_manager._refresh_token()
-        if token_data:
-            self.access_token = token_data.get("access_token")
-            if token_data.get("refresh_token"):
-                self.refresh_token = token_data.get("refresh_token")
-            return True
-        return False
+        """Refresh the eBay access token securely."""
+        with self._token_lock:
+            try:
+                # Force refresh ignoring existing token
+                token_data = self.token_manager._refresh_token()
+                if token_data and "access_token" in token_data:
+                    self.access_token = token_data["access_token"]
+                    self.refresh_token = token_data.get("refresh_token", getattr(self, 'refresh_token', None))
+                    return True
+                return False
+            except Exception as e:
+                logger.error(f"Failed to refresh access token: {str(e)}")
+                return False
 
     def create_listing(self, listing_draft: ListingDraft) -> Dict[str, Any]:
         """
@@ -268,7 +270,7 @@ class eBayIntegration:
     def get_active_listings(self) -> List[Dict[str, Any]]:
         """
         Fetch active listings (published offers) from eBay, joined with inventory data.
-        Handles pagination for both offers and inventory items.
+        Optimized using concurrent requests for pagination and parallel fetching of offers/inventory.
 
         Returns:
             List of dictionaries containing listing details
@@ -278,54 +280,115 @@ class eBayIntegration:
             logger.warning("No access token available for eBay API")
             return []
 
-        # 1. Fetch Offers (Active Listings) with Pagination
         published_offers = []
+        inventory_map = {}
+
         offer_url = f"{self.base_url}/sell/inventory/v1/offer"
-        offer_params = {"marketplace_id": "EBAY_US", "limit": 100}
+        inventory_url = f"{self.base_url}/sell/inventory/v1/inventory_item"
+
+        def fetch_all_pages(base_url, base_params, context):
+            results = []
+            next_url = base_url
+            params = base_params
+
+            # Use local headers to avoid shared state mutations across threads
+            local_headers = headers.copy()
+
+            # Fetch first page sequentially to get total count
+            response = requests.get(next_url, headers=local_headers, params=params)
+
+            if response.status_code == 401:
+                # Sequential retry logic for the first request
+                if self.refresh_access_token():
+                    # Update local headers with the new token
+                    local_headers.update(self._get_headers())
+                    response = requests.get(next_url, headers=local_headers, params=params)
+
+            if response.status_code != 200:
+                self._handle_api_error(response, context)
+                return results
+
+            data = response.json()
+            results.append(data)
+
+            total = data.get("total", 0)
+            limit = params.get("limit", 100) if params else 100
+
+            if total > limit:
+                # We know the total, we can fetch remaining pages concurrently
+                offsets = range(limit, total, limit)
+
+                def fetch_page(offset):
+                    page_params = base_params.copy() if base_params else {}
+                    page_params["offset"] = offset
+                    page_params["limit"] = limit
+
+                    page_response = requests.get(base_url, headers=headers, params=page_params)
+                    if page_response.status_code == 200:
+                        return page_response.json()
+                    elif page_response.status_code == 401 and self.refresh_access_token():
+                        headers.update(self._get_headers())
+                        page_response = requests.get(base_url, headers=headers, params=page_params)
+                        if page_response.status_code == 200:
+                            return page_response.json()
+                    return None
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                    futures = [executor.submit(fetch_page, offset) for offset in offsets]
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            page_data = future.result()
+                            if page_data:
+                                results.append(page_data)
+                        except Exception as e:
+                            logger.error(f"Error fetching {context} page concurrently: {e}")
+            else:
+                # Fallback to sequential if total is missing but 'next' is present
+                next_url = data.get("next")
+                while next_url:
+                    response = requests.get(next_url, headers=headers)
+                    if response.status_code == 200:
+                        data = response.json()
+                        results.append(data)
+                        next_url = data.get("next")
+                    else:
+                        break
+
+            return results
 
         try:
-            next_url = offer_url
-            params = offer_params
-            while next_url:
-                offer_response = requests.get(next_url, headers=headers, params=params)
-                if offer_response.status_code == 401:
-                    if self.refresh_access_token():
-                        headers = self._get_headers()
-                        offer_response = requests.get(next_url, headers=headers, params=params)
+            # We can fetch offers and inventory completely in parallel
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as main_executor:
+                offer_future = main_executor.submit(
+                    fetch_all_pages,
+                    offer_url,
+                    {"marketplace_id": "EBAY_US", "limit": 100},
+                    "get_active_listings_offers"
+                )
 
-                if offer_response.status_code != 200:
-                    self._handle_api_error(offer_response, "get_active_listings_offers")
-                    break
+                inventory_future = main_executor.submit(
+                    fetch_all_pages,
+                    inventory_url,
+                    {"limit": 100},
+                    "get_active_listings_inventory"
+                )
 
-                offers_data = offer_response.json()
-                published_offers.extend([o for o in offers_data.get("offers", []) if o.get("status") == "PUBLISHED"])
+                offers_pages = offer_future.result()
+                inventory_pages = inventory_future.result()
 
-                next_url = offers_data.get("next")
-                params = None  # Subsequent calls use full URL from 'next'
+            # Process offers
+            for page in offers_pages:
+                published_offers.extend([o for o in page.get("offers", []) if o.get("status") == "PUBLISHED"])
 
             if not published_offers:
                 return []
 
-            # 2. Fetch Inventory Items with Pagination to get images/details
-            inventory_map = {}
-            inventory_url = f"{self.base_url}/sell/inventory/v1/inventory_item"
-            inventory_params = {"limit": 100}
+            # Process inventory
+            for page in inventory_pages:
+                for item in page.get("inventoryItems", []):
+                    inventory_map[item.get("sku")] = item
 
-            next_inv_url = inventory_url
-            inv_params = inventory_params
-            while next_inv_url:
-                inventory_response = requests.get(next_inv_url, headers=headers, params=inv_params)
-                if inventory_response.status_code == 200:
-                    inv_data = inventory_response.json()
-                    for item in inv_data.get("inventoryItems", []):
-                        inventory_map[item.get("sku")] = item
-                    next_inv_url = inv_data.get("next")
-                    inv_params = None
-                else:
-                    logger.warning(f"Failed to fetch inventory page: {inventory_response.status_code}")
-                    break
-
-            # 3. Join and Map
+            # Join and Map
             return self._join_offer_inventory(published_offers, inventory_map)
 
         except Exception as e:

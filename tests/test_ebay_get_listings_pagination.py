@@ -19,83 +19,65 @@ class TestEBayGetListingsPagination(unittest.TestCase):
 
     @patch('requests.get')
     def test_get_active_listings_pagination_success(self, mock_get):
-        # 1. Mock Offer Responses (2 pages)
-        mock_offer_resp_p1 = MagicMock()
-        mock_offer_resp_p1.status_code = 200
-        mock_offer_resp_p1.json.return_value = {
-            "offers": [
-                {
-                    "offerId": "off1",
-                    "listingId": "L1",
-                    "status": "PUBLISHED",
-                    "sku": "SKU1",
-                    "listing": {"title": "Title 1"},
-                    "pricingSummary": {"price": {"value": "10.00", "currency": "USD"}}
-                }
-            ],
-            "next": "https://api.sandbox.ebay.com/sell/inventory/v1/offer?offset=1&limit=1"
-        }
+        call_counts = {'offer': 0, 'inventory': 0}
 
-        mock_offer_resp_p2 = MagicMock()
-        mock_offer_resp_p2.status_code = 200
-        mock_offer_resp_p2.json.return_value = {
-            "offers": [
-                {
-                    "offerId": "off2",
-                    "listingId": "L2",
-                    "status": "PUBLISHED",
-                    "sku": "SKU2",
-                    "listing": {"title": "Title 2"},
-                    "pricingSummary": {"price": {"value": "20.00", "currency": "USD"}}
-                }
-            ]
-            # No 'next' key here
-        }
+        def mock_get_effect(url, *args, **kwargs):
+            mock_response = MagicMock()
+            mock_response.status_code = 200
 
-        # 2. Mock Inventory Responses (2 pages)
-        mock_inventory_resp_p1 = MagicMock()
-        mock_inventory_resp_p1.status_code = 200
-        mock_inventory_resp_p1.json.return_value = {
-            "inventoryItems": [
-                {
-                    "sku": "SKU1",
-                    "product": {
-                        "title": "Inv Title 1",
-                        "imageUrls": ["img1.jpg"]
+            if 'offer' in url:
+                call_counts['offer'] += 1
+                if call_counts['offer'] == 1:
+                    mock_response.json.return_value = {
+                        "total": 3,
+                        "next": "https://api.sandbox.ebay.com/sell/inventory/v1/offer?offset=2&limit=2",
+                        "offers": [
+                            {"listingId": "1", "status": "PUBLISHED", "sku": "SKU1", "listing": {"title": "L1"}, "pricingSummary": {"price": {"value": "10.0", "currency": "USD"}}},
+                            {"listingId": "2", "status": "PUBLISHED", "sku": "SKU2", "listing": {"title": "L2"}, "pricingSummary": {"price": {"value": "20.0", "currency": "USD"}}}
+                        ]
                     }
-                }
-            ],
-            "next": "https://api.sandbox.ebay.com/sell/inventory/v1/inventory_item?offset=1&limit=1"
-        }
-
-        mock_inventory_resp_p2 = MagicMock()
-        mock_inventory_resp_p2.status_code = 200
-        mock_inventory_resp_p2.json.return_value = {
-            "inventoryItems": [
-                {
-                    "sku": "SKU2",
-                    "product": {
-                        "title": "Inv Title 2",
-                        "imageUrls": ["img2.jpg"]
+                else:
+                    mock_response.json.return_value = {
+                        "total": 3,
+                        "next": None,
+                        "offers": [
+                            {"listingId": "3", "status": "PUBLISHED", "sku": "SKU3", "listing": {"title": "L3"}, "pricingSummary": {"price": {"value": "30.0", "currency": "USD"}}}
+                        ]
                     }
-                }
-            ]
-        }
+            elif 'inventory' in url:
+                call_counts['inventory'] += 1
+                if call_counts['inventory'] == 1:
+                    mock_response.json.return_value = {
+                        "total": 3,
+                        "next": "https://api.sandbox.ebay.com/sell/inventory/v1/inventory_item?offset=2&limit=2",
+                        "inventoryItems": [
+                            {"sku": "SKU1", "product": {"title": "L1", "imageUrls": ["img1.jpg"]}},
+                            {"sku": "SKU2", "product": {"title": "L2", "imageUrls": ["img2.jpg"]}}
+                        ]
+                    }
+                else:
+                    mock_response.json.return_value = {
+                        "total": 3,
+                        "next": None,
+                        "inventoryItems": [
+                            {"sku": "SKU3", "product": {"title": "L3", "imageUrls": ["img3.jpg"]}}
+                        ]
+                    }
+            return mock_response
 
-        mock_get.side_effect = [
-            mock_offer_resp_p1, mock_offer_resp_p2,
-            mock_inventory_resp_p1, mock_inventory_resp_p2
-        ]
+        mock_get.side_effect = mock_get_effect
 
         listings = self.ebay.get_active_listings()
 
-        self.assertEqual(len(listings), 2)
-        self.assertEqual(listings[0]['sku'], "SKU1")
-        self.assertEqual(listings[1]['sku'], "SKU2")
+        self.assertEqual(len(listings), 3)
+        self.assertEqual(listings[0]['ebay_listing_id'], "1")
+        self.assertEqual(listings[1]['ebay_listing_id'], "2")
+        self.assertEqual(listings[2]['ebay_listing_id'], "3")
+
         self.assertEqual(listings[0]['image_filename'], "img1.jpg")
         self.assertEqual(listings[1]['image_filename'], "img2.jpg")
+        self.assertEqual(listings[2]['image_filename'], "img3.jpg")
 
-        self.assertEqual(mock_get.call_count, 4)
 
 if __name__ == '__main__':
     unittest.main()
