@@ -5,6 +5,7 @@ Handles OAuth, listing creation, and eBay Sell APIs.
 
 import logging
 from typing import Dict, Any, Optional, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import requests
 from datetime import datetime
@@ -309,21 +310,40 @@ class eBayIntegration:
             # 2. Fetch Inventory Items with Pagination to get images/details
             inventory_map = {}
             inventory_url = f"{self.base_url}/sell/inventory/v1/inventory_item"
-            inventory_params = {"limit": 100}
 
-            next_inv_url = inventory_url
-            inv_params = inventory_params
-            while next_inv_url:
-                inventory_response = requests.get(next_inv_url, headers=headers, params=inv_params)
-                if inventory_response.status_code == 200:
-                    inv_data = inventory_response.json()
-                    for item in inv_data.get("inventoryItems", []):
-                        inventory_map[item.get("sku")] = item
-                    next_inv_url = inv_data.get("next")
-                    inv_params = None
-                else:
-                    logger.warning(f"Failed to fetch inventory page: {inventory_response.status_code}")
-                    break
+            # Initial request to get total and first page
+            inventory_response = requests.get(inventory_url, headers=headers, params={"limit": 100, "offset": 0})
+            if inventory_response.status_code != 200:
+                logger.warning(f"Failed to fetch inventory page: {inventory_response.status_code}")
+                return self._join_offer_inventory(published_offers, inventory_map)
+
+            inv_data = inventory_response.json()
+            for item in inv_data.get("inventoryItems", []):
+                inventory_map[item.get("sku")] = item
+
+            total = inv_data.get("total", 0)
+
+            # Fetch remaining pages concurrently if there are more than 100 items
+            if total > 100:
+                def fetch_inventory_page(offset):
+                    try:
+                        resp = requests.get(inventory_url, headers=headers, params={"limit": 100, "offset": offset})
+                        if resp.status_code == 200:
+                            return resp.json().get("inventoryItems", [])
+                        else:
+                            logger.warning(f"Failed to fetch inventory page at offset {offset}: {resp.status_code}")
+                    except Exception as e:
+                        logger.error(f"Error fetching inventory page at offset {offset}: {str(e)}")
+                    return []
+
+                offsets = range(100, total, 100)
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    # We submit all offset tasks
+                    future_to_offset = {executor.submit(fetch_inventory_page, offset): offset for offset in offsets}
+                    for future in as_completed(future_to_offset):
+                        items = future.result()
+                        for item in items:
+                            inventory_map[item.get("sku")] = item
 
             # 3. Join and Map
             return self._join_offer_inventory(published_offers, inventory_map)
