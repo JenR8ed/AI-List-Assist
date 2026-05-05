@@ -10,7 +10,6 @@ import uuid
 import hashlib
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
-from pathlib import Path
 
 
 DB_PATH = "consignment.db"
