@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import requests
 from datetime import datetime
-from shared.models import ListingDraft, ItemCondition
+from shared.models import ListingDraft
 from services.ebay_token_manager import EBayTokenManager
 
 logger = logging.getLogger(__name__)
