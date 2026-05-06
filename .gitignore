@@ -25,6 +25,7 @@ dist/
 *.sqlite3
 listings.db
 valuations.db
+data/
 
 # Uploads
 uploads/

@@ -13,6 +13,7 @@ services:
     volumes:
       # Mount source code for live reloading
       - .:/app:rw
+      - ./data:/app/data:rw
     environment:
       - FLASK_APP=app_enhanced.py
       - FLASK_ENV=development
