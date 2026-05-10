@@ -117,7 +117,7 @@ Return strictly valid JSON following this format:
 
                 # Strip markdown
                 clean_json = response_text
-                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+                json_match = re.search(r'```(?:json)?\\s*(\\{.*?\\})\\s*```', response_text, re.DOTALL)
                 if json_match:
                     clean_json = json_match.group(1)
                 else:
