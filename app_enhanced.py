@@ -735,7 +735,7 @@ def submit_listing_to_ebay():
                 valuation_id=valuation_id,
                 ebay_listing_id=ebay_listing_id,
                 listing_title=data.get('title'),
-                listing_price=price,
+                listing_price=data.get('price'),
                 ebay_response=ebay_result
             )
         except Exception as ebay_err:
