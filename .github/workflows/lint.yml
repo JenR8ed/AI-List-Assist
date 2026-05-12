@@ -1,4 +1,4 @@
-name: Code Quality Check
+name: Python Code Quality Check
 
 on:
   push:
@@ -13,13 +13,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: '20'
+          python-version: '3.12'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install linter
+        run: pip install flake8
 
-      - name: Run Linter
-        run: npm run lint
+      - name: Run Flake8
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
