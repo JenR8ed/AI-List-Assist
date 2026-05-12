@@ -150,7 +150,7 @@ def init_db():
 # API ROUTES
 # ============================================================================
 
-@app.route('/')
+@app.route('/health', methods=['GET']) def health_check():     """Lightweight health check endpoint for CI and monitoring."""     return jsonify({'status': 'ok', 'service': 'ai-list-assist'}), 200   @app.route('/')
 def index():
     """Main dashboard page."""
     return render_template('dashboard.html')
