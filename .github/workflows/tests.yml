@@ -1,0 +1,46 @@
+name: Smoke Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  smoke:
+    name: smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run smoke tests
+        env:
+          SECRET_KEY: smoke-test-secret
+          API_KEY: smoke-test-api-key
+          EBAY_CLIENT_ID: smoke-test-client-id
+          EBAY_CLIENT_SECRET: smoke-test-client-secret
+          GEMINI_API_KEY: smoke-test-gemini-key
+          PERPLEXITY_API_KEY: smoke-test-perplexity-key
+        run: |
+          pytest tests/test_smoke.py -v --tb=short
