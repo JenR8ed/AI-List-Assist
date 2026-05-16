@@ -5,16 +5,30 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: ai_list_assist_dev
+    # 1. Run as standard user to prevent root-owned files polluting your WSL workspace
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "5000:5000"
     volumes:
-      - .:/app
+      # Mount source code for live reloading
+      - .:/app:rw
+      - ./data:/app/data:rw
     environment:
       - FLASK_APP=app_enhanced.py
       - FLASK_ENV=development
       - PYTHONPATH=/app
-      - SECRET_KEY=dummy_secret_for_sandbox
+      - SECRET_KEY=${SECRET_KEY:-dummy_secret_for_sandbox}
       - EBAY_APP_ID=${EBAY_APP_ID:-mock}
       - EBAY_CERT_ID=${EBAY_CERT_ID:-mock}
-    # WSLENV allows secrets to pass through securely to the container without .env files
-    # Assuming docker-compose is run with these environment variables naturally inherited
+    # 2. Secure the container from mutating its own binaries
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    # 3. Resource Caps to protect your Windows Host / GTX 1650
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G

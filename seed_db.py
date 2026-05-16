@@ -1,18 +1,31 @@
 import os
 import time
 import requests
-import json
 import psycopg2
 import redis
 
 # Wait for DB to be really ready
 print("Waiting for databases...")
-time.sleep(15)
 
 # Connect to Redis
 redis_host = os.environ.get("REDIS_HOST", "localhost")
 redis_port = int(os.environ.get("REDIS_PORT", 6379))
 r = redis.Redis(host=redis_host, port=redis_port, db=0)
+
+redis_connected = False
+for i in range(15):
+    try:
+        r.ping()
+        redis_connected = True
+        break
+    except redis.RedisError as e:
+        print(f"Redis connection failed, retrying in 1s... ({e})")
+        time.sleep(1)
+
+if not redis_connected:
+    print("Failed to connect to Redis.")
+    exit(1)
+
 print(f"Connected to Redis at {redis_host}:{redis_port}!")
 
 # Connect to Postgres
@@ -27,7 +40,7 @@ if not pg_user or not pg_password:
     exit(1)
 
 conn = None
-for i in range(5):
+for i in range(15):
     try:
         conn = psycopg2.connect(
             dbname=pg_dbname,
@@ -38,8 +51,8 @@ for i in range(5):
         )
         break
     except Exception as e:
-        print(f"PG connection failed, retrying in 5s... ({e})")
-        time.sleep(5)
+        print(f"PG connection failed, retrying in 1s... ({e})")
+        time.sleep(1)
 
 if not conn:
     print("Failed to connect to PG.")

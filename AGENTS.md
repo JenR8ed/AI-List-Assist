@@ -26,3 +26,10 @@
 ## 5. Testing Protocols
 * **Test Execution:** Always validate your logic before committing by running the test suite using `pytest tests/ -v` in your preferred terminal.
 * **Connection Validation:** If you modify marketplace integration logic, instruct the user to verify sandbox access using the `python scripts/ebay_inventory_check.py` handshake script.
+
+## 6. Docker Sandbox Constraints (SDET Read-Only Architecture)
+* **Read-Only Root FS:** The application runs in a Docker container with `read_only: true`. You must not write to the root filesystem.
+* **Database & File Operations:** All file writes and SQLite operations (including `-wal` and `-shm` temp files) must occur strictly within `/app/data` (mapped volume) or `/tmp` / `/run` (tmpfs).
+* **Immutable Environment:** The container environment is immutable at runtime. Do not attempt to install packages via `apt` or `pip` during application execution. All dependencies must be baked into the image via `requirements.txt`.
+* **Resource Caps:** The environment is capped at 1.5 CPUs and 2G Memory. Your solutions must be memory-efficient and avoid unbounded loading of data.
+* **Non-Root Execution:** The container runs as the non-root `appuser` (UID 1000). Adjust your assumptions about permissions accordingly.
