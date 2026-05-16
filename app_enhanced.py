@@ -555,7 +555,7 @@ def get_ebay_oauth_url():
     if not ebay_integration:
         return jsonify({"error": "eBay integration not initialized"}), 500
 
-    redirect_uri = request.args.get('redirect_uri', 'http://localhost:5000/api/ebay/oauth/callback')
+    redirect_uri = os.getenv('EBAY_RU_NAME', 'http://localhost:5000/api/ebay/oauth/callback')
 
     try:
         oauth_url = ebay_integration.get_oauth_url(redirect_uri)

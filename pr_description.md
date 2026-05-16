@@ -1,5 +1,10 @@
-⚡ [performance] Optimize database connections in seed_db.py
+🎯 **What:**
+Fixed an Open Redirect vulnerability in the `get_ebay_oauth_url` endpoint (`app_enhanced.py:552`) by removing the reliance on user-provided input (`request.args.get('redirect_uri')`) for the OAuth callback URL construction.
 
-💡 **What:** Replaced the hard-coded `time.sleep(15)` at the start of `seed_db.py` with an active retry mechanism for both Redis and PostgreSQL. The script now pings Redis up to 15 times with 1s intervals, and connects to Postgres up to 15 times with 1s intervals, rather than waiting a full 15 seconds unconditionally.
-🎯 **Why:** The hardcoded `time.sleep(15)` was unnecessary and blocking. Often times the database is already running, which means 15 seconds are completely wasted. By replacing this with an active retry approach, the script continues running exactly when the databases are ready.
-📊 **Measured Improvement:** In a local benchmark test (`measure_baseline.py`), where the databases are immediately ready (mocked), the script's execution time went from 15.3 seconds to 0.3 seconds. This provides a roughly 50x speed up for cases where databases are fast to spin up or are already available.
+⚠️ **Risk:**
+If left unfixed, an attacker could supply an arbitrary domain (e.g., `?redirect_uri=https://evil.com/callback`). If the OAuth application validation isn't strictly configured, this could lead to the theft of the authorization code, allowing malicious actors to hijack user accounts or perform an Open Redirect attack directly from a trusted domain.
+
+🛡️ **Solution:**
+Replaced the dynamic request parameter extraction with a server-side configuration using the `EBAY_RU_NAME` environment variable:
+`redirect_uri = os.getenv('EBAY_RU_NAME', 'http://localhost:5000/api/ebay/oauth/callback')`.
+This strictly ensures that only authorized callbacks configured on the server can be utilized, completely mitigating the risk of user-controlled redirection. A unit test (`tests/test_security_oauth_redirect.py`) was also added to enforce this protection going forward.
