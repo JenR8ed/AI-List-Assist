@@ -13,7 +13,7 @@ sys.modules['google.generativeai'] = MagicMock()
 sys.modules['pydantic'] = MagicMock()
 
 # Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from services.category_detail_generator import CategoryDetailGenerator
 
@@ -91,6 +91,62 @@ class TestCategoryDetailGenerator(unittest.TestCase):
         mock_gemini_client.side_effect = Exception("Mocked initialization error")
         generator_with_error = CategoryDetailGenerator()
         self.assertIsNone(generator_with_error.gemini_client)
+
+
+
+    @patch.object(CategoryDetailGenerator, 'get_required_fields')
+    def test_validate_data_all_valid(self, mock_get_required):
+        mock_get_required.return_value = [
+            {"name": "Brand", "input_mode": "FREETEXT", "allowed_values": []},
+            {"name": "Condition", "input_mode": "SELECT", "allowed_values": ["New", "Used"]}
+        ]
+
+        data = {
+            "Brand": "Apple",
+            "Condition": "New"
+        }
+
+        result = self.generator.validate_data("293", data)
+        self.assertTrue(result["valid"])
+        self.assertEqual(len(result["missing"]), 0)
+        self.assertEqual(len(result["invalid"]), 0)
+
+    @patch.object(CategoryDetailGenerator, 'get_required_fields')
+    def test_validate_data_missing_field(self, mock_get_required):
+        mock_get_required.return_value = [
+            {"name": "Brand", "input_mode": "FREETEXT", "allowed_values": []},
+            {"name": "Model", "input_mode": "FREETEXT", "allowed_values": []}
+        ]
+
+        # Missing Model entirely, Brand is empty string
+        data = {
+            "Brand": ""
+        }
+
+        result = self.generator.validate_data("293", data)
+        self.assertFalse(result["valid"])
+        self.assertEqual(len(result["missing"]), 2)
+        self.assertIn("Brand", result["missing"])
+        self.assertIn("Model", result["missing"])
+        self.assertEqual(len(result["invalid"]), 0)
+
+    @patch.object(CategoryDetailGenerator, 'get_required_fields')
+    def test_validate_data_invalid_select(self, mock_get_required):
+        mock_get_required.return_value = [
+            {"name": "Condition", "input_mode": "SELECT", "allowed_values": ["New", "Used", "Refurbished"]}
+        ]
+
+        data = {
+            "Condition": "Broken"
+        }
+
+        result = self.generator.validate_data("293", data)
+        self.assertFalse(result["valid"])
+        self.assertEqual(len(result["missing"]), 0)
+        self.assertEqual(len(result["invalid"]), 1)
+        self.assertEqual(result["invalid"][0]["field"], "Condition")
+        self.assertEqual(result["invalid"][0]["value"], "Broken")
+        self.assertEqual(result["invalid"][0]["allowed"], ["New", "Used", "Refurbished"])
 
 if __name__ == '__main__':
     unittest.main()

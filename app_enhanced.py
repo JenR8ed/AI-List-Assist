@@ -150,6 +150,12 @@ def init_db():
 # API ROUTES
 # ============================================================================
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Lightweight health check endpoint for CI and monitoring."""
+    return jsonify({'status': 'ok', 'service': 'ai-list-assist'}), 200
+
+
 @app.route('/')
 def index():
     """Main dashboard page."""
@@ -735,7 +741,7 @@ def submit_listing_to_ebay():
                 valuation_id=valuation_id,
                 ebay_listing_id=ebay_listing_id,
                 listing_title=data.get('title'),
-                listing_price=price,
+                listing_price=data.get('price'),
                 ebay_response=ebay_result
             )
         except Exception as ebay_err:
