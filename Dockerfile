@@ -20,13 +20,17 @@ RUN apt-get update && apt-get install -y gcc sqlite3 libsqlite3-dev && rm -rf /v
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Explicit extra packages (from original Dockerfile)
+# We explicitly install some extra packages that might be needed based on app imports if they aren't in requirements
 RUN pip install --no-cache-dir flask werkzeug python-dotenv requests pandas pydantic pillow
 
-# Copy the application source code and set ownership
-COPY --chown=appuser:appuser . .
-
 # Drop root privileges by switching to the non-root user
+USER appuser
+
+# Ensure standard app user configuration
+RUN useradd -m -u 1000 appuser && \
+    mkdir -p /app/data && \
+    chown -R appuser:appuser /app
+
 USER appuser
 
 EXPOSE 5000
