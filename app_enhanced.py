@@ -281,7 +281,7 @@ async def analyze_image():
 
         # Save valuations to database
         image_hash = str(hash(image_base64))
-        valuation_ids = db.save_valuations(filename, image_hash, valuations)
+        valuation_ids = await asyncio.to_thread(db.save_valuations, filename, image_hash, valuations)
         for val, v_id in zip(valuations, valuation_ids):
             print(f"Saved valuation {v_id} for {val.item_name}")
 
