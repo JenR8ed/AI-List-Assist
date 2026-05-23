@@ -1,10 +1,8 @@
-🎯 **What:**
-Fixed an Open Redirect vulnerability in the `get_ebay_oauth_url` endpoint (`app_enhanced.py:552`) by removing the reliance on user-provided input (`request.args.get('redirect_uri')`) for the OAuth callback URL construction.
+🎯 **What:** The vulnerability fixed
+Fixed an Unrestricted File Upload vulnerability in the `/api/analyze` endpoint.
 
-⚠️ **Risk:**
-If left unfixed, an attacker could supply an arbitrary domain (e.g., `?redirect_uri=https://evil.com/callback`). If the OAuth application validation isn't strictly configured, this could lead to the theft of the authorization code, allowing malicious actors to hijack user accounts or perform an Open Redirect attack directly from a trusted domain.
+⚠️ **Risk:** The potential impact if left unfixed
+By not checking the uploaded file extension, an attacker could upload malicious scripts (e.g., `.php`, `.sh`, `.py`, `.exe`). If the `uploads` directory were accessible or the files were processed unsafely by other parts of the system, this could lead to Stored Cross-Site Scripting (XSS) or Remote Code Execution (RCE).
 
-🛡️ **Solution:**
-Replaced the dynamic request parameter extraction with a server-side configuration using the `EBAY_RU_NAME` environment variable:
-`redirect_uri = os.getenv('EBAY_RU_NAME', 'http://localhost:5000/api/ebay/oauth/callback')`.
-This strictly ensures that only authorized callbacks configured on the server can be utilized, completely mitigating the risk of user-controlled redirection. A unit test (`tests/test_security_oauth_redirect.py`) was also added to enforce this protection going forward.
+🛡️ **Solution:** How the fix addresses the vulnerability
+Added an `ALLOWED_EXTENSIONS` set (`png`, `jpg`, `jpeg`, `gif`, `webp`) and an `allowed_file` helper function to safely validate the file extension. The `/api/analyze` route now rejects any files that do not have an approved image extension with a 400 Bad Request response. Unit tests were added to verify the validation logic.

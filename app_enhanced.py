@@ -46,6 +46,12 @@ if not app.config['SECRET_KEY']:
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
+# Security: Allowed file extensions for uploads
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 # Ensure folders exist
 Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True)
 
@@ -178,6 +184,9 @@ async def analyze_image():
     file = request.files['image']
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": "File type not allowed. Only images (png, jpg, jpeg, gif, webp) are supported."}), 400
 
     try:
         # Read and encode image
