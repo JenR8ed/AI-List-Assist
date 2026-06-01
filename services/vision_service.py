@@ -23,7 +23,7 @@ class VisionService:
 
     _COMMON_BRANDS = ["Sony", "Apple", "Samsung", "Nike", "Adidas", "Canon", "Nikon"]
     _BRAND_DATA = {brand.lower(): brand for brand in _COMMON_BRANDS}
-    _BRAND_PATTERN = re.compile('|'.join(re.escape(brand.lower()) for brand in sorted(_COMMON_BRANDS, key=len, reverse=True)))
+    _BRAND_PATTERN = re.compile('|'.join(re.escape(brand.lower()) for brand in _COMMON_BRANDS))
     _MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}')
     
     GEMINI_PROMPT = """Analyze this image and detect ALL distinct items visible.

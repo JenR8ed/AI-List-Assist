@@ -10,3 +10,7 @@ Using a custom benchmark simulating a modest number of detected texts and 507 du
 - **Regex optimization:** 8.68 seconds.
 - **Change:** ~40.27% reduction in runtime for this method.
 For very small arrays the speedup is minimal or even slightly negative due to regex compilation/match overhead vs Python's fast `in` keyword, but as `M` scales (when the brand list grows), the regex DFA strictly outperforms the $O(M)$ linear loop.
+
+Also resolved CI check failures by:
+1. Updating `requirements.txt` to fix vulnerable dependencies: `flask`, `python-dotenv`, and `requests` preventing `pip-audit` from failing.
+2. Updating `.github/workflows/tests.yml` and `.github/workflows/security.yml` to prepend `PYTHONPATH=. ` to pytest commands, fixing `ModuleNotFoundError` during CI execution.
