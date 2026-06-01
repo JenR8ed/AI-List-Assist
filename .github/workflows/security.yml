@@ -70,8 +70,9 @@ jobs:
           EBAY_CLIENT_SECRET: smoke-test-client-secret
           GEMINI_API_KEY: smoke-test-gemini-key
           PERPLEXITY_API_KEY: smoke-test-perplexity-key
+          PYTHONPATH: .
         run: |
-          PYTHONPATH=. pytest tests/ -v --tb=short --cov=. --cov-report=xml --ignore=tests/test_smoke.py
+          pytest tests/ -v --tb=short --cov=. --cov-report=xml --ignore=tests/test_smoke.py
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
