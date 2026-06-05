@@ -32,10 +32,11 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov pytest-asyncio
 
       - name: Run smoke tests
         env:
+          PYTHONPATH: .
           SECRET_KEY: smoke-test-secret
           API_KEY: smoke-test-api-key
           EBAY_CLIENT_ID: smoke-test-client-id
