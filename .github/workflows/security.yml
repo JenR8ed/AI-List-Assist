@@ -60,15 +60,17 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov pytest-asyncio
 
       - name: Run full test suite
         env:
+          PYTHONPATH: .
           SECRET_KEY: smoke-test-secret
           API_KEY: smoke-test-api-key
           EBAY_CLIENT_ID: smoke-test-client-id
           EBAY_CLIENT_SECRET: smoke-test-client-secret
           GEMINI_API_KEY: smoke-test-gemini-key
+          GOOGLE_API_KEY: smoke-test-google-key
           PERPLEXITY_API_KEY: smoke-test-perplexity-key
         run: |
           pytest tests/ -v --tb=short --cov=. --cov-report=xml --ignore=tests/test_smoke.py
