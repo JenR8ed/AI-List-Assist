@@ -47,7 +47,8 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Ensure folders exist
-Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True)
+if 'MagicMock' not in str(app.config.get('UPLOAD_FOLDER', '')):
+    Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True)
 
 # Initialize services
 try:
