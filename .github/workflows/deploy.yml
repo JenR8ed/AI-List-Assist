@@ -1,0 +1,37 @@
+name: Deploy API to Cloud Run
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        # 1. Swap this with your real Project ID
+        project_id: '151424305358' 
+        
+        # 2. Paste the long Provider ID string from your terminal output here
+        workload_identity_provider: 'projects/151424305358/locations/global/workloadIdentityPools/github-pool/providers/github-provider' 
+        
+        # 3. Swap YOUR_ACTUAL_PROJECT_ID here as well
+        service_account: 'github-deployer@151424305358.iam.gserviceaccount.com'
+
+    - name: Build and Deploy to Cloud Run
+      id: deploy
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: 'ai-list-assist-api'
+        region: 'us-west1'
+        source: '.'
