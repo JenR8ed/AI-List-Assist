@@ -12,22 +12,10 @@ m.Flask = MagicMock()
 m.jsonify = lambda x: json.dumps(x)
 m.render_template = MagicMock()
 m.request = MagicMock()
-sys.modules["flask"] = m
 
 m2 = ModuleType("werkzeug.utils")
 m2.secure_filename = lambda x: x
-sys.modules["werkzeug.utils"] = m2
 
-sys.modules["shared.models"] = MagicMock()
-sys.modules["services.vision_service"] = MagicMock()
-sys.modules["services.conversation_orchestrator"] = MagicMock()
-sys.modules["services.listing_synthesis"] = MagicMock()
-sys.modules["services.ebay_integration"] = MagicMock()
-sys.modules["services.valuation_database"] = MagicMock()
-sys.modules["services.valuation_service"] = MagicMock()
-sys.modules["services.ebay_category_service"] = MagicMock()
-sys.modules["services.draft_image_manager"] = MagicMock()
-sys.modules["services.category_detail_generator"] = MagicMock()
 
 # Now we can try to import app_enhanced or just the relevant parts
 # But app_enhanced has a lot of top-level code.

@@ -17,7 +17,7 @@ class TestValuationService(unittest.TestCase):
             self.mock_token_manager.get_valid_token.return_value = "mock_token"
             self.service = ValuationService(use_sandbox=True)
 
-    @patch('services.valuation_service.requests.get')
+    @patch('services.ebay_integration.requests.Session.get')
     def test_evaluate_item_requests_exception(self, mock_get):
         """Test that ValuationService handles exceptions raised by requests.get correctly."""
         # Setup the mock to raise an exception

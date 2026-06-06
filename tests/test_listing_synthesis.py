@@ -7,11 +7,7 @@ from unittest.mock import MagicMock, patch
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Mock missing dependencies before importing services
-sys.modules['dotenv'] = MagicMock()
-sys.modules['requests'] = MagicMock()
-sys.modules['flask'] = MagicMock()
-sys.modules['google'] = MagicMock()
-sys.modules['google.generativeai'] = MagicMock()
+
 
 from services.listing_synthesis import ListingSynthesisEngine
 from shared.models import ListingDraft, ItemCondition, ConversationState, ItemValuation, Profitability

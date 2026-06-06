@@ -19,7 +19,7 @@ class TestEBayGetListings(unittest.TestCase):
         self.ebay.token_manager = MagicMock()
         self.ebay.token_manager.get_valid_token.return_value = "valid_token"
 
-    @patch('requests.get')
+    @patch('services.ebay_integration.requests.get')
     def test_get_active_listings_success(self, mock_get):
         # Mock successful eBay API responses via side_effect to distinguish URL paths
         def mock_get_side_effect(url, headers=None, params=None):
@@ -96,7 +96,7 @@ class TestEBayGetListings(unittest.TestCase):
         self.assertEqual(kwargs_inv['params']['limit'], 100)
         self.assertEqual(kwargs_inv['params']['offset'], 0)
 
-    @patch('requests.get')
+    @patch('services.ebay_integration.requests.get')
     @patch('services.ebay_integration.eBayIntegration.refresh_access_token')
     def test_get_active_listings_token_refresh(self, mock_refresh, mock_get):
         # Mock 401 Unauthorized then 200 Success
@@ -151,7 +151,7 @@ class TestEBayGetListings(unittest.TestCase):
         self.assertEqual(mock_get.call_count, 3) # 401 offer, 200 offer, 200 inventory
         mock_refresh.assert_called_once()
 
-    @patch('requests.get')
+    @patch('services.ebay_integration.requests.get')
     def test_get_active_listings_error_response(self, mock_get):
         # Mock API error
         mock_response = MagicMock()

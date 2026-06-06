@@ -178,7 +178,7 @@ class eBayIntegration:
                 }
             else:
                 self._handle_api_error(response, "create_inventory_item")
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             raise RuntimeError(f"Network error creating inventory item: {str(e)}") from e
 
     def _get_headers(self) -> Dict[str, str]:
@@ -220,7 +220,7 @@ class eBayIntegration:
                 return response.json()
             else:
                 self._handle_api_error(response, "create_offer")
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             raise RuntimeError(f"Network error creating offer: {str(e)}") from e
 
     def _publish_listing(self, offer_id: str) -> Dict[str, Any]:
@@ -234,7 +234,7 @@ class eBayIntegration:
                 return response.json()
             else:
                 self._handle_api_error(response, "publish_listing")
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             raise RuntimeError(f"Network error publishing listing: {str(e)}") from e
 
     def get_oauth_url(self, redirect_uri: str, scopes: List[str] = None) -> str:
