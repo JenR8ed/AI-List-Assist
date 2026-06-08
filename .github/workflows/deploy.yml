@@ -44,4 +44,4 @@ jobs:
           GEMINI_API_KEY: smoke-test-gemini-key
           PERPLEXITY_API_KEY: smoke-test-perplexity-key
         run: |
-          pytest tests/test_smoke.py -v --tb=short
+          PYTHONPATH=. python3 -m pytest tests/test_smoke.py -v --tb=short

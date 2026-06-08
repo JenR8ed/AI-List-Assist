@@ -17,7 +17,7 @@ class TestEBayGetListingsPagination(unittest.TestCase):
         self.ebay = eBayIntegration(use_sandbox=True)
         self.ebay.access_token = "valid_token"
 
-    @patch('requests.get')
+    @patch('services.ebay_integration.requests.get')
     def test_get_active_listings_pagination_success(self, mock_get):
         call_counts = {'offer': 0, 'inventory': 0}
 

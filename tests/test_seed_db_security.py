@@ -7,10 +7,11 @@ import sys
 mock_requests = MagicMock()
 mock_psycopg2 = MagicMock()
 mock_redis_mod = MagicMock()
-
+import sys
 sys.modules['requests'] = mock_requests
 sys.modules['psycopg2'] = mock_psycopg2
 sys.modules['redis'] = mock_redis_mod
+
 
 import runpy
 

@@ -7,11 +7,6 @@ from unittest.mock import MagicMock
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Mock dependencies
-sys.modules["requests"] = MagicMock()
-sys.modules["google"] = MagicMock()
-sys.modules["google.cloud"] = MagicMock()
-sys.modules["google.cloud.vision"] = MagicMock()
-sys.modules["dotenv"] = MagicMock()
 
 from services.valuation_database import ValuationDatabase
 from shared.models import ItemValuation, Profitability

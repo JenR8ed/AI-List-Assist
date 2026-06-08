@@ -18,7 +18,7 @@ class TestEBayTokenManagerRefreshToken(unittest.TestCase):
             use_sandbox=True
         )
 
-    @patch('requests.post')
+    @patch('services.ebay_token_manager.requests.post')
     def test_refresh_token_no_credentials(self, mock_post):
         """Test that _refresh_token returns None if credentials are missing."""
         self.manager.client_id = None
@@ -26,7 +26,7 @@ class TestEBayTokenManagerRefreshToken(unittest.TestCase):
         self.assertIsNone(result)
         mock_post.assert_not_called()
 
-    @patch('requests.post')
+    @patch('services.ebay_token_manager.requests.post')
     @patch('services.ebay_token_manager.EBayTokenManager._load_token')
     @patch('services.ebay_token_manager.EBayTokenManager._save_token')
     def test_refresh_token_with_refresh_token_success(self, mock_save, mock_load, mock_post):
@@ -59,7 +59,7 @@ class TestEBayTokenManagerRefreshToken(unittest.TestCase):
         self.assertEqual(kwargs['data']['refresh_token'], 'old_refresh_token')
         mock_save.assert_called_once()
 
-    @patch('requests.post')
+    @patch('services.ebay_token_manager.requests.post')
     @patch('services.ebay_token_manager.EBayTokenManager._load_token')
     @patch('services.ebay_token_manager.EBayTokenManager._save_token')
     def test_refresh_token_client_credentials_fallback_success(self, mock_save, mock_load, mock_post):
@@ -87,7 +87,7 @@ class TestEBayTokenManagerRefreshToken(unittest.TestCase):
         self.assertEqual(kwargs['data']['grant_type'], 'client_credentials')
         mock_save.assert_called_once()
 
-    @patch('requests.post')
+    @patch('services.ebay_token_manager.requests.post')
     @patch('services.ebay_token_manager.EBayTokenManager._load_token')
     def test_refresh_token_api_error(self, mock_load, mock_post):
         """Test that _refresh_token returns None on non-200 API response."""
@@ -103,7 +103,7 @@ class TestEBayTokenManagerRefreshToken(unittest.TestCase):
         # Assertions
         self.assertIsNone(result)
 
-    @patch('requests.post')
+    @patch('services.ebay_token_manager.requests.post')
     @patch('services.ebay_token_manager.EBayTokenManager._load_token')
     def test_refresh_token_exception(self, mock_load, mock_post):
         """Test that _refresh_token logs an error and returns None on exceptions."""
