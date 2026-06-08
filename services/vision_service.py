@@ -69,7 +69,7 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
         try:
             return await self._detect_with_cloud_vision_async(image_base64)
         except Exception as e:
-            logger.warning(f"Cloud Vision failed: {e}, falling back to Gemini")
+            logger.warning("Cloud Vision failed, falling back to Gemini", exc_info=True)
             return await self._detect_with_gemini_async(image_base64, media_type)
     
     def _detect_with_cloud_vision(self, image_base64: str) -> List[DetectedItem]:
