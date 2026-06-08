@@ -96,7 +96,7 @@ class EBayTokenManager:
                 except:
                     logger.error(f"Token exchange failed: {response.status_code} - [REDACTED]")
         except Exception as e:
-            logger.error(f"Error exchanging code: {e}")
+            logger.exception("Error exchanging code")
 
         return None
 
