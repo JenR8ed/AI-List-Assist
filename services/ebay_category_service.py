@@ -83,7 +83,7 @@ class EBayCategoryService:
                 logger.warning(f"No valid token, using mock data for category {category_id}")
                 aspects = self._get_mock_aspects(category_id)
         except Exception as e:
-            logger.warning(f"API failed ({e}), using mock data")
+            logger.warning("API failed, using mock data", exc_info=True)
             aspects = self._get_mock_aspects(category_id)
         
         # Cache for 24 hours
