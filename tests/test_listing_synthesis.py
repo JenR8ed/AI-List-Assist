@@ -13,6 +13,7 @@ from services.listing_synthesis import ListingSynthesisEngine
 from shared.models import ListingDraft, ItemCondition, ConversationState, ItemValuation, Profitability
 
 class TestListingSynthesis(unittest.TestCase):
+    @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test_key'})
     def setUp(self):
         self.engine = ListingSynthesisEngine()
         self.item_id = "test-item-123"

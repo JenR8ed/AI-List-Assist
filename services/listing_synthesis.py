@@ -20,7 +20,7 @@ class ListingSynthesisEngine:
     
     def __init__(self):
         """Initialize listing synthesis engine."""
-        self.gemini_client = GeminiRestClient(api_key=os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or 'dummy_key')
+        self.gemini_client = GeminiRestClient(api_key=os.getenv('GOOGLE_API_KEY'))
     
     def create_listing_draft(
         self,

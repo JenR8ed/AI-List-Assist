@@ -10,6 +10,7 @@ from services.listing_synthesis import ListingSynthesisEngine
 from app_enhanced import app, init_db
 
 class TestListingSynthesisEngine(unittest.TestCase):
+    @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test_key'})
     def setUp(self):
         self.engine = ListingSynthesisEngine()
 
