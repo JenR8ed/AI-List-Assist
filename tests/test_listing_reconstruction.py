@@ -150,7 +150,7 @@ class TestListingReconstruction(unittest.TestCase):
         self.conn.commit()
 
     @patch('services.conversation_orchestrator.ConversationOrchestrator.get_state')
-    @patch('app_enhanced.listing_engine.create_listing_draft')
+    @patch('services.listing_synthesis.ListingSynthesisEngine.create_listing_draft')
     @patch('services.draft_image_manager.DraftImageManager.save_draft_images')
     def test_create_and_reconstruct_listing(self, mock_save_images, mock_create_draft, mock_get_state):
         # 1. Mock create_listing data
