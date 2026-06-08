@@ -78,7 +78,7 @@ class ValuationService:
                             estimated_value = round((total_price / count), 2)
                             logger.debug(f"DEBUG VALUATION: Calculated 90-day avg for '{keywords}': ${estimated_value}")
             except Exception as e:
-                logger.error(f"Valuation exception: {e}")
+                logger.exception("Valuation exception")
 
         profitability = self._determine_profitability(estimated_value)
 
