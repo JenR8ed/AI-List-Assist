@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 Consignment Database Service
 Manages participants, assets, transactions, and documentation for the
@@ -77,7 +80,7 @@ def init_db():
     """Create all tables if they don't exist."""
     with _get_conn() as conn:
         conn.executescript(SCHEMA_SQL)
-    print(f"Consignment DB initialised at {DB_PATH}")
+    logger.info(f"Consignment DB initialised at {DB_PATH}")
 
 
 # ---------------------------------------------------------------------------

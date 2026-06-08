@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import Dict, Any, Optional
 import requests
 from shared.models import ItemValuation, Profitability
@@ -58,11 +61,11 @@ class ValuationService:
             }
             try:
                 response = self.session.get(self.base_url, headers=headers, params=params, timeout=10)
-                print(f"DEBUG VALUATION: [{response.status_code}]")
+                logger.debug(f"DEBUG VALUATION: [{response.status_code}]")
                 if response.status_code == 200:
                     data = response.json()
                     summaries = data.get("itemSummaries", [])
-                    print(f"DEBUG VALUATION: Found {len(summaries)} summaries for '{keywords}'")
+                    logger.debug(f"DEBUG VALUATION: Found {len(summaries)} summaries for '{keywords}'")
                     if summaries:
                         total_price = 0.0
                         count = 0
@@ -73,9 +76,9 @@ class ValuationService:
                                 count += 1
                         if count > 0:
                             estimated_value = round((total_price / count), 2)
-                            print(f"DEBUG VALUATION: Calculated 90-day avg for '{keywords}': ${estimated_value}")
+                            logger.debug(f"DEBUG VALUATION: Calculated 90-day avg for '{keywords}': ${estimated_value}")
             except Exception as e:
-                print(f"Valuation exception: {e}")
+                logger.error(f"Valuation exception: {e}")
 
         profitability = self._determine_profitability(estimated_value)
 

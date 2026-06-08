@@ -3,6 +3,7 @@ import json
 import sqlite3
 import sqlite3 as real_sqlite3
 import os
+os.environ['API_KEY'] = 'test'
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition, ItemValuation, Profitability, ConversationState
@@ -149,7 +150,7 @@ class TestListingReconstruction(unittest.TestCase):
         self.conn.commit()
 
     @patch('services.conversation_orchestrator.ConversationOrchestrator.get_state')
-    @patch('services.listing_synthesis.ListingSynthesisEngine.create_listing_draft')
+    @patch('app_enhanced.listing_engine.create_listing_draft')
     @patch('services.draft_image_manager.DraftImageManager.save_draft_images')
     def test_create_and_reconstruct_listing(self, mock_save_images, mock_create_draft, mock_get_state):
         # 1. Mock create_listing data
@@ -177,7 +178,7 @@ class TestListingReconstruction(unittest.TestCase):
         mock_save_images.return_value = []
 
         # 2. Call create_listing API
-        response = self.client.post('/api/listing/create', headers={'Authorization': 'Bearer test_api_key_123', 'X-API-Key': 'test_api_key_123'}, json={
+        response = self.client.post('/api/listing/create', headers={'Authorization': 'Bearer test', 'X-API-Key': 'test'}, json={
             "item_id": item_id,
             "session_id": session_id
         })
@@ -206,7 +207,7 @@ class TestListingReconstruction(unittest.TestCase):
             with patch('services.ebay_token_manager.EBayTokenManager.get_valid_token') as mock_get_token:
                 mock_get_token.return_value = "valid_token"
 
-                response = self.client.post('/api/listing/publish', headers={'Authorization': 'Bearer test_api_key_123', 'X-API-Key': 'test_api_key_123'}, json={
+                response = self.client.post('/api/listing/publish', headers={'Authorization': 'Bearer test', 'X-API-Key': 'test'}, json={
                     "listing_id": listing_id
                 })
 
