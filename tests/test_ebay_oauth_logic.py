@@ -55,7 +55,7 @@ class TestEBayOAuth(unittest.TestCase):
         # Verify the call to token manager
         mock_refresh.assert_called_once()
 
-    @patch('requests.post')
+    @patch('services.ebay_token_manager.requests.post')
     @patch('services.ebay_token_manager.EBayTokenManager._save_token')
     @patch('services.ebay_token_manager.EBayTokenManager._load_token')
     def test_token_manager_refresh_with_refresh_token(self, mock_load, mock_save, mock_post):
@@ -83,7 +83,7 @@ class TestEBayOAuth(unittest.TestCase):
         self.assertEqual(kwargs['data']['grant_type'], 'refresh_token')
         self.assertEqual(kwargs['data']['refresh_token'], 'existing_refresh_token')
 
-    @patch('requests.post')
+    @patch('services.ebay_token_manager.requests.post')
     @patch('services.ebay_token_manager.EBayTokenManager._save_token')
     @patch('services.ebay_token_manager.EBayTokenManager._load_token')
     def test_token_manager_client_credentials_fallback(self, mock_load, mock_save, mock_post):

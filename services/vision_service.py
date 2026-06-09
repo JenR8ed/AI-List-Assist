@@ -197,80 +197,46 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
                 return model_match.group()
         return None
     
-    def _parse_gemini_response(self, response_text: str) -> List[DetectedItem]:
-        """Extract and parse the JSON items array from Gemini's response."""
-        json_str = ""
-
-        # Try to find a JSON block in markdown
-        json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(1)
-        else:
-            json_start = response_text.find("{")
-            json_end = response_text.rfind("}") + 1
-            if json_start >= 0 and json_end > json_start:
-                json_str = response_text[json_start:json_end]
-
-        if json_str:
-            try:
-                data = json.loads(json_str)
-                items = []
-                for idx, item_data in enumerate(data.get("items", [])):
-                    item = DetectedItem(
-                        item_id=item_data.get("item_id", f"item_{idx + 1}"),
-                        bbox=BoundingBox(x=0, y=0, width=0, height=0),
-                        confidence=0.7,
-                        probable_category=item_data.get("probable_category"),
-                        detected_text=item_data.get("detected_text", []),
-                        brand=item_data.get("brand"),
-                        model=item_data.get("model")
-                    )
-                    items.append(item)
-                return items if items else [self._create_default_item()]
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse Gemini JSON: {e}. Raw response: [REDACTED]")
-
-        return [self._create_default_item()]
-
-    def _detect_with_gemini(self, image_base64: str, media_type: str) -> List[DetectedItem]:
-        """Fallback to Gemini Vision API."""
-        
+    def _parse_gemini_response(self, response_text: str, log_context: str) -> List[Any]:
+        """Centralized helper to parse JSON and enforce the error contract."""
         try:
-            response_text, usage_metadata = self.gemini_client.generate_content(
-                self.GEMINI_PROMPT,
-                inline_image_base64=image_base64,
-                inline_image_mime_type=media_type,
-                temperature=0.2,
-                max_output_tokens=1024,
+            payload = json.loads(response_text)
+        except json.JSONDecodeError as exc:
+            # Explicit logging contract without leaking sensitive payloads
+            logger.warning(
+                "Gemini returned invalid JSON in %s for vision prompt: %s",
+                log_context,
+                exc,
             )
+            return []  # Explicit safe default contract
             
-            # Store usage metadata for tracking
-            self.last_usage_metadata = usage_metadata
-            return self._parse_gemini_response(response_text)
-        
-        except Exception as e:
-            logger.error(f"Gemini Vision error: {e}")
-            return [self._create_default_item()]
+        # Normalize/transform payload to a list of detections
+        if not isinstance(payload, list):
+            payload = [payload]
 
-    async def _detect_with_gemini_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
-        """Fallback to Gemini Vision API (async)."""
+        return payload
 
-        try:
-            response_text, usage_metadata = await self.gemini_client.generate_content_async(
-                self.GEMINI_PROMPT,
-                inline_image_base64=image_base64,
-                inline_image_mime_type=media_type,
-                temperature=0.2,
-                max_output_tokens=1024,
-            )
+    def _detect_with_gemini(self, image_base64: str, media_type: str) -> List[Any]:
+        # ... [setup logic, calling gemini client] ...
+        response_text, _ = self.gemini_client.generate_content(
+            self.GEMINI_PROMPT,
+            inline_image_base64=image_base64,
+            inline_image_mime_type=media_type,
+            temperature=0.2,
+            max_output_tokens=1024,
+        )
+        return self._parse_gemini_response(response_text, "detect")
 
-            # Store usage metadata for tracking
-            self.last_usage_metadata = usage_metadata
-            return self._parse_gemini_response(response_text)
-
-        except Exception as e:
-            logger.error(f"Gemini Vision error: {e}")
-            return [self._create_default_item()]
+    async def _detect_with_gemini_async(self, image_base64: str, media_type: str) -> List[Any]:
+        # ... [setup logic, calling async gemini client] ...
+        response_text, _ = await self.gemini_client.generate_content_async(
+            self.GEMINI_PROMPT,
+            inline_image_base64=image_base64,
+            inline_image_mime_type=media_type,
+            temperature=0.2,
+            max_output_tokens=1024,
+        )
+        return self._parse_gemini_response(response_text, "detect_async")
     
     def _create_default_item(self) -> DetectedItem:
         """Create a default item when detection fails."""

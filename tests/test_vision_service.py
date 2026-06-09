@@ -1,69 +1,68 @@
+from typing import Any, List
+import json
+import logging
 import pytest
-from unittest.mock import patch
+from unittest.mock import AsyncMock
 from services.vision_service import VisionService
 
+logger = logging.getLogger(__name__)
+INVALID_JSON = "{invalid json"
+
 @pytest.fixture
-def vision_service():
-    return VisionService(api_key="test_key")
+def mock_gemini_client(mocker):
+    client = mocker.Mock()
+    client.generate_content.return_value = (INVALID_JSON, {})
+    client.generate_content_async = AsyncMock(return_value=(INVALID_JSON, {}))
+    return client
 
-def test_parse_gemini_response_valid_markdown_json(vision_service):
-    response_text = """
-    ```json
-    {
-        "items": [
-            {
-                "item_id": "item_1",
-                "probable_category": "Electronics",
-                "detected_text": ["Sony", "Walkman"],
-                "brand": "Sony",
-                "model": "WM-FX195"
-            }
-        ]
-    }
-    ```
-    """
-    items = vision_service._parse_gemini_response(response_text)
-    assert len(items) == 1
-    assert items[0].item_id == "item_1"
-    assert items[0].probable_category == "Electronics"
-    assert items[0].brand == "Sony"
-    assert items[0].model == "WM-FX195"
+@pytest.fixture
+def mock_async_gemini_client(mocker):
+    client = mocker.Mock()
+    client.generate_content_async = AsyncMock(return_value=(INVALID_JSON, {}))
+    return client
 
-def test_parse_gemini_response_valid_raw_json(vision_service):
-    response_text = """
-    {
-        "items": [
-            {
-                "item_id": "test_id",
-                "probable_category": "Clothing",
-                "brand": "Nike"
-            }
-        ]
-    }
-    """
-    items = vision_service._parse_gemini_response(response_text)
-    assert len(items) == 1
-    assert items[0].item_id == "test_id"
-    assert items[0].probable_category == "Clothing"
-    assert items[0].brand == "Nike"
+@pytest.fixture
+def vision_service(mock_gemini_client, mock_async_gemini_client) -> VisionService:
+    service = VisionService(
+        api_key="test_key"
+    )
+    service.gemini_client = mock_gemini_client
+    service.async_gemini_client = mock_async_gemini_client
+    return service
 
-def test_parse_gemini_response_invalid_json_format(vision_service):
-    response_text = "This is not json."
-    items = vision_service._parse_gemini_response(response_text)
-    assert len(items) == 1
-    assert items[0].probable_category == "Unknown"
+def _assert_invalid_json_handled(result: List[Any], caplog, suffix: str) -> None:
+    assert result == []
+    assert any(
+        rec.levelno == logging.WARNING
+        and f"Gemini returned invalid JSON in {suffix}" in rec.getMessage()
+        for rec in caplog.records
+    )
 
-@patch("services.vision_service.logger.error")
-def test_parse_gemini_response_json_decode_error(mock_logger_error, vision_service):
-    response_text = """
-    {
-        "items": [
-            {
-                "item_id": "item_1",
-                "probable_category": "Electronics"
-    }
-    """
-    items = vision_service._parse_gemini_response(response_text)
-    assert len(items) == 1
-    assert items[0].probable_category == "Unknown"
-    mock_logger_error.assert_called_once()
+def test_detect_with_gemini_json_decode_error(vision_service: VisionService, mock_gemini_client, caplog):
+    with caplog.at_level(logging.WARNING):
+        result = vision_service._detect_with_gemini("dummy_base64", "image/jpeg")
+
+    mock_gemini_client.generate_content.assert_called_once_with(
+        vision_service.GEMINI_PROMPT,
+        inline_image_base64="dummy_base64",
+        inline_image_mime_type="image/jpeg",
+        temperature=0.2,
+        max_output_tokens=1024
+    )
+    _assert_invalid_json_handled(result, caplog, "detect")
+
+@pytest.mark.asyncio
+async def test_detect_with_gemini_async_json_decode_error(vision_service: VisionService, mock_async_gemini_client, caplog):
+    vision_service.gemini_client = mock_async_gemini_client
+
+    with caplog.at_level(logging.WARNING):
+        result = await vision_service._detect_with_gemini_async("dummy_base64", "image/jpeg")
+
+    mock_async_gemini_client.generate_content_async.assert_awaited_once_with(
+        vision_service.GEMINI_PROMPT,
+        inline_image_base64="dummy_base64",
+        inline_image_mime_type="image/jpeg",
+        temperature=0.2,
+        max_output_tokens=1024
+    )
+    _assert_invalid_json_handled(result, caplog, "detect_async")

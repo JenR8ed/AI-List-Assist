@@ -1,11 +1,6 @@
 import sys
 from unittest.mock import MagicMock
-sys.modules['httpx'] = MagicMock()
-sys.modules['flask'] = MagicMock()
-sys.modules['google'] = MagicMock()
-sys.modules['google.generativeai'] = MagicMock()
-sys.modules['requests'] = MagicMock()
-sys.modules['dotenv'] = MagicMock()
+
 
 import os
 from services.valuation_database import ValuationDatabase

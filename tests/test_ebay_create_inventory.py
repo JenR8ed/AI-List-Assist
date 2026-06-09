@@ -17,7 +17,7 @@ class TestEBayCreateInventoryItem(unittest.TestCase):
         self.ebay = eBayIntegration(use_sandbox=True)
         self.ebay.access_token = "valid_token"
 
-    @patch('requests.put')
+    @patch('services.ebay_integration.requests.put')
     @patch('services.ebay_token_manager.EBayTokenManager.get_valid_token')
     def test_create_inventory_item_success(self, mock_get_token, mock_put):
         mock_get_token.return_value = "valid_token"
@@ -42,7 +42,7 @@ class TestEBayCreateInventoryItem(unittest.TestCase):
         self.assertEqual(kwargs['headers']['Authorization'], "Bearer valid_token")
         self.assertEqual(kwargs['json'], inventory_item)
 
-    @patch('requests.put')
+    @patch('services.ebay_integration.requests.put')
     @patch('services.ebay_token_manager.EBayTokenManager.get_valid_token')
     def test_create_inventory_item_error(self, mock_get_token, mock_put):
         mock_get_token.return_value = "valid_token"

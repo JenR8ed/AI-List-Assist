@@ -10,6 +10,7 @@ from services.listing_synthesis import ListingSynthesisEngine
 from app_enhanced import app, init_db
 
 class TestListingSynthesisEngine(unittest.TestCase):
+    @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test_key'})
     def setUp(self):
         self.engine = ListingSynthesisEngine()
 
@@ -115,7 +116,7 @@ class TestListingReconstruction(unittest.TestCase):
         self.real_connect = sqlite3.connect
         self.sqlite_patcher = patch('sqlite3.connect')
         self.mock_connect = self.sqlite_patcher.start()
-        self.mock_connect.side_effect = lambda path: self.real_connect(self.db_path)
+        self.mock_connect.side_effect = lambda path, **kwargs: self.real_connect(self.db_path, **kwargs)
 
     def tearDown(self):
         self.sqlite_patcher.stop()
@@ -176,7 +177,7 @@ class TestListingReconstruction(unittest.TestCase):
         mock_save_images.return_value = []
 
         # 2. Call create_listing API
-        response = self.client.post('/api/listing/create', json={
+        response = self.client.post('/api/listing/create', headers={'Authorization': 'Bearer test_api_key_123', 'X-API-Key': 'test_api_key_123'}, json={
             "item_id": item_id,
             "session_id": session_id
         })
@@ -205,7 +206,7 @@ class TestListingReconstruction(unittest.TestCase):
             with patch('services.ebay_token_manager.EBayTokenManager.get_valid_token') as mock_get_token:
                 mock_get_token.return_value = "valid_token"
 
-                response = self.client.post('/api/listing/publish', json={
+                response = self.client.post('/api/listing/publish', headers={'Authorization': 'Bearer test_api_key_123', 'X-API-Key': 'test_api_key_123'}, json={
                     "listing_id": listing_id
                 })
 
