@@ -5,7 +5,7 @@ import json
 
 # Setup environment before importing app
 os.environ['SECRET_KEY'] = 'test_secret'
-os.environ['API_KEY'] = 'test_api_key_123'
+os.environ['API_KEY'] = 'test'
 os.environ['EBAY_CLIENT_ID'] = 'test'
 os.environ['EBAY_CLIENT_SECRET'] = 'test'
 
@@ -46,14 +46,14 @@ def test_api_unauthorized_with_invalid_key(client):
 
 def test_api_authorized_with_valid_key(client):
     """Test that API endpoints return 200 when API_KEY is valid."""
-    headers = {'Authorization': 'Bearer test_api_key_123'}
+    headers = {'Authorization': 'Bearer test'}
     response = client.get('/api/listings/drafts', headers=headers)
 
     assert response.status_code == 200
 
 def test_api_authorized_without_bearer_prefix(client):
     """Test that API works even without 'Bearer ' prefix."""
-    headers = {'Authorization': 'test_api_key_123'}
+    headers = {'Authorization': 'test'}
     response = client.get('/api/listings/drafts', headers=headers)
 
     assert response.status_code == 200
