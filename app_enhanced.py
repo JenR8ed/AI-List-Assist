@@ -195,7 +195,7 @@ async def analyze_image():
         session_id = str(uuid.uuid4())
 
         # Step 1: Detect items
-        print(f"DEBUG: Processing image, size: {len(image_base64)} chars, content_type: {file.content_type}")
+        logger.debug(f"DEBUG: Processing image, size: {len(image_base64)} chars, content_type: {file.content_type}")
         if not vision_service:
             return jsonify({"error": "Vision service not available"}), 500
 
@@ -213,9 +213,9 @@ async def analyze_image():
             if usage_metadata:  # If we have Gemini usage data, it was used
                 gemini_used = True
 
-            print(f"DEBUG: Detected {len(detected_items)} items")
+            logger.debug(f"DEBUG: Detected {len(detected_items)} items")
             for i, item in enumerate(detected_items):
-                print(f"DEBUG: Item {i}: brand={item.brand}, category={item.probable_category}, text={item.detected_text}")
+                logger.debug(f"DEBUG: Item {i}: brand={item.brand}, category={item.probable_category}, text={item.detected_text}")
         except Exception as vision_error:
             logger.exception("Vision service error")
             return jsonify({"error": "Vision service failed to process the image."}), 500
@@ -284,7 +284,7 @@ async def analyze_image():
         image_hash = str(hash(image_base64))
         valuation_ids = db.save_valuations(filename, image_hash, valuations)
         for val, v_id in zip(valuations, valuation_ids):
-            print(f"Saved valuation {v_id} for {val.item_name}")
+            logger.info(f"Saved valuation {v_id} for {val.item_name}")
 
         # Save to database
         def save_session_to_db():
@@ -1059,7 +1059,7 @@ def add_security_headers(response):
 
 if __name__ == '__main__':
     init_db()
-    print("Database initialized")
-    print("Starting Enhanced eBay Listing Assistant")
-    print("Visit: http://localhost:5000")
+    logger.info("Database initialized")
+    logger.info("Starting Enhanced eBay Listing Assistant")
+    logger.info("Visit: http://localhost:5000")
     app.run(debug=os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't'), host='0.0.0.0', port=5000)

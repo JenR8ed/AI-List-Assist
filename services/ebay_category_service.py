@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 """
 eBay Category Specifics Service
 Handles category-specific item aspects and mapping from AI valuation
@@ -66,7 +69,7 @@ class EBayCategoryService:
         # Check cache first
         if category_id in self.cache:
             if datetime.now() < self.cache_expiry.get(category_id, datetime.now()):
-                print(f"Using cached aspects for category {category_id}")
+                logger.info(f"Using cached aspects for category {category_id}")
                 return self.cache[category_id]
         
         # Refresh token if needed
@@ -77,10 +80,10 @@ class EBayCategoryService:
             if self.access_token and self.access_token != "sandbox_token":
                 aspects = self._fetch_from_api(category_id)
             else:
-                print(f"No valid token, using mock data for category {category_id}")
+                logger.warning(f"No valid token, using mock data for category {category_id}")
                 aspects = self._get_mock_aspects(category_id)
         except Exception as e:
-            print(f"API failed ({e}), using mock data")
+            logger.warning("API failed, using mock data", exc_info=True)
             aspects = self._get_mock_aspects(category_id)
         
         # Cache for 24 hours
@@ -98,16 +101,16 @@ class EBayCategoryService:
         }
         params = {"category_id": category_id}
         
-        print(f"Fetching aspects for category {category_id} from eBay API...")
+        logger.info(f"Fetching aspects for category {category_id} from eBay API...")
         response = requests.get(url, headers=headers, params=params, timeout=10)
         
         if response.status_code == 401:
-            print("eBay API authentication failed, using mock data")
+            logger.warning("eBay API authentication failed, using mock data")
             raise Exception("Authentication failed")
         
         response.raise_for_status()
         data = response.json()
-        print(f"Successfully fetched {len(data.get('aspects', []))} aspects")
+        logger.info(f"Successfully fetched {len(data.get('aspects', []))} aspects")
         
         return self._organize_aspects(data.get("aspects", []))
     

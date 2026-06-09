@@ -7,6 +7,8 @@ import base64
 import os
 import json
 import logging
+logger = logging.getLogger(__name__)
+
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -90,11 +92,11 @@ class EBayTokenManager:
                 try:
                     error_data = response.json()
                     error_desc = error_data.get('error_description', 'No description')
-                    print(f"Token exchange failed: {response.status_code} - {error_desc}")
+                    logger.error(f"Token exchange failed: {response.status_code} - {error_desc}")
                 except:
-                    print(f"Token exchange failed: {response.status_code} - [REDACTED]")
+                    logger.error(f"Token exchange failed: {response.status_code} - [REDACTED]")
         except Exception as e:
-            print(f"Error exchanging code: {e}")
+            logger.exception("Error exchanging code")
 
         return None
 

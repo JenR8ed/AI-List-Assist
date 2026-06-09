@@ -3,6 +3,7 @@ import json
 import sqlite3
 import sqlite3 as real_sqlite3
 import os
+os.environ['API_KEY'] = 'test'
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition, ItemValuation, Profitability, ConversationState
@@ -177,7 +178,7 @@ class TestListingReconstruction(unittest.TestCase):
         mock_save_images.return_value = []
 
         # 2. Call create_listing API
-        response = self.client.post('/api/listing/create', headers={'Authorization': 'Bearer test_api_key_123', 'X-API-Key': 'test_api_key_123'}, json={
+        response = self.client.post('/api/listing/create', headers={'Authorization': 'Bearer test', 'X-API-Key': 'test'}, json={
             "item_id": item_id,
             "session_id": session_id
         })
@@ -206,7 +207,7 @@ class TestListingReconstruction(unittest.TestCase):
             with patch('services.ebay_token_manager.EBayTokenManager.get_valid_token') as mock_get_token:
                 mock_get_token.return_value = "valid_token"
 
-                response = self.client.post('/api/listing/publish', headers={'Authorization': 'Bearer test_api_key_123', 'X-API-Key': 'test_api_key_123'}, json={
+                response = self.client.post('/api/listing/publish', headers={'Authorization': 'Bearer test', 'X-API-Key': 'test'}, json={
                     "listing_id": listing_id
                 })
 
