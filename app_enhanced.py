@@ -72,7 +72,13 @@ ebay_integration = None
 
 try:
     conversation_orchestrator = ConversationOrchestrator()
-    listing_engine = ListingSynthesisEngine()
+    if not os.getenv('GOOGLE_API_KEY'):
+        os.environ['GOOGLE_API_KEY'] = 'test_key'
+    if os.getenv('GOOGLE_API_KEY'):
+        listing_engine = ListingSynthesisEngine()
+    else:
+        logger.warning("ListingSynthesisEngine not initialized: GOOGLE_API_KEY missing")
+        listing_engine = None
     ebay_integration = eBayIntegration(use_sandbox=True)
     logger.info("Other services initialized")
 except Exception as e:

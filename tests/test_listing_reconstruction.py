@@ -12,6 +12,7 @@ from app_enhanced import app, init_db
 
 class TestListingSynthesisEngine(unittest.TestCase):
     @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test_key'})
+    @patch.dict('os.environ', {'GOOGLE_API_KEY': 'test_key'})
     def setUp(self):
         self.engine = ListingSynthesisEngine()
 
@@ -101,6 +102,7 @@ class TestListingSynthesisEngine(unittest.TestCase):
         self.assertEqual(title, "Item")
 
 class TestListingReconstruction(unittest.TestCase):
+    @patch.dict('os.environ', {'GOOGLE_API_KEY': 'test_key'})
     def setUp(self):
         # Setup a test database
         self.db_path = 'test_listings.db'
