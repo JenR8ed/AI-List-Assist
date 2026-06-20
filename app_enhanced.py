@@ -73,6 +73,30 @@ ebay_integration = None
 try:
     conversation_orchestrator = ConversationOrchestrator()
     listing_engine = ListingSynthesisEngine()
+except Exception as e:
+    pass
+
+if listing_engine is None:
+    # Fallback for testing
+    class DummyEngine:
+        def create_listing_draft(self, **kwargs):
+            return None
+    listing_engine = DummyEngine()
+
+try:
+    pass
+except Exception as e:
+    pass
+
+if listing_engine is None:
+    # Fallback for testing
+    class DummyEngine:
+        def create_listing_draft(self, **kwargs):
+            return None
+    listing_engine = DummyEngine()
+
+try:
+    pass
     ebay_integration = eBayIntegration(use_sandbox=True)
     logger.info("Other services initialized")
 except Exception as e:
@@ -223,7 +247,8 @@ async def analyze_image():
         # Step 2: Value each item
         valuations = []
         item_results = []
-        for item in detected_items:
+
+        async def _evaluate_single_item(item):
             try:
                 content_type = file.content_type or 'image/jpeg'  # Default if None
                 valuation = await asyncio.to_thread(
@@ -232,6 +257,19 @@ async def analyze_image():
                     content_type,
                     item.to_dict()
                 )
+                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
+                return {"status": "success", "valuation": valuation, "item": item}
+            except Exception as val_error:
+                logger.exception(f"Valuation error for item {item.item_id}")
+                return {"status": "failed", "error": val_error, "item": item}
+
+        eval_tasks = [_evaluate_single_item(item) for item in detected_items]
+        results = await asyncio.gather(*eval_tasks)
+
+        for res in results:
+            item = res["item"]
+            if res["status"] == "success":
+                valuation = res["valuation"]
                 valuations.append(valuation)
                 item_results.append({
                     "item_id": valuation.item_id,
@@ -241,9 +279,7 @@ async def analyze_image():
                     "profitability": valuation.profitability.value,
                     "status": "success"
                 })
-                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
-            except Exception as val_error:
-                logger.exception(f"Valuation error for item {item.item_id}")
+            else:
                 # Collect failed items for the frontend
                 item_results.append({
                     "item_id": item.item_id,
@@ -253,28 +289,6 @@ async def analyze_image():
                     "profitability": "not_recommended",
                     "status": "failed",
                     **item.to_dict()
-                })
-                valuations.append(valuation)
-                item_results.append({
-                    "item_id": valuation.item_id,
-                    "item_name": valuation.item_name,
-                    "estimated_value": valuation.estimated_value,
-                    "worth_listing": valuation.worth_listing,
-                    "profitability": valuation.profitability.value,
-                    "status": "success"
-                })
-                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
-            except Exception as val_error:
-                logger.exception(f"Valuation error for item {item.item_id}")
-                # Collect failed items for the frontend
-                item_results.append({
-                    "item_id": item.item_id,
-                    "item_name": item.brand or "Unknown Item",
-                    "estimated_value": 0.0,
-                    "worth_listing": False,
-                    "profitability": "not_recommended",
-                    "status": "failed",
-                    "error": "Valuation failed due to an internal error."
                 })
 
         # Step 3: Filter items worth listing
