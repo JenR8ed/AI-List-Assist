@@ -27,7 +27,7 @@ class TestSeedDB(unittest.TestCase):
             "POSTGRES_PORT": "1234",
             "REDIS_HOST": "redis_test_host",
             "REDIS_PORT": "9999",
-            "PERPLEXITY_API_KEY": "mock_key_if_missing"
+            "PERPLEXITY_API_KEY": "test_key"
         }
 
         with patch.dict(os.environ, env_vars):
@@ -64,7 +64,7 @@ class TestSeedDB(unittest.TestCase):
         # We need to preserve PERPLEXITY_API_KEY if we want to avoid logic branches,
         # but let's see how it behaves with empty env.
 
-        with patch.dict(os.environ, {"PERPLEXITY_API_KEY": "mock_key_if_missing"}, clear=True):
+        with patch.dict(os.environ, {"PERPLEXITY_API_KEY": "test_key"}, clear=True):
             # Reset mocks
             mock_psycopg2.connect.reset_mock()
             mock_redis_mod.Redis.reset_mock()

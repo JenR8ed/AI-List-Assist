@@ -72,11 +72,11 @@ cur.execute('''
 conn.commit()
 print("Postgres table created or already exists!")
 
-perplexity_key = os.environ.get("PERPLEXITY_API_KEY", "mock_key_if_missing")
+perplexity_key = os.environ.get("PERPLEXITY_API_KEY")
 
 print(f"Using PERPLEXITY_API_KEY: [REDACTED]")
 
-if perplexity_key and perplexity_key != "mock_key_if_missing":
+if perplexity_key:
     try:
         url = "https://api.perplexity.ai/chat/completions"
         payload = {
