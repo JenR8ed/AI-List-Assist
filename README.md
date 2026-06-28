@@ -101,6 +101,10 @@ For field work, the integrated Telegram Bot (`your_ebay_valuator_bot.py`) provid
 
 ---
 
+## Development Setup
+
+*   [WSL Development Setup](docs/dev-setup-wsl.md)
+
 ## 🛠️ Development & Environment
 
 ### Prerequisites
@@ -182,6 +186,7 @@ PYTHONPATH=. pytest tests/test_ebay_get_listings.py -v
 *   📊 [Valuation Guide](VALUATION_DATA_GUIDE.md): Deep dive into decision logic and price discovery.
 *   🔄 [Mapping Guide](EBAY_LISTING_MAPPING.md): How AI data translates to eBay fields.
 *   🛠️ [Setup Guide](SETUP_GUIDE.md): Detailed installation and Postman testing instructions.
+*   🪟 [WSL Development Setup](docs/dev-setup-wsl.md): WSL-first dev environment and workflow.
 *   🤝 [Contributing](CONTRIBUTING.md): Guidelines for code standards and PR processes.
 
 ---
