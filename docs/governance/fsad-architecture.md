@@ -29,7 +29,7 @@ tags: [valuation, listing, consignment, ...]
 - valuation jobs
 - consignment transactions
 
-See fsad/README.md and the central docs/governance/fsad-architecture.md in the .github governance repo for full details.
+See [fsad/README.md](../../fsad/README.md) and the central docs/governance/fsad-architecture.md in the .github governance repo for full details.
 
 ## Integration with Dash
 The Dash CI workflow and governance stamp ensure changes to tracked state respect the model.
