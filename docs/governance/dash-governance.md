@@ -31,4 +31,4 @@ See `.github/workflows/dash.yml`:
 
 Violations of secret policy or missing governance are treated as critical.
 
-See also the org `.github` repo governance docs and fsad-architecture.md .
+See also the org \`.github\` repo governance docs and [fsad-architecture.md](fsad-architecture.md).
