@@ -1,3 +1,17 @@
+---
+id: agents-ai-list-assist-v1
+created_at: 2026-07-01
+state: approved
+owner: JenR8ed
+tags: [agents, governance, jaios]
+---
+# Agent Governance — AI-List-Assist
+> This file is the agent governance spec for this repo.
+> All agents (Jules, Claude, Gemini, Cursor) must treat this as their
+> primary instruction set. Hallucination/loop events must be filed via
+> the org-level issue template: ISSUE_TEMPLATE/agent_hallucination_report.md
+> SOT: See JAIOS_SOT.md at repo root.
+
 # AGENTS.md
 
 ## 1. Architectural Context & Role
