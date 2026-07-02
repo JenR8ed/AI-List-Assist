@@ -1,5 +1,7 @@
 name: Dash CI
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   dash:
     runs-on: ubuntu-latest
