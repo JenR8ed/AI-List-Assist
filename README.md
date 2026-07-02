@@ -111,24 +111,9 @@ For field work, the integrated Telegram Bot (`your_ebay_valuator_bot.py`) provid
 *   Perplexity API Key (for Market Trends)
 
 ### Environment Configuration
-Create a `.env` file in the root directory:
-```env
-SECRET_KEY=your_flask_secret_key
-API_KEY=your_hmac_bearer_api_key
-GOOGLE_API_KEY=your_google_cloud_api_key
-EBAY_CLIENT_ID=your_ebay_client_id
-EBAY_CLIENT_SECRET=your_ebay_client_secret
-EBAY_RU_NAME=your_ebay_runame
-EBAY_CATEGORY_TREE_ID=0
-PERPLEXITY_API_KEY=your_perplexity_api_key
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-
-# Market Intelligence (Docker)
-POSTGRES_USER=ai_user
-POSTGRES_PASSWORD=ai_password
-POSTGRES_DB=ebay_market_data
-REDIS_HOST=localhost
-```
+Secrets are injected at runtime via Doppler.
+Reference: [Zero-Trust Secrets Policy](docs/governance/dash-governance.md)
+To onboard this repo: see jenr8ed-doppler-config (private).
 
 ### Installation
 ```bash

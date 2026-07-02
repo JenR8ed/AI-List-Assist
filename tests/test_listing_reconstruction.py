@@ -153,6 +153,14 @@ class TestListingReconstruction(unittest.TestCase):
     @patch('services.listing_synthesis.ListingSynthesisEngine.create_listing_draft')
     @patch('services.draft_image_manager.DraftImageManager.save_draft_images')
     def test_create_and_reconstruct_listing(self, mock_save_images, mock_create_draft, mock_get_state):
+        # Ensure the app's global service instances are not None (initialization may fail in CI without real API keys)
+        import app_enhanced as app_mod
+        app_mod.conversation_orchestrator = MagicMock()
+        app_mod.conversation_orchestrator.get_state = mock_get_state
+        app_mod.listing_engine = MagicMock()
+        app_mod.listing_engine.create_listing_draft = mock_create_draft
+        app_mod.draft_image_manager = MagicMock()
+        app_mod.draft_image_manager.save_draft_images = mock_save_images
         # 1. Mock create_listing data
         item_id = "test_item"
         session_id = "test_session"

@@ -23,7 +23,8 @@ class CategoryDetailGenerator:
         ]
         self.category_service = EBayCategoryService()
         try:
-            self.gemini_client = GeminiRestClient(api_key=os.getenv('GOOGLE_API_KEY'))
+            api_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
+            self.gemini_client = GeminiRestClient(api_key=api_key)
         except:
             self.gemini_client = None
     
