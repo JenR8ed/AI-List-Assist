@@ -1,0 +1,27 @@
+name: Dash CI
+on: [push, pull_request]
+jobs:
+  dash:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Lint
+        run: pip install flake8 && flake8 . --max-line-length=120
+      - name: Run tests
+        run: |
+          export SECRET_KEY=test EBAY_CLIENT_ID=test EBAY_CLIENT_SECRET=test \
+                 GOOGLE_API_KEY=test API_KEY=test EBAY_CATEGORY_TREE_ID=0
+          PYTHONPATH=. pytest tests/ -v
+      - name: Secret scan
+        run: |
+          pip install detect-secrets
+          detect-secrets scan --all-files | grep -q '"results": {}' \
+            && echo "✅ No secrets detected" \
+            || (echo "🛑 Secrets detected — failing build" && exit 1)
+      - name: Dash validated stamp
+        run: echo "dash_validated=true" >> $GITHUB_OUTPUT
