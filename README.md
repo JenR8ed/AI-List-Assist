@@ -112,7 +112,7 @@ For field work, the integrated Telegram Bot (`your_ebay_valuator_bot.py`) provid
 
 ### Environment Configuration
 Secrets are injected at runtime via Doppler.
-Reference: [docs/governance/dash-governance.md — Zero-Trust Secrets Policy]
+Reference: [Zero-Trust Secrets Policy](docs/governance/dash-governance.md)
 To onboard this repo: see jenr8ed-doppler-config (private).
 
 ### Installation
