@@ -38,9 +38,9 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
     def __init__(self, api_key: Optional[str] = None):
         """Initialize vision service with Google APIs."""
         if not api_key:
-            api_key = os.getenv('GOOGLE_API_KEY')
+            api_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
         if not api_key:
-            raise ValueError("GOOGLE_API_KEY not provided")
+            raise ValueError("GOOGLE_API_KEY or GEMINI_API_KEY not provided")
 
         self.api_key = api_key
         self.last_usage_metadata = {}
@@ -105,7 +105,7 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
                 "features": [
                     {"type": "OBJECT_LOCALIZATION", "maxResults": 10},
                     {"type": "TEXT_DETECTION", "maxResults": 10},
-                    {"type": "LABEL_DETECTION", "maxResults": 10}
+                    {"type": "LABEL_DETECTION", "maxResults": 10
                 ]
             }]
         }
@@ -155,7 +155,7 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
             
             item = DetectedItem(
                 item_id=f"item_{idx + 1}",
-                bbox=bbox,
+                bbox=BoundingBox(x=x, y=y, width=width, height=height),
                 confidence=obj.get("score", 0.5),
                 probable_category=obj.get("name", "Unknown"),
                 detected_text=detected_texts,
