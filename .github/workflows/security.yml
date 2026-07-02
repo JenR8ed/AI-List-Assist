@@ -68,6 +68,7 @@ jobs:
           API_KEY: smoke-test-api-key
           EBAY_CLIENT_ID: smoke-test-client-id
           EBAY_CLIENT_SECRET: smoke-test-client-secret
+          GOOGLE_API_KEY: smoke-test-gemini-key
           GEMINI_API_KEY: smoke-test-gemini-key
           PERPLEXITY_API_KEY: smoke-test-perplexity-key
         run: |
