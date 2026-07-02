@@ -19,7 +19,7 @@ Key stack: Python/Flask, Gemini + Cloud Vision (hybrid), eBay REST APIs (Invento
 - Zero-credential / Zero-token policy: No secrets in git. Use Doppler for runtime secrets (see README update).
 - FSAD (File-System-as-Database): Operational state in `fsad/` (proposals → approved → archive) with YAML frontmatter. See also the org-level relations/ FSAD in secure_agent_workspace.
 - Privacy & sovereignty first.
-- Agent roles: Follow AGENTS.md (this file is now governed by the prepended JAIOS header).
+- Agent roles: Follow AGENTS.md (which is now governed by the prepended JAIOS header).
 - Hallucinations: Report using the org ISSUE_TEMPLATE/agent_hallucination_report.md
 
 ## Key Services (from architecture)
