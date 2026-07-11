@@ -74,7 +74,7 @@ try:
     conversation_orchestrator = ConversationOrchestrator()
     listing_engine = ListingSynthesisEngine()
 except Exception as e:
-    pass
+    logger.warning(f"Failed to initialize conversation orchestrator or listing engine: {e}")
 
 if listing_engine is None:
     # Fallback for testing
@@ -84,19 +84,6 @@ if listing_engine is None:
     listing_engine = DummyEngine()
 
 try:
-    pass
-except Exception as e:
-    pass
-
-if listing_engine is None:
-    # Fallback for testing
-    class DummyEngine:
-        def create_listing_draft(self, **kwargs):
-            return None
-    listing_engine = DummyEngine()
-
-try:
-    pass
     ebay_integration = eBayIntegration(use_sandbox=True)
     logger.info("Other services initialized")
 except Exception as e:
