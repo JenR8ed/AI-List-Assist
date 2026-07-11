@@ -152,7 +152,8 @@ class TestListingReconstruction(unittest.TestCase):
     @patch('services.conversation_orchestrator.ConversationOrchestrator.get_state')
     @patch('services.listing_synthesis.ListingSynthesisEngine.create_listing_draft')
     @patch('services.draft_image_manager.DraftImageManager.save_draft_images')
-    def test_create_and_reconstruct_listing(self, mock_save_images, mock_create_draft, mock_get_state):
+    @patch('app_enhanced.listing_engine')
+    def test_create_and_reconstruct_listing(self, mock_listing_engine, mock_save_images, mock_create_draft, mock_get_state):
         # 1. Mock create_listing data
         item_id = "test_item"
         session_id = "test_session"
@@ -175,6 +176,7 @@ class TestListingReconstruction(unittest.TestCase):
             created_at=datetime.now()
         )
         mock_create_draft.return_value = draft
+        mock_listing_engine.create_listing_draft.return_value = draft
         mock_save_images.return_value = []
 
         # 2. Call create_listing API
