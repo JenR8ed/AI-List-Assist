@@ -8,11 +8,23 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition, ItemValuation, Profitability, ConversationState
 from services.listing_synthesis import ListingSynthesisEngine
+from services.conversation_orchestrator import ConversationOrchestrator
 from app_enhanced import app, init_db
 
 class TestListingSynthesisEngine(unittest.TestCase):
     @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test_key'})
+    @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test_key'})
     def setUp(self):
+        import app_enhanced
+        app_enhanced.listing_engine = ListingSynthesisEngine()
+        app_enhanced.conversation_orchestrator = ConversationOrchestrator()
+        app_enhanced.ebay_integration = MagicMock()
+        app_enhanced.ebay_integration.create_listing.return_value = {
+                "listing_id": "ebay_12345",
+                "status": "published",
+                "url": "http://ebay.com/12345"
+            }
+
         self.engine = ListingSynthesisEngine()
 
     def test_generate_title_full_data(self):
@@ -101,7 +113,18 @@ class TestListingSynthesisEngine(unittest.TestCase):
         self.assertEqual(title, "Item")
 
 class TestListingReconstruction(unittest.TestCase):
+    @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test_key'})
     def setUp(self):
+        import app_enhanced
+        app_enhanced.listing_engine = ListingSynthesisEngine()
+        app_enhanced.conversation_orchestrator = ConversationOrchestrator()
+        app_enhanced.ebay_integration = MagicMock()
+        app_enhanced.ebay_integration.create_listing.return_value = {
+                "listing_id": "ebay_12345",
+                "status": "published",
+                "url": "http://ebay.com/12345"
+            }
+
         # Setup a test database
         self.db_path = 'test_listings.db'
         if os.path.exists(self.db_path):
@@ -211,14 +234,19 @@ class TestListingReconstruction(unittest.TestCase):
                     "listing_id": listing_id
                 })
 
+                if response.status_code != 200:
+                    print(f"Publish Listing Error: {response.get_data(as_text=True)}")
+
                 self.assertEqual(response.status_code, 200)
                 data = response.get_json()
                 self.assertEqual(data['ebay_listing_id'], "ebay_12345")
 
                 # 5. Verify the draft was reconstructed correctly
                 # We check this by seeing if create_listing was called with a ListingDraft object
-                args, kwargs = mock_ebay_publish.call_args
-                reconstructed_draft = args[0]
+                import app_enhanced
+                args, kwargs = app_enhanced.ebay_integration.create_listing.call_args
+                reconstructed_draft = kwargs.get('draft', args[0] if args else None)
+
                 self.assertIsInstance(reconstructed_draft, ListingDraft)
                 self.assertEqual(reconstructed_draft.title, "Test Title")
                 self.assertEqual(reconstructed_draft.condition, ItemCondition.USED)
