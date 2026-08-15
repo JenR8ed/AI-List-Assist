@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 
 # Setup environment before importing app
 os.environ.setdefault('SECRET_KEY', 'smoke-test-secret')
-os.environ.setdefault('API_KEY', 'smoke-test-api-key')
+os.environ['API_KEY'] = 'smoke-test-api-key'
 os.environ.setdefault('EBAY_CLIENT_ID', 'smoke-test-client-id')
 os.environ.setdefault('EBAY_CLIENT_SECRET', 'smoke-test-client-secret')
 os.environ.setdefault('GEMINI_API_KEY', 'smoke-test-gemini-key')
@@ -40,26 +40,30 @@ def client():
     with app.test_client() as c:
         yield c
 
-def test_create_listing_no_data(client):
-    response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key'}, json={})
+def test_create_listing_no_data(client, monkeypatch):
+    monkeypatch.setenv('API_KEY', 'smoke-test-api-key')
+    response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key', 'X-API-Key': 'smoke-test-api-key'}, json={})
     assert response.status_code == 400
     assert response.json == {"error": "No JSON data provided"}
 
-def test_create_listing_missing_fields(client):
-    response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key'}, json={'item_id': '123'})
+def test_create_listing_missing_fields(client, monkeypatch):
+    monkeypatch.setenv('API_KEY', 'smoke-test-api-key')
+    response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key', 'X-API-Key': 'smoke-test-api-key'}, json={'item_id': '123'})
     assert response.status_code == 400
     assert response.json == {"error": "item_id and session_id required"}
 
-def test_create_listing_session_not_found(client):
+def test_create_listing_session_not_found(client, monkeypatch):
+    monkeypatch.setenv('API_KEY', 'smoke-test-api-key')
     with patch('app_enhanced.conversation_orchestrator.get_state', return_value=None):
-        response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key'}, json={'item_id': '123', 'session_id': '456'})
+        response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key', 'X-API-Key': 'smoke-test-api-key'}, json={'item_id': '123', 'session_id': '456'})
         assert response.status_code == 404
         assert response.json == {"error": "Conversation session not found"}
 
 @patch('services.conversation_orchestrator.ConversationOrchestrator.get_state')
 @patch('services.listing_synthesis.ListingSynthesisEngine.create_listing_draft')
 @patch('services.draft_image_manager.DraftImageManager.save_draft_images')
-def test_create_listing_success(mock_save_images, mock_create_draft, mock_get_state, client):
+def test_create_listing_success(mock_save_images, mock_create_draft, mock_get_state, client, monkeypatch):
+    monkeypatch.setenv('API_KEY', 'smoke-test-api-key')
     # Initialize global listing_engine
     import app_enhanced
     from services.listing_synthesis import ListingSynthesisEngine
@@ -102,7 +106,7 @@ def test_create_listing_success(mock_save_images, mock_create_draft, mock_get_st
     conn.commit()
     conn.close()
 
-    response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key'}, json={'item_id': item_id, 'session_id': session_id})
+    response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key', 'X-API-Key': 'smoke-test-api-key'}, json={'item_id': item_id, 'session_id': session_id})
 
     assert response.status_code == 200
     assert response.json["success"] is True
@@ -123,11 +127,12 @@ def test_create_listing_success(mock_save_images, mock_create_draft, mock_get_st
     assert row[3] == "draft"
 
 @patch('services.conversation_orchestrator.ConversationOrchestrator.get_state')
-def test_create_listing_internal_error(mock_get_state, client):
+def test_create_listing_internal_error(mock_get_state, client, monkeypatch):
+    monkeypatch.setenv('API_KEY', 'smoke-test-api-key')
     # Mock get_state to throw an exception to trigger 500 error
     mock_get_state.side_effect = Exception("Test Error")
 
-    response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key'}, json={'item_id': '123', 'session_id': '456'})
+    response = client.post('/api/listing/create', headers={'Authorization': 'Bearer smoke-test-api-key', 'X-API-Key': 'smoke-test-api-key'}, json={'item_id': '123', 'session_id': '456'})
 
     assert response.status_code == 500
     assert response.json == {"error": "An internal server error occurred."}
