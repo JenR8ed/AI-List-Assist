@@ -4,6 +4,9 @@ import sqlite3
 import sqlite3 as real_sqlite3
 import os
 os.environ['API_KEY'] = 'test'
+os.environ.setdefault('SECRET_KEY', 'smoke-test-secret')
+os.environ.setdefault('EBAY_CLIENT_ID', 'test')
+os.environ.setdefault('EBAY_CLIENT_SECRET', 'test')
 from unittest.mock import MagicMock, patch
 from datetime import datetime
 from shared.models import ListingDraft, ItemCondition, ItemValuation, Profitability, ConversationState
@@ -149,10 +152,22 @@ class TestListingReconstruction(unittest.TestCase):
         ''')
         self.conn.commit()
 
+    @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test_key'})
     @patch('services.conversation_orchestrator.ConversationOrchestrator.get_state')
     @patch('services.listing_synthesis.ListingSynthesisEngine.create_listing_draft')
     @patch('services.draft_image_manager.DraftImageManager.save_draft_images')
     def test_create_and_reconstruct_listing(self, mock_save_images, mock_create_draft, mock_get_state):
+        # Initialize global listing_engine
+        import app_enhanced
+        from services.listing_synthesis import ListingSynthesisEngine
+        app_enhanced.listing_engine = ListingSynthesisEngine()
+        from services.ebay_integration import eBayIntegration
+        app_enhanced.ebay_integration = MagicMock(spec=eBayIntegration)
+        app_enhanced.ebay_integration.token_manager = MagicMock()
+        app_enhanced.ebay_integration.create_listing = MagicMock()
+        app_enhanced.ebay_integration.create_listing.return_value = {"listing_id": "ebay_12345", "status": "published", "url": "http://ebay.com/12345"}
+
+
         # 1. Mock create_listing data
         item_id = "test_item"
         session_id = "test_session"
@@ -217,7 +232,7 @@ class TestListingReconstruction(unittest.TestCase):
 
                 # 5. Verify the draft was reconstructed correctly
                 # We check this by seeing if create_listing was called with a ListingDraft object
-                args, kwargs = mock_ebay_publish.call_args
+                args, kwargs = app_enhanced.ebay_integration.create_listing.call_args
                 reconstructed_draft = args[0]
                 self.assertIsInstance(reconstructed_draft, ListingDraft)
                 self.assertEqual(reconstructed_draft.title, "Test Title")

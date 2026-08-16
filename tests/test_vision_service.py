@@ -88,7 +88,6 @@ def test_detect_with_gemini_json_decode_error(mock_logger_error, vision_service)
     assert items[0].probable_category == "Unknown"
     mock_logger_error.assert_called_once()
 
-@pytest.mark.asyncio
 @patch("services.vision_service.logger.error")
 async def test_detect_with_gemini_async_json_decode_error(mock_logger_error, vision_service):
     # Setup mock to return invalid JSON
