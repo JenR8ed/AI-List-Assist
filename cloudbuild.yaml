@@ -1,0 +1,39 @@
+steps:
+  # 1. Build container image with Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-west1-docker.pkg.dev/$PROJECT_ID/ai-list-assist/api:$COMMIT_SHA'
+      - '-t'
+      - 'us-west1-docker.pkg.dev/$PROJECT_ID/ai-list-assist/api:latest'
+      - '.'
+
+  # 2. Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'us-west1-docker.pkg.dev/$PROJECT_ID/ai-list-assist/api'
+
+  # 3. Deploy to Google Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'ai-list-assist'
+      - '--image=us-west1-docker.pkg.dev/$PROJECT_ID/ai-list-assist/api:$COMMIT_SHA'
+      - '--region=us-west1'
+      - '--platform=managed'
+      - '--service-account=ai-list-assist-run@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-secrets=DOPPLER_TOKEN=AI_LIST_ASSIST_DOPPLER_TOKEN:latest'
+      - '--allow-unauthenticated'
+      - '--port=8000'
+
+images:
+  - 'us-west1-docker.pkg.dev/$PROJECT_ID/ai-list-assist/api:$COMMIT_SHA'
+  - 'us-west1-docker.pkg.dev/$PROJECT_ID/ai-list-assist/api:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

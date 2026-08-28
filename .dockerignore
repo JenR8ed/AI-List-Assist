@@ -1,0 +1,13 @@
+.git
+.github
+.jules
+.Jules
+.venv
+__pycache__
+*.pyc
+node_modules
+tests
+*.md
+.cursorignore
+.cursorrules
+.devcontainer
