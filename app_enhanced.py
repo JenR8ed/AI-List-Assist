@@ -612,15 +612,12 @@ def approve_valuation(valuation_id):
 @app.route('/api/stats', methods=['GET'])
 @require_api_key
 def get_stats():
-    """Get valuation statistics."""
     try:
-        stats = db.get_valuation_stats()
-        return jsonify({
-            "success": True,
-            "stats": stats
-        })
+        stats = ValuationDatabase().get_valuation_stats()
+        return jsonify(stats)
     except Exception as e:
-        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
+        app.logger.error(f"Error getting stats: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/valuations/<valuation_id>', methods=['GET'])
 @require_api_key
