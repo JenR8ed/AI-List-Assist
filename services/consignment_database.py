@@ -328,3 +328,10 @@ def list_documents(asset_id: Optional[str] = None) -> List[Dict[str, Any]]:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+def calculate_commission_amount(amount):
+    if amount <= 1000:
+        return amount * 0.15
+    elif amount <= 5000:
+        return amount * 0.12
+    return amount * 0.10
