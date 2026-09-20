@@ -4,6 +4,7 @@
 ![Flask](https://img.shields.io/badge/flask-3.0.0-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Architecture](https://img.shields.io/badge/architecture-service--based-orange.svg)
+[![Python Code Quality Check](https://github.com/JenR8ed/AI-List-Assist/actions/workflows/lint.yml/badge.svg)](https://github.com/JenR8ed/AI-List-Assist/actions/workflows/lint.yml)
 
 **AI List Assist** is a high-performance automation platform designed for professional online resellers. It transforms unstructured visual data into structured, category-specific marketplace listings using a sophisticated **Hybrid AI** architecture (Google Gemini 1.5 Flash + Cloud Vision).
 
