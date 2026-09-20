@@ -104,7 +104,14 @@ class TestListingSynthesisEngine(unittest.TestCase):
         self.assertEqual(title, "Item")
 
 class TestListingReconstruction(unittest.TestCase):
+    @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test_key'})
     def setUp(self):
+        # We need to explicitly initialize listing_engine and ebay_integration for app_enhanced to not fail
+        import app_enhanced
+        from services.listing_synthesis import ListingSynthesisEngine
+        from services.ebay_integration import eBayIntegration
+        app_enhanced.listing_engine = ListingSynthesisEngine()
+        app_enhanced.ebay_integration = eBayIntegration(use_sandbox=True)
         # Setup a test database
         self.db_path = 'test_listings.db'
         if os.path.exists(self.db_path):
