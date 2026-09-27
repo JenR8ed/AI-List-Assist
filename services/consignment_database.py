@@ -258,16 +258,26 @@ def list_transactions(asset_id: Optional[str] = None) -> List[Dict[str, Any]]:
 
 def calculate_commission(asset_id: str) -> Dict[str, Any]:
     """Calculate commission owed for a sold asset."""
-    asset = get_asset(asset_id)
-    if not asset:
+    with _get_conn() as conn:
+        row = conn.execute(
+            '''
+            SELECT a.sale_price, a.current_status,
+                   (SELECT commission_multiplier FROM transactions
+                    WHERE asset_id = a.asset_id AND call_type = 'SALE_RECORD'
+                    ORDER BY timestamp_iso8601 DESC LIMIT 1) as multiplier
+            FROM assets a
+            WHERE a.asset_id = ?
+            ''', (asset_id,)
+        ).fetchone()
+
+    if not row:
         return {"error": "Asset not found"}
-    if asset["current_status"] != "SOLD":
+
+    if row["current_status"] != "SOLD":
         return {"error": "Asset is not yet SOLD"}
-    txns = list_transactions(asset_id)
-    # Use the most recent commission multiplier from SALE_RECORD if present
-    sale_txns = [t for t in txns if t["call_type"] == "SALE_RECORD"]
-    multiplier = sale_txns[0]["commission_multiplier"] if sale_txns else 0.15
-    sale_price = asset.get("sale_price") or 0.0
+
+    multiplier = row["multiplier"] if row["multiplier"] is not None else 0.15
+    sale_price = row["sale_price"] or 0.0
     commission = round(sale_price * multiplier, 2)
     payout = round(sale_price - commission, 2)
     return {
