@@ -65,3 +65,9 @@ test_data/
 # Postman collections (may contain tokens)
 *.postman_collection.json
 *.postman_environment.json
+node_modules/
+.env
+.env.local
+.vercel
+dist/
+.next/
