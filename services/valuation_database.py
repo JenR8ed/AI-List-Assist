@@ -4,6 +4,12 @@ Database service for tracking valuations and eBay submissions
 
 import sqlite3
 import json
+import time
+import os
+try:
+    import redis
+except ImportError:
+    redis = None
 import uuid
 import threading
 from datetime import datetime
@@ -16,6 +22,30 @@ class ValuationDatabase:
     def __init__(self, db_path: str = "valuations.db"):
         self.db_path = db_path
         self._local = threading.local()
+
+        # Cache setup
+        self._stats_cache = None
+        self._stats_cache_time = 0
+        self.cache_ttl = 300  # 5 minutes
+
+        # Redis setup
+        self.redis_client = None
+        if redis is not None:
+            redis_host = os.environ.get("REDIS_HOST")
+            if redis_host:
+                try:
+                    self.redis_client = redis.Redis(
+                        host=redis_host,
+                        port=int(os.environ.get("REDIS_PORT", 6379)),
+                        db=0,
+                        decode_responses=True
+                    )
+                    self.redis_client.ping()
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Failed to connect to Redis for valuation caching: {e}")
+                    self.redis_client = None
+
         self.init_database()
     
     @property
@@ -286,32 +316,58 @@ class ValuationDatabase:
             for row in rows
         ]
     
+
+
     def get_valuation_stats(self) -> Dict[str, Any]:
-        """Get summary statistics."""
+        """Get summary statistics with caching."""
+        cache_key = "valuation_stats"
+
+        # 1. Try Redis Cache
+        if getattr(self, 'redis_client', None):
+            try:
+                cached_stats = self.redis_client.get(cache_key)
+                if cached_stats:
+                    return json.loads(cached_stats)
+            except Exception:
+                pass
+
+        # 2. Try Local In-Memory Cache
+        current_time = time.time()
+        if getattr(self, '_stats_cache', None) and (current_time - getattr(self, '_stats_cache_time', 0)) < getattr(self, 'cache_ttl', 300):
+            return self._stats_cache
+
         conn = self.conn
         c = conn.cursor()
         
-        # Total valuations
-        c.execute('SELECT COUNT(*) FROM valuations')
-        total_valuations = c.fetchone()[0]
+        # Optimized single query to get all valuation stats at once
+        c.execute('''
+        SELECT
+            COUNT(*) as total_valuations,
+            SUM(CASE WHEN worth_listing = 1 THEN 1 ELSE 0 END) as worth_listing,
+            AVG(CASE WHEN estimated_value > 0 THEN estimated_value ELSE NULL END) as avg_value,
+            SUM(CASE WHEN status IN ("approved", "submitted", "listed") THEN 1 ELSE 0 END) as approved_count
+        FROM valuations
+        ''')
         
-        # Worth listing count
-        c.execute('SELECT COUNT(*) FROM valuations WHERE worth_listing = 1')
-        worth_listing = c.fetchone()[0]
+        row = c.fetchone()
         
-        # Average value
-        c.execute('SELECT AVG(estimated_value) FROM valuations WHERE estimated_value > 0')
-        avg_value = c.fetchone()[0] or 0
+        # Handle empty table case
+        if not row or row[0] == 0:
+            total_valuations = 0
+            worth_listing = 0
+            avg_value = 0.0
+            approved_count = 0
+        else:
+            total_valuations = row[0] or 0
+            worth_listing = row[1] or 0
+            avg_value = row[2] or 0.0
+            approved_count = row[3] or 0
         
-        # Approved count
-        c.execute('SELECT COUNT(*) FROM valuations WHERE status IN ("approved", "submitted", "listed")')
-        approved_count = c.fetchone()[0]
-        
-        # eBay submissions
+        # eBay submissions still needs its own query as it's a different table
         c.execute('SELECT COUNT(*) FROM ebay_submissions')
-        ebay_submissions = c.fetchone()[0]
+        ebay_submissions = c.fetchone()[0] or 0
         
-        return {
+        stats = {
             "total_valuations": total_valuations,
             "worth_listing": worth_listing,
             "average_value": round(avg_value, 2),
@@ -319,7 +375,20 @@ class ValuationDatabase:
             "ebay_submissions": ebay_submissions,
             "approval_rate": round((approved_count / total_valuations * 100) if total_valuations > 0 else 0, 1)
         }
-    
+
+        # Update local cache
+        self._stats_cache = stats
+        self._stats_cache_time = current_time
+
+        # Update Redis cache
+        if getattr(self, 'redis_client', None):
+            try:
+                self.redis_client.setex(cache_key, getattr(self, 'cache_ttl', 300), json.dumps(stats))
+            except Exception:
+                pass
+
+        return stats
+
     def create_draft_listing(self, valuation_id: str, listing_data: Dict[str, Any]) -> str:
         """Create draft listing from valuation."""
         listing_id = str(uuid.uuid4())
