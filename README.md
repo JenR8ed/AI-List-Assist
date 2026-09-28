@@ -61,23 +61,13 @@ Product intake → Vision/Gemini analysis → structured item data
 
 The project is being developed as an applied AI reliability lab: model output is treated as a candidate, then validated, enriched, transformed, and gated by deterministic application logic. The goal is reproducible, measurable AI behavior rather than prompt-only demos.
 
-## Security
+## Security boundary
 
-- No hardcoded credentials
-- Environment/managed secret injection
-- Authentication and route safeguards under review; do not infer production readiness from the local smoke tests
-- Request/schema validation
-- CSP/security headers
-- Linux-first development paths
-- Human approval for consequential publishing actions
+The application reads integration configuration from its environment and contains routes with consequential marketplace actions. Authentication, request validation, and publishing safeguards need a separate security review before any deployment or credential-based test. The offline smoke tests do not establish production readiness.
 
 ## Related JenR8ed work
 
-- JAIOS — agentic workspace architecture
-- jaios-agentic-core — architecture nucleus
-- jaios-notion-gateway — event ingress boundary
 - jenr8ed-deploy-kit — deployment/governance layer
 - [Engineering portfolio](https://jenr8edai.com/) — primary public destination
-- Hermes — model-routing prototype
 
 **Jennifer McKinley / JenR8ed — AI Engineer · SDET Architect · Agentic Systems Builder**
