@@ -1,148 +1,25 @@
-# eBay Listing Assistant - Setup & Usage Guide
+# AI List Assist — current run path
 
-## 🚀 Quick Start
+## What is checked in
 
-### 1. Install Dependencies
+`app_enhanced.py` is the Flask entry point. The browser UI is served from `templates/index.html`, with service modules under `services/` and local SQLite persistence. The FastAPI/PostgreSQL/React stack described in the roadmap is planned migration work.
+
+This repository does not include a ready-to-use `.env`, sample `test_data/` images, or the Postman collections described by an earlier version of this guide. External analysis, marketplace OAuth, and listing publication have not been validated by the offline test below.
+
+## Offline smoke test
+
+Use a fresh, disposable clone with Python 3.12+. Do not place production credentials, a `.env`, or important local database files in it.
+
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pytest tests/test_smoke.py -q
 ```
 
-### 2. Configure API Keys
-Your `.env` file is already configured with:
-- ✅ Google API Key (for Gemini Vision)
-- ✅ eBay Client ID & Secret
+`tests/test_smoke.py` supplies sentinel configuration and uses Flask's test client. It checks app import, `/health`, and rejection of unauthenticated draft requests. Its fixture creates and removes `listings.db`, `valuations.db`, and `consignment.db` in the working directory. It makes no intentional external service calls.
 
-### 3. Run the Application
-```bash
-python app_enhanced.py
-```
+## Interactive application
 
-### 4. Open in Browser
-Visit: **http://localhost:5000**
+The current local entry point is `python app_enhanced.py`, which binds a Flask server to port 5000. That path initializes integration services and includes routes for analysis, OAuth, and marketplace writes. Run it only in a controlled local environment after reviewing the required configuration and side effects. The offline smoke test does not establish that the interactive application or any external service flow works.
 
-## 📱 How to Use
-
-### Upload & Analyze Items
-1. **Take a photo** of the item you want to sell
-2. **Upload the image** using the web interface
-3. **Click "Analyze Item"** 
-4. **Get instant valuation** with:
-   - Estimated value
-   - Condition assessment
-   - Profitability rating
-   - Selling recommendations
-
-### Different Images = Different Results
-The app provides varied valuations based on image content:
-- **Electronics** → Higher values (~$180-320)
-- **Collectibles** → Lower values (~$8-50)
-- **Branded items** → Better profitability
-
-## 🧪 Test with Sample Data
-
-Use the provided test images in `test_data/`:
-- `sony_headphones.jpg` → High-value electronics
-- `vintage_mug.jpg` → Low-value collectible
-- `iphone.jpg` → High-value phone
-
-## 🔧 API Testing with Postman
-
-### Import Collection
-1. Import `eBay_Listing_Assistant_API.postman_collection.json`
-2. Import `eBay_Listing_Assistant.postman_environment.json`
-3. Select the environment in Postman
-
-### Test Endpoints
-- **GET** `/` → Web interface
-- **POST** `/api/analyze` → Image analysis
-- **POST** `/api/conversation/start` → Start listing conversation
-- **POST** `/api/listing/create` → Generate listing
-
-## 📊 Current Features
-
-### ✅ Working Now
-- Image upload and analysis
-- Mock valuation system (realistic test data)
-- Web interface
-- API endpoints
-- Postman testing
-
-### ⏳ Coming Soon (After eBay Approval)
-- Real eBay market data
-- Live sold price analysis
-- Actual listing creation
-
-## 🛠️ Technical Details
-
-### Architecture
-- **Frontend**: HTML/CSS/JavaScript
-- **Backend**: Flask (Python)
-- **Vision**: Gemini API (custom REST client)
-- **Data**: Mock valuation service
-- **Database**: SQLite
-
-### File Structure
-```
-├── app_enhanced.py          # Main Flask application
-├── services/
-│   ├── vision_service.py    # Gemini vision API
-│   ├── valuation_service.py # Item valuation logic
-│   └── mock_valuation_service.py # Test data
-├── templates/
-│   └── index.html          # Web interface
-├── test_data/              # Sample images
-└── .env                    # API keys
-```
-
-## 🔑 API Keys Explained
-
-### Google API Key
-- **Purpose**: Powers Gemini vision analysis
-- **Status**: ✅ Working
-- **Used for**: Image recognition, text extraction
-
-### eBay API Keys
-- **Purpose**: Market data and listing creation
-- **Status**: ⏳ Pending approval
-- **Used for**: Real price data, listing to eBay
-
-## 🐛 Troubleshooting
-
-### App Won't Start
-```bash
-# Check Python version
-python --version
-
-# Reinstall dependencies
-pip install -r requirements.txt
-
-# Run app
-python app_enhanced.py
-```
-
-### No Valuation Results
-- App uses mock data while eBay API is pending
-- Different images should show different results
-- Check browser console for errors
-
-### API Errors
-- Gemini API: Check `GOOGLE_API_KEY` in `.env`
-- eBay API: Waiting for approval (expected to fail)
-
-## 📈 Next Steps
-
-1. **Test the current app** with sample images
-2. **Wait for eBay API approval** (1-2 business days)
-3. **Switch to real market data** when approved
-4. **Deploy to production** when ready
-
-## 💡 Tips
-
-- **Use clear, well-lit photos** for best results
-- **Include brand names/model numbers** in images
-- **Test with different item types** to see varied valuations
-- **Check the uploads/ folder** to see saved images
-
----
-
-**Ready to start?** Run `python app_enhanced.py` and visit http://localhost:5000
+Do not run `simulate_listing_flow.py` as an offline test: it sends a request to an external eBay sandbox endpoint. Any credential-based validation or publication needs a separately approved test plan.

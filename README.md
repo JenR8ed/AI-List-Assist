@@ -1,8 +1,20 @@
-# AI List Assist — AI-Powered Marketplace Workflow Engine
+# AI List Assist — marketplace listing workflow
 
-AI List Assist is Jennifer McKinley's flagship applied AI engineering project: a multimodal e-commerce workflow that turns product intake into structured valuation, category-aware listing data, and marketplace publishing workflows.
+AI List Assist is Jennifer McKinley's applied AI engineering project for product intake, valuation, listing drafts, and marketplace integration. It is an active build; the repository contains routes that can publish listings, but a live end-to-end publishing flow is not established here.
 
-> **Current state:** Active build. The repository is migrating from its original Flask/SQLite/Jinja implementation toward a FastAPI + Pydantic/SQLModel + PostgreSQL + React/Next.js architecture. The legacy implementation remains migration material; the target architecture is documented in `llms.txt` and `.cursorrules`.
+> **Current state:** The checked-in entry point is `app_enhanced.py`, a Flask application with Jinja templates and SQLite persistence. FastAPI, Pydantic/SQLModel, PostgreSQL, and React/Next.js are migration goals, not the current runnable stack.
+
+## Current local verification
+
+From a fresh, disposable clone with Python 3.12+, install the checked-in dependencies and run the offline smoke tests:
+
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pytest tests/test_smoke.py -q
+```
+
+The smoke tests set sentinel environment values, initialize local SQLite files, and remove `listings.db`, `valuations.db`, and `consignment.db` in their teardown. Run them only in a disposable checkout without valuable files under those names or a local `.env`. They cover application import, `/health`, and unauthenticated draft access; they do not verify image analysis, external APIs, OAuth, or publishing. See [SETUP_GUIDE.md](SETUP_GUIDE.md) for the current entry point and its limits.
 
 ## Core workflow
 
@@ -49,23 +61,13 @@ Product intake → Vision/Gemini analysis → structured item data
 
 The project is being developed as an applied AI reliability lab: model output is treated as a candidate, then validated, enriched, transformed, and gated by deterministic application logic. The goal is reproducible, measurable AI behavior rather than prompt-only demos.
 
-## Security
+## Security boundary
 
-- No hardcoded credentials
-- Environment/managed secret injection
-- HMAC-protected sensitive routes
-- Request/schema validation
-- CSP/security headers
-- Linux-first development paths
-- Human approval for consequential publishing actions
+The application reads integration configuration from its environment and contains routes with consequential marketplace actions. Authentication, request validation, and publishing safeguards need a separate security review before any deployment or credential-based test. The offline smoke tests do not establish production readiness.
 
 ## Related JenR8ed work
 
-- JAIOS — agentic workspace architecture
-- jaios-agentic-core — architecture nucleus
-- jaios-notion-gateway — event ingress boundary
 - jenr8ed-deploy-kit — deployment/governance layer
-- AI-Agentic-Terminal-Portfolio — engineering portfolio
-- Hermes — model-routing prototype
+- [Engineering portfolio](https://jenr8edai.com/) — primary public destination
 
 **Jennifer McKinley / JenR8ed — AI Engineer · SDET Architect · Agentic Systems Builder**
