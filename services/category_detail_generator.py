@@ -38,7 +38,8 @@ class CategoryDetailGenerator:
                 "required": True,
                 "data_type": aspect.get("dataType", "STRING"),
                 "input_mode": aspect.get("mode", "FREETEXT"),
-                "allowed_values": aspect.get("values", [])
+                "allowed_values": aspect.get("values", []),
+                "source": aspects.get("source", "simulated")
             }
             required_fields.append(field_info)
         
@@ -116,6 +117,6 @@ class CategoryDetailGenerator:
         for keywords, category_id, confidence in self.CATEGORY_MAPPING:
             for word in keywords:
                 if word in item_name:
-                    return [{"category_id": category_id, "confidence": confidence}]
+                    return [{"category_id": category_id, "confidence": confidence, "source": "simulated"}]
 
-        return [{"category_id": "293", "confidence": 0.3}]  # Default to electronics
+        return [{"category_id": "293", "confidence": 0.3, "source": "simulated"}]  # Heuristic default

@@ -17,8 +17,9 @@ class EBayCategoryService:
     
     def __init__(self, access_token: Optional[str] = None, category_tree_id: Optional[str] = None, use_sandbox: bool = True):
         self.use_sandbox = use_sandbox
+        self.offline = os.getenv('LOCAL_DRAFT_MODE') == '1'
         self.token_manager = EBayTokenManager(use_sandbox=use_sandbox)
-        self.access_token = access_token or self.token_manager.get_valid_token() or "sandbox_token"
+        self.access_token = (access_token or self.token_manager.get_valid_token()) if not self.offline else None
         self.cache = {}
         self.cache_expiry = {}
 
@@ -71,6 +72,12 @@ class EBayCategoryService:
             if datetime.now() < self.cache_expiry.get(category_id, datetime.now()):
                 logger.info(f"Using cached aspects for category {category_id}")
                 return self.cache[category_id]
+
+        if self.offline:
+            aspects = {**self._get_mock_aspects(category_id), "source": "fixture"}
+            self.cache[category_id] = aspects
+            self.cache_expiry[category_id] = datetime.now() + timedelta(hours=24)
+            return aspects
         
         # Refresh token if needed
         self.access_token = self.token_manager.get_valid_token() or "sandbox_token"
@@ -79,12 +86,15 @@ class EBayCategoryService:
         try:
             if self.access_token and self.access_token != "sandbox_token":
                 aspects = self._fetch_from_api(category_id)
+                aspects = {**aspects, "source": "live"}
             else:
                 logger.warning(f"No valid token, using mock data for category {category_id}")
                 aspects = self._get_mock_aspects(category_id)
+                aspects = {**aspects, "source": "fixture"}
         except Exception as e:
             logger.warning("API failed, using mock data", exc_info=True)
             aspects = self._get_mock_aspects(category_id)
+            aspects = {**aspects, "source": "fixture"}
         
         # Cache for 24 hours
         self.cache[category_id] = aspects

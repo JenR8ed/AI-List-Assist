@@ -611,7 +611,7 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    aspectsContainer.innerHTML = generateAspectsHTML(data.aspects);
+                    aspectsContainer.innerHTML = `<p>Source: ${escapeHTML(data.source)}</p>` + generateAspectsHTML(data.aspects);
                     validateForm();
                 }
             } catch (err) {
@@ -802,6 +802,7 @@
                 if (categoryData.success && categoryData.suggestions.length > 0) {
                     suggestedCategoryId = categoryData.suggestions[0].category_id;
                 }
+                const categorySource = categoryData.source || 'simulated';
                 
                 // Merge conversation data with item data
                 const finalData = { ...itemData, ...conversationData };
@@ -811,7 +812,7 @@
                     item_id: itemId,
                     title: generateTitle(finalData),
                     category_id: suggestedCategoryId,
-                    price: finalData.price || (itemData.estimated_value * 0.95).toFixed(2),
+                    price: finalData.price ?? itemData.estimated_value ?? null,
                     condition: mapCondition(finalData.condition_score || 7),
                     description: generateDescription(finalData),
                     brand: finalData.brand || '',
@@ -831,7 +832,7 @@
                     loadDraftListings();
                     
                     // Show category selection popup
-                    showCategorySelector(result.listing_id, suggestedCategoryId, finalData);
+                    showCategorySelector(result.listing_id, suggestedCategoryId, finalData, categorySource);
                 } else {
                     showError(result.error || 'Failed to create draft listing');
                 }
@@ -880,7 +881,7 @@
             return desc;
         }
         
-        function showCategorySelector(listingId, suggestedCategoryId, itemData) {
+        function showCategorySelector(listingId, suggestedCategoryId, itemData, source = 'simulated') {
             const modal = document.createElement('div');
             modal.id = 'categoryModal';
             modal.style.cssText = `
@@ -892,6 +893,7 @@
             modal.innerHTML = `
                 <div style="background: white; border-radius: 8px; padding: 30px; max-width: 600px; width: 90%;">
                     <h3>Select Category for ${escapeHTML(itemData.item_name)}</h3>
+                    <p>Suggested category source: ${escapeHTML(source)}</p>
                     <div style="margin: 20px 0;">
                         <label>eBay Category:</label>
                         <select id="categorySelect" onchange="loadCategoryFields()" style="width: 100%; padding: 10px; margin-top: 5px;">
@@ -927,7 +929,7 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    displayCategoryFieldsTable(data.required_fields);
+                    displayCategoryFieldsTable(data.required_fields, data.source);
                 } else {
                     tableContainer.innerHTML = '<p>Error loading category fields</p>';
                 }
@@ -936,15 +938,16 @@
             }
         }
         
-        function displayCategoryFieldsTable(fields) {
+        function displayCategoryFieldsTable(fields, source = 'simulated') {
             const tableContainer = document.getElementById('categoryFieldsTable');
+            const sourceLabel = `<p>Source: ${escapeHTML(source)}</p>`;
             
             if (fields.length === 0) {
-                tableContainer.innerHTML = '<p>No required fields for this category</p>';
+                tableContainer.innerHTML = sourceLabel + '<p>No required fields for this category</p>';
                 return;
             }
             
-            let tableHTML = `
+            let tableHTML = sourceLabel + `
                 <h4>Required Fields for this Category:</h4>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                     <thead>
@@ -1139,12 +1142,12 @@
                         </div>
                         <div class="item-details">
                             <h4>${escapeHTML(draft.listing_data.title || draft.item_name)}</h4>
-                            <p><strong>$${draft.listing_data.price?.toFixed(2) || draft.estimated_value?.toFixed(2)}</strong> • Draft</p>
+                        <p><strong>${draft.listing_data.price != null ? '$' + Number(draft.listing_data.price).toFixed(2) : 'Unavailable'}</strong> • Draft • Source: ${escapeHTML(draft.source || 'simulated')}</p>
                             <p>Created: ${new Date(draft.upload_timestamp).toLocaleDateString()}</p>
                             <span class="status-badge status-draft">DRAFT</span>
                         </div>
                         <div class="item-actions">
-                            <button class="submit-btn" onclick="submitDraftToEbay('${escapeHTML(draft.id)}')">Submit to eBay</button>
+                            <button class="submit-btn" disabled title="Publishing disabled in this slice">Publishing disabled</button>
                             <button class="cancel-btn" onclick="deleteDraft('${escapeHTML(draft.id)}')">Delete</button>
                         </div>
                     </div>
@@ -1377,28 +1380,9 @@
                     <div class="item-result ${item.status === 'failed' ? 'not-worth' : (item.worth_listing ? 'worth-listing' : 'not-worth')}">
                         <div class="item-header">
                             <h4 class="item-name">${escapeHTML(item.item_name)}</h4>
-                            <span class="item-value">$${item.estimated_value.toFixed(2)}</span>
+                            <span class="item-value">${item.estimated_value == null ? 'Unavailable' : '$' + item.estimated_value.toFixed(2)}</span>
                         </div>
-                        <div class="item-details">
-                            <div class="detail-item">
-                                <span class="detail-label">Worth Listing:</span>
-                                <span class="detail-value ${item.worth_listing ? 'text-success' : 'text-danger'}">
-                                    ${item.worth_listing ? 'Yes' : 'No'}
-                                </span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Profitability:</span>
-                                <span class="detail-value">${escapeHTML(item.profitability.toUpperCase())}</span>
-                            </div>
-                            ${item.worth_listing ? `
-            
-            if (data.items && data.items.length > 0) {
-                resultsContainer.innerHTML = data.items.map(item => `
-                    <div class="item-result ${item.status === 'failed' ? 'not-worth' : (item.worth_listing ? 'worth-listing' : 'not-worth')}">
-                        <div class="item-header">
-                            <h4 class="item-name">${item.item_name}</h4>
-                            <span class="item-value">${item.status === 'failed' ? 'ERROR' : '$' + item.estimated_value.toFixed(2)}</span>
-                        </div>
+                        <p>Source: ${escapeHTML(item.source || 'simulated')}</p>
                         ${item.worth_listing ? `
                             <button class="create-listing-btn" onclick="createListing('${escapeHTML(item.item_id)}')" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                 Create Listing
@@ -1488,7 +1472,7 @@
                     <div class="item-details">
                         <h4>${escapeHTML(listing.listing_title)}</h4>
                         <p><strong>$${listing.listing_price?.toFixed(2)}</strong> • eBay ID: ${escapeHTML(listing.ebay_listing_id)}</p>
-                        <p>Status: ${escapeHTML(listing.listing_status?.toUpperCase())} • ${new Date(listing.submission_timestamp).toLocaleDateString()}</p>
+                        <p>Status: ${escapeHTML(listing.listing_status?.toUpperCase())} • Source: ${escapeHTML(listing.source || 'simulated')} • ${new Date(listing.submission_timestamp).toLocaleDateString()}</p>
                         <span class="status-badge status-${escapeHTML(listing.listing_status)}">${escapeHTML(listing.listing_status?.toUpperCase())}</span>
                     </div>
                     <div class="item-actions">
@@ -1512,7 +1496,8 @@
                     <img src="/uploads/${escapeHTML(item.image_filename)}" class="item-image" alt="${escapeHTML(item.item_name)}">
                     <div class="item-details">
                         <h4>${escapeHTML(item.item_name || 'Unknown Item')}</h4>
-                        <p><strong>$${item.estimated_value?.toFixed(2) || '0.00'}</strong> • Condition: ${item.condition_score || 0}/10</p>
+                        <p><strong>${item.estimated_value == null ? 'Unavailable' : '$' + item.estimated_value.toFixed(2)}</strong> • Condition: ${item.condition_score || 0}/10</p>
+                        <p>Source: ${escapeHTML(item.source || 'simulated')}</p>
                         <p>Profit: ${escapeHTML(item.profitability?.toUpperCase() || 'UNKNOWN')} • ${new Date(item.upload_timestamp).toLocaleDateString()}</p>
                         <span class="status-badge status-${escapeHTML(item.status)}">${escapeHTML(item.status?.toUpperCase() || 'ANALYZED')}</span>
                     </div>

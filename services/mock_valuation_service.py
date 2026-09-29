@@ -103,5 +103,6 @@ class MockValuationService:
             risks=mock_data["risks"],
             listing_tips=mock_data["listing_tips"],
             worth_listing=mock_data["worth_listing"],
-            confidence=mock_data["confidence"]
+            confidence=mock_data["confidence"],
+            source="fixture"
         )

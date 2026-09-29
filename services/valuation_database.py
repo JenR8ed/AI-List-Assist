@@ -179,7 +179,7 @@ class ValuationDatabase:
         
         c.execute('''
         SELECT id, image_filename, upload_timestamp, item_name, brand,
-               estimated_value, condition_score, profitability, worth_listing, status
+               estimated_value, condition_score, profitability, worth_listing, status, valuation_data
         FROM valuations 
         ORDER BY upload_timestamp DESC 
         LIMIT ?
@@ -198,7 +198,10 @@ class ValuationDatabase:
                 "condition_score": row[6],
                 "profitability": row[7],
                 "worth_listing": bool(row[8]),
-                "status": row[9]
+                "status": row[9],
+                "source": (json.loads(row[10] or '{}').get('source') or 'simulated'),
+                "availability": (json.loads(row[10] or '{}').get('status') or
+                                 ('unavailable' if row[5] is None else 'available'))
             }
             for row in rows
         ]
@@ -210,7 +213,7 @@ class ValuationDatabase:
         
         c.execute('''
         SELECT id, image_filename, upload_timestamp, item_name, brand,
-               estimated_value, condition_score, profitability, status
+               estimated_value, condition_score, profitability, status, valuation_data
         FROM valuations 
         WHERE status IN ('approved', 'submitted', 'listed')
         ORDER BY upload_timestamp DESC
@@ -228,7 +231,10 @@ class ValuationDatabase:
                 "estimated_value": row[5],
                 "condition_score": row[6],
                 "profitability": row[7],
-                "status": row[8]
+                "status": row[8],
+                "source": (json.loads(row[9] or '{}').get('source') or 'simulated'),
+                "availability": (json.loads(row[9] or '{}').get('status') or
+                                 ('unavailable' if row[5] is None else 'available'))
             }
             for row in rows
         ]
@@ -311,7 +317,8 @@ class ValuationDatabase:
                 "listing_status": row[5],
                 "item_name": row[6],
                 "image_filename": row[7],
-                "estimated_value": row[8]
+                "estimated_value": row[8],
+                "source": "simulated"
             }
             for row in rows
         ]
@@ -426,6 +433,7 @@ class ValuationDatabase:
                 "item_name": row[2], 
                 "estimated_value": row[3], 
                 "listing_data": json.loads(row[4]) if row[4] else {},
+                "source": (json.loads(row[4] or '{}').get('source') or 'simulated'),
                 "upload_timestamp": row[5]
             } 
             for row in rows

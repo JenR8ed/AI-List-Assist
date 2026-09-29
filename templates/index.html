@@ -353,6 +353,7 @@
                 <h2>📊 Valuation Results</h2>
                 
                 <div class="valuation-result" id="results">
+                    <div class="result-row"><span class="result-label">Source:</span><span class="result-value" id="valuationSource">-</span></div>
                     <div class="result-row">
                         <span class="result-label">Item:</span>
                         <span class="result-value" id="itemName">-</span>
@@ -367,7 +368,7 @@
                     </div>
 
                     <div class="result-row">
-                        <span class="result-label">💰 Value:</span>
+                        <span class="result-label">💰 Asking-price reference:</span>
                         <span class="result-value" id="value">-</span>
                     </div>
                     <div class="result-row">
@@ -542,7 +543,9 @@
                         brand: firstItem.brand || '-',
                         estimated_age: firstItem.estimated_age || '-',
                         estimated_value: firstItem.estimated_value,
-                        value_range: firstItem.value_range || { low: firstItem.estimated_value * 0.8, high: firstItem.estimated_value * 1.2 },
+                        value_range: firstItem.value_range,
+                        source: firstItem.source,
+                        status: firstItem.status,
                         condition_score: firstItem.condition_score || 7,
                         condition_notes: firstItem.condition_notes || '',
                         profitability: firstItem.profitability,
@@ -551,7 +554,7 @@
                         key_factors: firstItem.key_factors || [],
                         risks: firstItem.risks || [],
                         listing_tips: firstItem.listing_tips || [],
-                        confidence: firstItem.confidence || 0.7
+                        confidence: firstItem.confidence
                     });
                     loadHistory();
                     loadStats();
@@ -567,14 +570,16 @@
         });
 
         function displayResults(valuation) {
+            document.getElementById('valuationSource').textContent = valuation.source || 'simulated';
             document.getElementById('itemName').textContent = valuation.item_name || '-';
             document.getElementById('brand').textContent = valuation.brand || '-';
             document.getElementById('age').textContent = valuation.estimated_age || '-';
-            document.getElementById('value').textContent = '$' + (valuation.estimated_value || 0).toFixed(2);
+            document.getElementById('value').textContent = valuation.status === 'unavailable' || valuation.estimated_value == null
+                ? 'Unavailable' : '$' + valuation.estimated_value.toFixed(2);
 
             const range = valuation.value_range;
             document.getElementById('range').textContent = 
-                `$${(range?.low || 0).toFixed(2)} - $${(range?.high || 0).toFixed(2)}`;
+                range?.low != null && range?.high != null ? `$${range.low.toFixed(2)} - $${range.high.toFixed(2)}` : 'Unavailable';
 
             const condition = valuation.condition_score || 0;
             document.getElementById('condition').textContent = condition + '/10';
@@ -609,8 +614,9 @@
                     grid.innerHTML = data.data.map(item => `
                         <div class="history-item">
                             <h4>${escapeHTML(item.item_name)}</h4>
-                            <div class="price">$${(item.estimated_value || 0).toFixed(2)}</div>
+                            <div class="price">${item.estimated_value == null ? 'Unavailable' : '$' + item.estimated_value.toFixed(2)}</div>
                             <div class="meta">
+                                Source: ${escapeHTML(item.source || 'simulated')}<br>
                                 Condition: ${item.condition_score}/10<br>
                                 ${escapeHTML(item.profitability.toUpperCase())}<br>
                                 <small>${new Date(item.timestamp).toLocaleDateString()}</small>

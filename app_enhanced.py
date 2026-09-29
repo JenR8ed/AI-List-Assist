@@ -281,7 +281,8 @@ async def analyze_image():
                     "estimated_value": valuation.estimated_value,
                     "worth_listing": valuation.worth_listing,
                     "profitability": valuation.profitability.value,
-                    "status": "success"
+                    "status": valuation.status,
+                    "source": valuation.source
                 })
                 logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
             except Exception as val_error:
@@ -290,33 +291,12 @@ async def analyze_image():
                 item_results.append({
                     "item_id": item.item_id,
                     "item_name": item.probable_category or item.brand or "Unknown Item",
-                    "estimated_value": 0.0,
+                    "estimated_value": None,
                     "worth_listing": False,
                     "profitability": "not_recommended",
-                    "status": "failed",
+                    "status": "unavailable",
+                    "source": "simulated",
                     **item.to_dict()
-                })
-                valuations.append(valuation)
-                item_results.append({
-                    "item_id": valuation.item_id,
-                    "item_name": valuation.item_name,
-                    "estimated_value": valuation.estimated_value,
-                    "worth_listing": valuation.worth_listing,
-                    "profitability": valuation.profitability.value,
-                    "status": "success"
-                })
-                logger.info(f"Valued item {item.item_id}: {valuation.item_name}")
-            except Exception as val_error:
-                logger.exception(f"Valuation error for item {item.item_id}")
-                # Collect failed items for the frontend
-                item_results.append({
-                    "item_id": item.item_id,
-                    "item_name": item.brand or "Unknown Item",
-                    "estimated_value": 0.0,
-                    "worth_listing": False,
-                    "profitability": "not_recommended",
-                    "status": "failed",
-                    "error": "Valuation failed due to an internal error."
                 })
 
         # Step 3: Filter items worth listing
@@ -459,7 +439,7 @@ def create_listing():
             condition_score=7,
             condition_notes="",
             is_complete=conv_state.known_fields.get("is_complete", True),
-            estimated_value=conv_state.known_fields.get("price", 0.0),
+            estimated_value=conv_state.known_fields.get("price"),
             value_range={"low": 0, "high": 0},
             resale_score=7,
             profitability=Profitability.MEDIUM,
@@ -468,7 +448,9 @@ def create_listing():
             risks=[],
             listing_tips=[],
             worth_listing=True,
-            confidence=conv_state.confidence
+            confidence=conv_state.confidence,
+            source="simulated",
+            status="available" if conv_state.known_fields.get("price") is not None else "unavailable"
         )
 
         # Create listing draft
@@ -506,7 +488,8 @@ def create_listing():
 
         return jsonify({
             "success": True,
-            "listing": listing_draft.to_dict()
+            "listing": listing_draft.to_dict(),
+            "source": listing_draft.source
         })
 
     except Exception as e:
@@ -527,7 +510,8 @@ def validate_listing(listing_id):
         return jsonify({"error": "Listing draft not found"}), 404
     status, draft = stored
     errors = validate_draft(draft)
-    return jsonify({"listing_id": listing_id, "status": status, "valid": not errors, "errors": errors})
+    return jsonify({"listing_id": listing_id, "status": status, "valid": not errors, "errors": errors,
+                    "source": draft.get('source', 'simulated')})
 
 
 @app.route('/api/listing/<listing_id>/approve', methods=['POST'])
@@ -545,7 +529,8 @@ def approve_listing(listing_id):
         if errors:
             return jsonify({"error": "Draft incomplete", "errors": errors}), 422
         conn.execute("UPDATE listings SET status = 'approved' WHERE listing_id = ?", (listing_id,))
-    return jsonify({"listing_id": listing_id, "status": "approved"})
+    return jsonify({"listing_id": listing_id, "status": "approved",
+                    "source": json.loads(row[1]).get('source', 'simulated')})
 
 
 @app.route('/api/listing/<listing_id>', methods=['PUT'])
@@ -576,7 +561,8 @@ def edit_listing(listing_id):
         draft.update(changes)
         conn.execute('UPDATE listings SET draft_data = ?, title = ?, price = ?, status = ? WHERE listing_id = ?',
                      (json.dumps(draft), draft.get('title'), draft.get('price'), 'draft', listing_id))
-    return jsonify({"listing_id": listing_id, "status": "draft", "listing": draft})
+    return jsonify({"listing_id": listing_id, "status": "draft", "listing": draft,
+                    "source": draft.get('source', 'simulated')})
 
 
 @app.route('/api/listing/publish', methods=['POST'])
@@ -592,8 +578,10 @@ def publish_listing():
     status, draft = stored
     errors = validate_draft(draft)
     if errors or status != 'approved':
-        return jsonify({"error": "Draft must be complete and approved", "errors": errors}), 409
-    return jsonify({"error": "Publishing is disabled in this slice", "code": "FEATURE_DISABLED"}), 503
+        return jsonify({"error": "Draft must be complete and approved", "errors": errors,
+                        "source": draft.get('source', 'simulated')}), 409
+    return jsonify({"error": "Publishing is disabled in this slice", "code": "FEATURE_DISABLED",
+                    "source": draft.get('source', 'simulated')}), 503
 
 @app.route('/api/ebay/oauth/url', methods=['GET'])
 @require_api_key
@@ -624,7 +612,9 @@ def get_recent_valuations():
         valuations = db.get_recent_valuations(limit)
         return jsonify({
             "success": True,
-            "valuations": valuations
+            "valuations": valuations,
+            "source": valuations[0].get('source', 'simulated') if valuations and
+                      all(v.get('source') == valuations[0].get('source') for v in valuations) else 'simulated'
         })
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
@@ -637,7 +627,9 @@ def get_approved_valuations():
         valuations = db.get_approved_valuations()
         return jsonify({
             "success": True,
-            "approved_valuations": valuations
+            "approved_valuations": valuations,
+            "source": valuations[0].get('source', 'simulated') if valuations and
+                      all(v.get('source') == valuations[0].get('source') for v in valuations) else 'simulated'
         })
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
@@ -649,7 +641,7 @@ def approve_valuation(valuation_id):
     try:
         success = db.approve_valuation(valuation_id)
         if success:
-            return jsonify({"success": True, "message": "Valuation approved"})
+            return jsonify({"success": True, "message": "Valuation approved", "source": "simulated"})
         else:
             return jsonify({"error": "Valuation not found"}), 404
     except Exception as e:
@@ -678,9 +670,12 @@ def get_valuation(valuation_id):
 
         if row:
             valuation_data = json.loads(row[0])
+            valuation_data.setdefault('source', 'simulated')
+            valuation_data.setdefault('status', 'available')
             return jsonify({
                 "success": True,
-                "valuation": valuation_data
+                "valuation": valuation_data,
+                "source": valuation_data.get('source', 'simulated')
             })
         else:
             return jsonify({"error": "Valuation not found"}), 404
@@ -696,7 +691,8 @@ def get_category_aspects(category_id):
         return jsonify({
             "success": True,
             "category_id": category_id,
-            "aspects": aspects
+            "aspects": aspects,
+            "source": aspects.get('source', 'simulated')
         })
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
@@ -705,7 +701,8 @@ def get_category_aspects(category_id):
 @require_api_key
 def submit_listing_to_ebay():
     """Legacy submission path cannot bypass draft review or the publish shutdown."""
-    return jsonify({"error": "Publishing is disabled in this slice", "code": "FEATURE_DISABLED"}), 503
+    return jsonify({"error": "Publishing is disabled in this slice", "code": "FEATURE_DISABLED",
+                    "source": "simulated"}), 503
 
 @app.route('/api/listing/update-draft', methods=['POST'])
 @require_api_key
@@ -729,7 +726,7 @@ def update_draft_listing():
         })
 
         if success:
-            return jsonify({"success": True, "message": "Draft updated successfully"})
+            return jsonify({"success": True, "message": "Draft updated successfully", "source": "simulated"})
         else:
             return jsonify({"error": "Draft not found"}), 404
     except Exception as e:
@@ -759,7 +756,7 @@ def create_draft_listing():
 
     try:
         listing_id = db.create_draft_listing(valuation_id, listing_data)
-        return jsonify({"success": True, "listing_id": listing_id})
+        return jsonify({"success": True, "listing_id": listing_id, "source": "simulated"})
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
@@ -769,7 +766,7 @@ def get_draft_listings():
     """Get draft listings ready for eBay submission."""
     try:
         drafts = db.get_draft_listings()
-        return jsonify({"success": True, "drafts": drafts})
+        return jsonify({"success": True, "drafts": drafts, "source": "simulated"})
     except Exception as e:
         logger.exception("API Error")
         return jsonify({"error": "An internal server error occurred."}), 500
@@ -782,7 +779,8 @@ def get_live_listings():
         submissions = db.get_ebay_submissions()
         return jsonify({
             "success": True,
-            "listings": submissions
+            "listings": submissions,
+            "source": "simulated"
         })
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
@@ -807,6 +805,7 @@ def get_category_questions():
         return jsonify({
             "success": True,
             "category_id": category_id,
+            "source": required_fields[0].get('source', 'simulated') if required_fields else 'simulated',
             "required_fields": required_fields,
             "questions": questions,
             "validation": validation
@@ -827,7 +826,8 @@ def suggest_category():
 
         return jsonify({
             "success": True,
-            "suggestions": suggestions
+            "suggestions": suggestions,
+            "source": "simulated"
         })
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
@@ -841,7 +841,8 @@ def get_required_fields(category_id):
         return jsonify({
             "success": True,
             "category_id": category_id,
-            "required_fields": required_fields
+            "required_fields": required_fields,
+            "source": required_fields[0].get('source', 'simulated') if required_fields else 'simulated'
         })
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
@@ -897,7 +898,8 @@ def refresh_live_listings():
         return jsonify({
             "success": True,
             "message": f"Refreshed {len(active_listings)} listings",
-            "listings": active_listings
+            "listings": [{**listing, "source": "live"} for listing in active_listings],
+            "source": "live"
         })
     except Exception as e:
         logger.exception("API Error")
@@ -918,7 +920,8 @@ def get_ebay_listing(ebay_listing_id):
         }
         return jsonify({
             "success": True,
-            "listing": listing
+            "listing": {**listing, "source": "simulated"},
+            "source": "simulated"
         })
     except Exception as e:
         logger.exception("API Error")
@@ -948,7 +951,8 @@ def update_ebay_listing():
         return jsonify({
             "success": True,
             "message": "Listing updated successfully",
-            "ebay_response": update_response
+            "ebay_response": update_response,
+            "source": "simulated"
         })
     except Exception as e:
         logger.exception("API Error")
@@ -972,7 +976,8 @@ def end_ebay_listing():
         return jsonify({
             "success": True,
             "message": "Listing ended successfully",
-            "ebay_listing_id": ebay_listing_id
+            "ebay_listing_id": ebay_listing_id,
+            "source": "simulated"
         })
     except Exception as e:
         logger.exception("API Error")

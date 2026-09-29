@@ -3,16 +3,18 @@ logger = logging.getLogger(__name__)
 
 from typing import Dict, Any, Optional
 import requests
+import os
 from shared.models import ItemValuation, Profitability
 
 class ValuationService:
-    """Real market valuation service utilizing eBay Browse API for dynamic pricing based on sold items."""
+    """Optional Browse API asking-price comparison, never sold-price history."""
 
     # Use Production API base for Browse API (OAuth typically scoped here or sandbox)
     BROWSE_API_URL = "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search"
 
     def __init__(self, use_sandbox: bool = True):
         self.use_sandbox = use_sandbox
+        self.offline = os.getenv('LOCAL_DRAFT_MODE') == '1'
         self.base_url = "https://api.sandbox.ebay.com/buy/browse/v1/item_summary/search" if use_sandbox else "https://api.ebay.com/buy/browse/v1/item_summary/search"
         from services.ebay_token_manager import EBayTokenManager
         self.token_manager = EBayTokenManager(use_sandbox=self.use_sandbox)
@@ -32,9 +34,8 @@ class ValuationService:
 
     def evaluate_item(self, image_base64: str, content_type: str, item_data: Dict[str, Any]) -> ItemValuation:
         """
-        Calculates the real market valuation for an item.
-        This mock function mimics calling eBay's Browse Search API for recently sold matching items
-        and calculating their average to determine the estimated value dynamically.
+        Compare visible fixed-price asking prices when the Browse API is available.
+        A missing token, failed request or empty result leaves pricing unavailable.
         """
         # Formulate search query from item data
         brand = item_data.get("brand", "")
@@ -42,18 +43,16 @@ class ValuationService:
         # Ensure we have a valid keyword
         keywords = f"{brand} {item_name}".strip()
 
-        estimated_value = 19.99 # Base fallback
+        estimated_value = None
 
-        token = self._get_access_token()
+        token = None if self.offline else self._get_access_token()
         if token and keywords:
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
             }
-            # Search parameters aiming for completed/sold items
-            # The Browse API might require specific category constraints or filters to effectively find historical sold prices,
-            # but we use standard item summary search mock query.
+            # Browse item summaries are current offers, not completed sales.
             params = {
                 "q": keywords,
                 "limit": "10",
@@ -71,16 +70,21 @@ class ValuationService:
                         count = 0
                         for item in summaries:
                             price_val = item.get("price", {}).get("value")
-                            if price_val:
-                                total_price += float(price_val)
-                                count += 1
+                            try:
+                                price = float(price_val)
+                                if price > 0:
+                                    total_price += price
+                                    count += 1
+                            except (TypeError, ValueError):
+                                continue
                         if count > 0:
                             estimated_value = round((total_price / count), 2)
-                            logger.debug(f"DEBUG VALUATION: Calculated 90-day avg for '{keywords}': ${estimated_value}")
+                            logger.debug("Calculated mean asking price for %s", keywords)
             except Exception as e:
                 logger.exception("Valuation exception")
 
-        profitability = self._determine_profitability(estimated_value)
+        available = estimated_value is not None
+        profitability = self._determine_profitability(estimated_value) if available else Profitability.NOT_RECOMMENDED
 
         return ItemValuation(
             item_id=item_data.get("item_id", "unknown"),
@@ -89,17 +93,19 @@ class ValuationService:
             estimated_value=estimated_value,
             estimated_age=None,
             is_complete=True,
-            value_range={"low": max(0.9, estimated_value * 0.8), "high": estimated_value * 1.2},
+            value_range={},  # Browse results do not establish a defensible resale range.
             condition_score=7,
             profitability=profitability,
-            resale_score=7,
-            recommended_platforms=["eBay"],
-            confidence=0.85,
-            worth_listing=(estimated_value > 10.0),
-            key_factors=["Based on 90-day moving average of sold eBay listings"],
+            resale_score=0,
+            recommended_platforms=[],
+            confidence=0.0,
+            worth_listing=available and estimated_value > 10.0,
+            key_factors=["Mean of current fixed-price asking prices; not sold-price history"] if available else [],
             risks=[],
             listing_tips=[],
-            condition_notes="Assumes typical used condition"
+            condition_notes="Condition not assessed from market data",
+            source="live" if token else "simulated",
+            status="available" if available else "unavailable"
         )
 
     def _determine_profitability(self, value: float) -> Profitability:

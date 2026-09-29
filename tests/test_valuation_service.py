@@ -30,8 +30,7 @@ class TestValuationService(unittest.TestCase):
             "brand": "TestBrand"
         }
 
-        # The service should catch the exception and return a valid ItemValuation
-        # using the base fallback estimated_value (19.99).
+        # A failed lookup must not fabricate a price or confidence.
         result = self.service.evaluate_item(
             image_base64="dummy_base64",
             content_type="image/jpeg",
@@ -41,8 +40,34 @@ class TestValuationService(unittest.TestCase):
         # Assertions
         mock_get.assert_called_once()
         self.assertEqual(result.item_id, "test_id_123")
-        self.assertEqual(result.estimated_value, 19.99)
-        self.assertEqual(result.profitability, Profitability.MEDIUM)
+        self.assertIsNone(result.estimated_value)
+        self.assertEqual(result.status, 'unavailable')
+        self.assertEqual(result.source, 'live')
+        self.assertEqual(result.value_range, {})
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.profitability, Profitability.NOT_RECOMMENDED)
+        self.assertFalse(result.worth_listing)
+
+    def test_no_token_marks_price_unavailable_without_request(self):
+        self.mock_token_manager.get_valid_token.return_value = None
+        with patch.object(self.service.session, 'get') as mock_get:
+            result = self.service.evaluate_item('', 'image/jpeg', {'item_name': 'Camera'})
+        mock_get.assert_not_called()
+        self.assertIsNone(result.estimated_value)
+        self.assertEqual(result.status, 'unavailable')
+        self.assertEqual(result.source, 'simulated')
+
+    def test_browse_results_are_labeled_as_current_asking_prices(self):
+        with patch.object(self.service.session, 'get') as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {'itemSummaries': [
+                {'price': {'value': '20.00'}}, {'price': {'value': '40.00'}}]}
+            result = self.service.evaluate_item('', 'image/jpeg', {'item_name': 'Camera'})
+        self.assertEqual(result.estimated_value, 30.0)
+        self.assertEqual(result.source, 'live')
+        self.assertEqual(result.status, 'available')
+        self.assertEqual(result.confidence, 0.0)
+        self.assertIn('asking prices', result.key_factors[0])
 
 if __name__ == '__main__':
     unittest.main()

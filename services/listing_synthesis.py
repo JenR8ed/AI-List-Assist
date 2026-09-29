@@ -75,6 +75,7 @@ Return strictly valid JSON following this format:
                 parsed_data["listing_id"] = str(uuid.uuid4())
                 parsed_data["item_id"] = item_id
                 parsed_data["images"] = images or []
+                parsed_data["source"] = "live"  # A model response generated this draft.
 
                 # Re-dump to string for model_validate_json
                 clean_json = json.dumps(parsed_data)

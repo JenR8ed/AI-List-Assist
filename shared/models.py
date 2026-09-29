@@ -5,7 +5,7 @@ Defines canonical data structures used across services.
 
 from dataclasses import dataclass, field
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 from enum import Enum
 
@@ -79,7 +79,7 @@ class ItemValuation:
     condition_score: int  # 1-10
     condition_notes: str
     is_complete: bool
-    estimated_value: float
+    estimated_value: Optional[float]
     value_range: Dict[str, float]  # {"low": x, "high": y}
     resale_score: int  # 1-10
     profitability: Profitability
@@ -89,6 +89,8 @@ class ItemValuation:
     listing_tips: List[str]
     worth_listing: bool
     confidence: float  # 0.0-1.0
+    source: Literal["fixture", "live", "simulated"] = "simulated"
+    status: Literal["available", "unavailable"] = "available"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -108,7 +110,9 @@ class ItemValuation:
             "risks": self.risks,
             "listing_tips": self.listing_tips,
             "worth_listing": self.worth_listing,
-            "confidence": self.confidence
+            "confidence": self.confidence,
+            "source": self.source,
+            "status": self.status
         }
 
 
@@ -153,6 +157,7 @@ class ListingDraft(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     missing_required_specifics: List[str] = Field(default_factory=list)
     ready_for_api: bool = False
+    source: Literal["fixture", "live", "simulated"] = "simulated"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -169,7 +174,8 @@ class ListingDraft(BaseModel):
             "confidence": self.confidence,
             "created_at": self.created_at.isoformat() if hasattr(self.created_at, 'isoformat') else self.created_at,
             "missing_required_specifics": self.missing_required_specifics,
-            "ready_for_api": self.ready_for_api
+            "ready_for_api": self.ready_for_api,
+            "source": self.source
         }
 
 
