@@ -3,13 +3,16 @@ Enhanced Flask App - End-to-End eBay Listing Assistant
 Integrates all services: vision, valuation, conversation, listing synthesis, eBay API
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, abort, render_template, request, jsonify, session
 from werkzeug.utils import secure_filename
 import base64
 import json
 import os
 import logging
 import hmac
+import ipaddress
+import secrets
+from urllib.parse import urlsplit
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -40,9 +43,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['LOCAL_DRAFT_MODE'] = os.getenv('LOCAL_DRAFT_MODE') == '1'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY') or (
+    secrets.token_hex(32) if app.config['LOCAL_DRAFT_MODE'] else None
+)
 if not app.config['SECRET_KEY']:
     raise ValueError("SECRET_KEY environment variable must be set")
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
+app.config['SESSION_COOKIE_SECURE'] = not app.config['LOCAL_DRAFT_MODE']
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
@@ -81,13 +90,44 @@ except Exception as e:
 
 from functools import wraps
 
+def _is_local_request():
+    """Local mode is for a direct loopback browser, never a public host."""
+    try:
+        address = ipaddress.ip_address(request.remote_addr)
+        hostname = urlsplit(f"http://{request.host}").hostname
+        return address.is_loopback and hostname in ('localhost', '127.0.0.1', '::1')
+    except ValueError:
+        return False
+
+
+def _render_local_ui(template):
+    csrf_token = ''
+    if app.config['LOCAL_DRAFT_MODE']:
+        if not _is_local_request():
+            abort(403)
+        session['local_ui'] = True
+        csrf_token = session.setdefault('csrf_token', secrets.token_urlsafe(32))
+    return render_template(template, csrf_token=csrf_token)
+
+
 def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        if app.config['LOCAL_DRAFT_MODE']:
+            # No local UI request or server-to-server key can publish in draft mode.
+            if request.path.startswith('/api/ebay/') or request.path == '/api/listing/publish':
+                return jsonify({"error": "Marketplace integration disabled in local draft mode"}), 503
+            if session.get('local_ui') and _is_local_request():
+                if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+                    supplied = request.headers.get('X-CSRF-Token', '')
+                    if not supplied or not hmac.compare_digest(supplied, session.get('csrf_token', '')):
+                        return jsonify({"error": "Invalid CSRF token"}), 403
+                return app.ensure_sync(f)(*args, **kwargs)
+
         api_key = os.getenv('API_KEY')
         if not api_key:
-            # If no API key is configured, we might want to allow it for dev
-            # But for security, we should enforce it.
+            if app.config['LOCAL_DRAFT_MODE']:
+                return jsonify({"error": "Unauthorized"}), 401
             return jsonify({"error": "Server misconfiguration: API_KEY not set"}), 500
 
         request_key = request.headers.get('Authorization')
@@ -97,7 +137,7 @@ def require_api_key(f):
         if not request_key or not hmac.compare_digest(request_key, api_key):
             return jsonify({"error": "Unauthorized"}), 401
 
-        return f(*args, **kwargs)
+        return app.ensure_sync(f)(*args, **kwargs)
     return decorated_function
 
 # ============================================================================
@@ -160,12 +200,12 @@ def health_check():
 @app.route('/')
 def index():
     """Main dashboard page."""
-    return render_template('dashboard.html')
+    return _render_local_ui('dashboard.html')
 
 @app.route('/simple')
 def simple_interface():
     """Simple upload interface."""
-    return render_template('index.html')
+    return _render_local_ui('index.html')
 
 @app.route('/api/analyze', methods=['POST'])
 @require_api_key
@@ -1059,4 +1099,5 @@ if __name__ == '__main__':
     logger.info("Database initialized")
     logger.info("Starting Enhanced eBay Listing Assistant")
     logger.info("Visit: http://localhost:5000")
-    app.run(debug=os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't'), host='0.0.0.0', port=5000)
+    host = '127.0.0.1' if app.config['LOCAL_DRAFT_MODE'] else '0.0.0.0'
+    app.run(debug=os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't'), host=host, port=5000)

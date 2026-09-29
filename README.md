@@ -6,6 +6,8 @@ AI List Assist is Jennifer McKinley's applied AI engineering project for product
 
 ## Current local verification
 
+For the local UI, start the Flask app with `LOCAL_DRAFT_MODE=1 python app_enhanced.py` and open `http://127.0.0.1:5000/`. This mode binds to loopback, creates an ephemeral signing secret when `SECRET_KEY` is absent, and gives the local browser a signed session and CSRF token. No provider key or browser-visible `API_KEY` is needed; marketplace routes return 503 in this mode. Image analysis still needs the fixture implementation planned for the next slice task.
+
 From a fresh, disposable clone with Python 3.12+, install the checked-in dependencies and run the offline smoke tests:
 
 ```bash

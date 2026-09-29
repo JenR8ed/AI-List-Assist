@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>eBay Listing Assistant - Valuation Tracker</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -301,6 +302,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/api_client.js') }}"></script>
     <script>
         // Security helper to prevent XSS
         function escapeHTML(str) {
@@ -441,7 +443,7 @@
             currentListingId = ebayListingId;
             
             try {
-                const response = await fetch(`/api/ebay/listing/${ebayListingId}`);
+                const response = await apiFetch(`/api/ebay/listing/${ebayListingId}`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -472,7 +474,7 @@
             const aspectsContainer = document.getElementById('updateCategoryAspects');
             
             try {
-                const response = await fetch(`/api/category/${categoryId}/aspects`);
+                const response = await apiFetch(`/api/category/${categoryId}/aspects`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -547,7 +549,7 @@
                 updateBtn.textContent = 'Updating...';
                 updateBtn.setAttribute('aria-busy', 'true');
                 
-                const response = await fetch('/api/ebay/update-listing', {
+                const response = await apiFetch('/api/ebay/update-listing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updateData)
@@ -576,7 +578,7 @@
             if (!confirm('Are you sure you want to end this listing?')) return;
             
             try {
-                const response = await fetch('/api/ebay/end-listing', {
+                const response = await apiFetch('/api/ebay/end-listing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ebay_listing_id: ebayListingId })
@@ -605,7 +607,7 @@
             const aspectsContainer = document.getElementById('categoryAspects');
 
             try {
-                const response = await fetch(`/api/category/${categoryId}/aspects`);
+                const response = await apiFetch(`/api/category/${categoryId}/aspects`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -675,7 +677,7 @@
                 }
                 
                 // Start conversation to gather missing details
-                const response = await fetch('/api/conversation/start', {
+                const response = await apiFetch('/api/conversation/start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -744,7 +746,7 @@
             if (!answer) return;
             
             try {
-                const response = await fetch('/api/conversation/answer', {
+                const response = await apiFetch('/api/conversation/answer', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -784,7 +786,7 @@
         async function proceedToCreateDraft(itemId, itemData, conversationData = {}) {
             try {
                 // Get category suggestions from Gemini
-                const categoryResponse = await fetch('/api/category/suggest', {
+                const categoryResponse = await apiFetch('/api/category/suggest', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -816,7 +818,7 @@
                     aspects: {}
                 };
                 
-                const response = await fetch('/api/listing/create-draft', {
+                const response = await apiFetch('/api/listing/create-draft', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(draftData)
@@ -921,7 +923,7 @@
             const tableContainer = document.getElementById('categoryFieldsTable');
             
             try {
-                const response = await fetch(`/api/category/${categoryId}/fields`);
+                const response = await apiFetch(`/api/category/${categoryId}/fields`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1009,7 +1011,7 @@
             });
             
             try {
-                const response = await fetch('/api/listing/update-draft', {
+                const response = await apiFetch('/api/listing/update-draft', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -1077,7 +1079,7 @@
                 createBtn.textContent = 'Creating...';
                 createBtn.setAttribute('aria-busy', 'true');
                 
-                const response = await fetch('/api/listing/create-draft', {
+                const response = await apiFetch('/api/listing/create-draft', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(listingData)
@@ -1104,7 +1106,7 @@
         
         async function loadDraftListings() {
             try {
-                const response = await fetch('/api/listings/drafts');
+                const response = await apiFetch('/api/listings/drafts');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1153,7 +1155,7 @@
         async function submitDraftToEbay(draftId) {
             // Use existing eBay submission logic
             try {
-                const response = await fetch('/api/ebay/submit-listing', {
+                const response = await apiFetch('/api/ebay/submit-listing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ valuation_id: draftId })
@@ -1204,7 +1206,7 @@
                 submitBtn.textContent = 'Submitting...';
                 submitBtn.setAttribute('aria-busy', 'true');
                 
-                const response = await fetch('/api/ebay/submit-listing', {
+                const response = await apiFetch('/api/ebay/submit-listing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(listingData)
@@ -1332,7 +1334,7 @@
             document.getElementById('analysisResults').style.display = 'none';
 
             try {
-                const response = await fetch('/api/analyze', {
+                const response = await apiFetch('/api/analyze', {
                     method: 'POST',
                     body: formData
                 });
@@ -1414,7 +1416,7 @@
 
         async function loadStats() {
             try {
-                const response = await fetch('/api/stats');
+                const response = await apiFetch('/api/stats');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1430,7 +1432,7 @@
 
         async function loadRecentValuations() {
             try {
-                const response = await fetch('/api/valuations/recent');
+                const response = await apiFetch('/api/valuations/recent');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1443,7 +1445,7 @@
 
         async function refreshLiveListings() {
             try {
-                const response = await fetch('/api/ebay/refresh-listings', {
+                const response = await apiFetch('/api/ebay/refresh-listings', {
                     method: 'POST'
                 });
                 const data = await response.json();
@@ -1461,7 +1463,7 @@
         
         async function loadLiveListings() {
             try {
-                const response = await fetch('/api/ebay/live-listings');
+                const response = await apiFetch('/api/ebay/live-listings');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1524,7 +1526,7 @@
 
         async function approveValuation(valuationId) {
             try {
-                const response = await fetch(`/api/valuations/${valuationId}/approve`, {
+                const response = await apiFetch(`/api/valuations/${valuationId}/approve`, {
                     method: 'POST'
                 });
                 

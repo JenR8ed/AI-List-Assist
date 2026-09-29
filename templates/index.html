@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>AI Item Valuation - Reseller Helper</title>
     <style>
         * {
@@ -431,6 +432,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/api_client.js') }}"></script>
     <script>
         // Security helper to prevent XSS
         function escapeHTML(str) {
@@ -520,7 +522,7 @@
             results.classList.remove('show');
 
             try {
-                const response = await fetch('/api/analyze', {
+                const response = await apiFetch('/api/analyze', {
                     method: 'POST',
                     body: formData
                 });
@@ -594,7 +596,7 @@
 
         async function loadHistory() {
             try {
-                const response = await fetch('/api/history?limit=9');
+                const response = await apiFetch('/api/history?limit=9');
                 const data = await response.json();
 
                 if (data.success) {
@@ -623,7 +625,7 @@
 
         async function loadStats() {
             try {
-                const response = await fetch('/api/stats');
+                const response = await apiFetch('/api/stats');
                 const data = await response.json();
 
                 if (data.success) {
