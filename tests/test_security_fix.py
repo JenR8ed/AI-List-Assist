@@ -39,8 +39,8 @@ class TestSecurityFix(unittest.TestCase):
         # Check for generic messages
         self.assertIn('"Vision service failed to process the image."', content)
         self.assertIn('"An internal error occurred while processing the image."', content)
-        self.assertIn('"eBay publishing failed. Please check your connection and authentication."', content)
-        self.assertIn('"eBay publishing failed due to an internal error."', content)
+        # Both former publish paths now fail closed with the same generic notice.
+        self.assertEqual(content.count('"Publishing is disabled in this slice"'), 2)
 
 if __name__ == "__main__":
     unittest.main()

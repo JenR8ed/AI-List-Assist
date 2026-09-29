@@ -57,11 +57,19 @@ def test_server_key_remains_separate_from_local_ui_session(local_client, monkeyp
     assert app.test_client().post('/api/analyze').status_code == 401
 
 
-@pytest.mark.parametrize('path', ['/api/listing/publish', '/api/ebay/submit-listing', '/api/ebay/token/refresh'])
+@pytest.mark.parametrize('path', ['/api/ebay/submit-listing', '/api/ebay/token/refresh'])
 def test_marketplace_routes_disabled_in_local_mode(local_client, path):
     response = local_client.post(path)
     assert response.status_code == 503
     assert response.json['error'] == 'Marketplace integration disabled in local draft mode'
+
+
+def test_publish_requires_session_then_rejects_missing_id(local_client):
+    assert local_client.post('/api/listing/publish').status_code == 401
+    token = _csrf_from(local_client.get('/', base_url='http://127.0.0.1:5000'))
+    response = local_client.post('/api/listing/publish', json={}, headers={'X-CSRF-Token': token},
+                                 base_url='http://127.0.0.1:5000')
+    assert response.status_code == 400
 
 
 def test_fresh_checkout_import_needs_no_credentials_or_network(tmp_path):

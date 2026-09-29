@@ -218,33 +218,12 @@ class TestListingReconstruction(unittest.TestCase):
         self.assertEqual(saved_draft['title'], "Test Title")
         self.assertEqual(saved_draft['condition'], ItemCondition.USED.value)
 
-        # 4. Mock eBay publish and call it
-        with patch('services.ebay_integration.eBayIntegration.create_listing') as mock_ebay_publish:
-            mock_ebay_publish.return_value = {
-                "listing_id": "ebay_12345",
-                "status": "published",
-                "url": "http://ebay.com/12345"
-            }
-
-            with patch('services.ebay_token_manager.EBayTokenManager.get_valid_token') as mock_get_token:
-                mock_get_token.return_value = "valid_token"
-
-                response = self.client.post('/api/listing/publish', headers={'Authorization': 'Bearer test', 'X-API-Key': 'test'}, json={
-                    "listing_id": listing_id
-                })
-
-                self.assertEqual(response.status_code, 200)
-                data = response.get_json()
-                self.assertEqual(data['ebay_listing_id'], "ebay_12345")
-
-                # 5. Verify the draft was reconstructed correctly
-                # We check this by seeing if create_listing was called with a ListingDraft object
-                args, kwargs = app_enhanced.ebay_integration.create_listing.call_args
-                reconstructed_draft = args[0]
-                self.assertIsInstance(reconstructed_draft, ListingDraft)
-                self.assertEqual(reconstructed_draft.title, "Test Title")
-                self.assertEqual(reconstructed_draft.condition, ItemCondition.USED)
-                self.assertEqual(reconstructed_draft.price, 100.0)
+        # Draft creation never implies approval or marketplace submission.
+        response = self.client.post('/api/listing/publish', headers={'Authorization': 'Bearer test'}, json={
+            "listing_id": listing_id
+        })
+        self.assertEqual(response.status_code, 409)
+        app_enhanced.ebay_integration.create_listing.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()

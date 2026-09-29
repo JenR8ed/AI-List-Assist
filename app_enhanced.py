@@ -15,6 +15,7 @@ import secrets
 from urllib.parse import urlsplit
 from datetime import datetime
 from pathlib import Path
+from contextlib import closing
 from dotenv import load_dotenv
 import sqlite3
 import uuid
@@ -31,6 +32,7 @@ from services.valuation_service import ValuationService
 from services.ebay_category_service import EBayCategoryService
 from services.draft_image_manager import DraftImageManager
 from services.category_detail_generator import CategoryDetailGenerator
+from services.draft_review import validate_draft
 
 # Load environment variables
 load_dotenv()
@@ -115,7 +117,7 @@ def require_api_key(f):
     def decorated_function(*args, **kwargs):
         if app.config['LOCAL_DRAFT_MODE']:
             # No local UI request or server-to-server key can publish in draft mode.
-            if request.path.startswith('/api/ebay/') or request.path == '/api/listing/publish':
+            if request.path.startswith('/api/ebay/'):
                 return jsonify({"error": "Marketplace integration disabled in local draft mode"}), 503
             if session.get('local_ui') and _is_local_request():
                 if request.method not in ('GET', 'HEAD', 'OPTIONS'):
@@ -510,84 +512,88 @@ def create_listing():
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
+def _stored_listing(listing_id):
+    with closing(sqlite3.connect('listings.db', check_same_thread=False)) as conn:
+        row = conn.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,)).fetchone()
+    return (row[0], json.loads(row[1])) if row and row[1] else None
+
+
+@app.route('/api/listing/<listing_id>/validate', methods=['GET'])
+@require_api_key
+def validate_listing(listing_id):
+    """Validate local review fields without approving or publishing."""
+    stored = _stored_listing(listing_id)
+    if not stored:
+        return jsonify({"error": "Listing draft not found"}), 404
+    status, draft = stored
+    errors = validate_draft(draft)
+    return jsonify({"listing_id": listing_id, "status": status, "valid": not errors, "errors": errors})
+
+
+@app.route('/api/listing/<listing_id>/approve', methods=['POST'])
+@require_api_key
+def approve_listing(listing_id):
+    """Record human approval only after the stored draft passes validation."""
+    with closing(sqlite3.connect('listings.db', check_same_thread=False)) as conn, conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,)).fetchone()
+        if not row or not row[1]:
+            return jsonify({"error": "Listing draft not found"}), 404
+        if row[0] not in ('draft', 'approved'):
+            return jsonify({"error": "Listing is not a draft"}), 409
+        errors = validate_draft(json.loads(row[1]))
+        if errors:
+            return jsonify({"error": "Draft incomplete", "errors": errors}), 422
+        conn.execute("UPDATE listings SET status = 'approved' WHERE listing_id = ?", (listing_id,))
+    return jsonify({"listing_id": listing_id, "status": "approved"})
+
+
+@app.route('/api/listing/<listing_id>', methods=['PUT'])
+@require_api_key
+def edit_listing(listing_id):
+    """Save review edits and revoke any previous approval."""
+    changes = request.get_json(silent=True)
+    editable = {'title', 'description', 'category_id', 'condition', 'price', 'item_specifics', 'images'}
+    if not isinstance(changes, dict) or not changes or set(changes) - editable:
+        return jsonify({"error": "Provide only editable draft fields"}), 400
+    if any(not isinstance(changes[key], str) for key in changes.keys() &
+           {'title', 'description', 'category_id', 'condition'}):
+        return jsonify({"error": "Text draft fields must be strings"}), 400
+    if 'price' in changes and (isinstance(changes['price'], bool) or
+                               not isinstance(changes['price'], (int, float))):
+        return jsonify({"error": "price must be a number"}), 400
+    if ('item_specifics' in changes and not isinstance(changes['item_specifics'], dict) or
+            'images' in changes and not isinstance(changes['images'], list)):
+        return jsonify({"error": "Invalid draft field type"}), 400
+    with closing(sqlite3.connect('listings.db', check_same_thread=False)) as conn, conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,)).fetchone()
+        if not row or not row[1]:
+            return jsonify({"error": "Listing draft not found"}), 404
+        if row[0] not in ('draft', 'approved'):
+            return jsonify({"error": "Listing is not editable"}), 409
+        draft = json.loads(row[1])
+        draft.update(changes)
+        conn.execute('UPDATE listings SET draft_data = ?, title = ?, price = ?, status = ? WHERE listing_id = ?',
+                     (json.dumps(draft), draft.get('title'), draft.get('price'), 'draft', listing_id))
+    return jsonify({"listing_id": listing_id, "status": "draft", "listing": draft})
+
+
 @app.route('/api/listing/publish', methods=['POST'])
 @require_api_key
 def publish_listing():
-    """Publish listing to eBay."""
-    if not ebay_integration:
-        return jsonify({"error": "eBay integration not initialized"}), 500
-
-    data = request.json
-    if not data:
-        return jsonify({"error": "No JSON data provided"}), 400
-
-    listing_id = data.get('listing_id')
-
-    if not listing_id:
+    """Reject unapproved drafts; publishing remains disabled even after approval."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get('listing_id'), str) or not data['listing_id']:
         return jsonify({"error": "listing_id required"}), 400
-
-    try:
-        # Get listing from database
-        conn = sqlite3.connect('listings.db', check_same_thread=False)
-        c = conn.cursor()
-        c.execute('SELECT draft_data FROM listings WHERE listing_id = ?', (listing_id,))
-        row = c.fetchone()
-        conn.close()
-
-        if not row or not row[0]:
-            return jsonify({"error": "Listing draft data not found"}), 404
-
-        # Reconstruct ListingDraft from DB
-        draft_dict = json.loads(row[0])
-
-        # Handle datetime conversion
-        if 'created_at' in draft_dict:
-            draft_dict['created_at'] = datetime.fromisoformat(draft_dict['created_at'])
-
-        # Handle condition Enum conversion
-        if 'condition' in draft_dict:
-            draft_dict['condition'] = ItemCondition(draft_dict['condition'])
-
-        listing_draft = ListingDraft(**draft_dict)
-
-        # Ensure we have a valid eBay token
-        token = ebay_integration.token_manager.get_valid_token()
-        if token:
-            ebay_integration.access_token = token
-
-        # Publish to eBay
-        try:
-            ebay_result = ebay_integration.create_listing(listing_draft)
-            ebay_listing_id = ebay_result.get("listing_id")
-
-            # Update database status
-            conn = sqlite3.connect('listings.db', check_same_thread=False)
-            c = conn.cursor()
-            c.execute('''
-                UPDATE listings
-                SET status = ?, ebay_listing_id = ?
-                WHERE listing_id = ?
-            ''', ("active", ebay_listing_id, listing_id))
-            conn.commit()
-            conn.close()
-
-            return jsonify({
-                "success": True,
-                "message": "Listing published successfully to eBay",
-                "listing_id": listing_id,
-                "ebay_listing_id": ebay_listing_id,
-                "url": ebay_result.get("url")
-            })
-        except Exception as ebay_err:
-            logger.exception("eBay publishing failed")
-            return jsonify({
-                "error": "eBay publishing failed. Please check your connection and authentication.",
-                "note": "Make sure you have completed the eBay OAuth flow"
-            }), 401
-
-    except Exception as e:
-        logger.exception("API Error")
-        return jsonify({"error": "An internal server error occurred."}), 500
+    stored = _stored_listing(data['listing_id'])
+    if not stored:
+        return jsonify({"error": "Listing draft not found"}), 404
+    status, draft = stored
+    errors = validate_draft(draft)
+    if errors or status != 'approved':
+        return jsonify({"error": "Draft must be complete and approved", "errors": errors}), 409
+    return jsonify({"error": "Publishing is disabled in this slice", "code": "FEATURE_DISABLED"}), 503
 
 @app.route('/api/ebay/oauth/url', methods=['GET'])
 @require_api_key
@@ -698,111 +704,8 @@ def get_category_aspects(category_id):
 @app.route('/api/ebay/submit-listing', methods=['POST'])
 @require_api_key
 def submit_listing_to_ebay():
-    """Submit listing to eBay with category aspects."""
-    data = request.json
-    if not data:
-        return jsonify({"error": "No JSON data provided"}), 400
-
-    valuation_id = data.get('valuation_id')
-
-    if not valuation_id:
-        return jsonify({"error": "valuation_id required"}), 400
-
-    try:
-        # Get valuation data for mapping
-        conn = sqlite3.connect('valuations.db', check_same_thread=False)
-        c = conn.cursor()
-        c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (valuation_id,))
-        row = c.fetchone()
-        conn.close()
-
-        if not row:
-            return jsonify({"error": "Valuation not found"}), 404
-
-        valuation_data = json.loads(row[0])
-
-        # Map valuation to category aspects
-        category_id = data.get('category_id', '293')
-        mapped_aspects = category_service.map_valuation_to_aspects(valuation_data, category_id)
-
-        # Validate aspects
-        validation = category_service.validate_aspects(mapped_aspects, category_id)
-
-        # Build complete listing data
-        listing_data = {
-            "title": data.get('title'),
-            "category_id": category_id,
-            "price": data.get('price'),
-            "condition": data.get('condition'),
-            "description": data.get('description'),
-            "aspects": validation["aspects"],
-            "validation_errors": validation["errors"]
-        }
-        # Ensure we have a valid eBay token
-        token = ebay_integration.token_manager.get_valid_token()
-        if token:
-            ebay_integration.access_token = token
-
-        # Reconstruct ListingDraft
-        listing_id = data.get('listing_id')
-        if listing_id and not all(c.isalnum() or c in '-_' for c in listing_id):
-            return jsonify({"error": "Invalid listing_id format"}), 400
-        
-        if not listing_id:
-            listing_id = f"draft_{valuation_id[:8]}"
-
-        condition_str = data.get('condition', 'USED')
-        try:
-            condition = ItemCondition(condition_str)
-        except ValueError:
-            condition = ItemCondition.USED
-
-        listing_draft = ListingDraft(
-            listing_id=listing_id,
-            item_id=valuation_id,
-            title=data.get('title'),
-            description=data.get('description', ''),
-            category_id=category_id,
-            condition=condition,
-            price=float(data.get('price') or 0.0),
-            item_specifics=validation["aspects"],
-            images=data.get('images', [])
-        )
-
-        # Publish to eBay
-        try:
-            ebay_result = ebay_integration.create_listing(listing_draft)
-            ebay_listing_id = ebay_result.get("listing_id")
-
-            # Record submission in database
-            submission_id = db.submit_to_ebay(
-                valuation_id=valuation_id,
-                ebay_listing_id=ebay_listing_id,
-                listing_title=data.get('title'),
-                listing_price=data.get('price'),
-                ebay_response=ebay_result
-            )
-        except Exception as ebay_err:
-            logger.exception("eBay publishing failed")
-            return jsonify({
-                "error": "eBay publishing failed due to an internal error.",
-                "details": "The listing was processed but failed to publish to eBay."
-            }), 500
-
-        # Cleanup draft images after successful submission
-        listing_id = data.get('listing_id')
-        if listing_id:
-            draft_image_manager.cleanup_draft_images(listing_id)
-
-        return jsonify({
-            "success": True,
-            "ebay_listing_id": ebay_listing_id,
-            "submission_id": submission_id,
-            "listing_data": listing_data,
-            "message": "Listing submitted successfully and draft images cleaned up"
-        })
-    except Exception as e:
-        logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
+    """Legacy submission path cannot bypass draft review or the publish shutdown."""
+    return jsonify({"error": "Publishing is disabled in this slice", "code": "FEATURE_DISABLED"}), 503
 
 @app.route('/api/listing/update-draft', methods=['POST'])
 @require_api_key
