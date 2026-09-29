@@ -1,12 +1,12 @@
 # AI List Assist — marketplace listing workflow
 
-AI List Assist is Jennifer McKinley's applied AI engineering project for product intake, valuation, listing drafts, and marketplace integration. It is an active build; the repository contains routes that can publish listings, but a live end-to-end publishing flow is not established here.
+AI List Assist is Jennifer McKinley's applied AI engineering project for product intake, valuation, listing drafts, and marketplace integration. It is an active build; publishing routes are disabled in this slice.
 
 > **Current state:** The checked-in entry point is `app_enhanced.py`, a Flask application with Jinja templates and SQLite persistence. FastAPI, Pydantic/SQLModel, PostgreSQL, and React/Next.js are migration goals, not the current runnable stack.
 
 ## Current local verification
 
-For the local UI, start the Flask app with `LOCAL_DRAFT_MODE=1 python app_enhanced.py` and open `http://127.0.0.1:5000/`. This mode binds to loopback, creates an ephemeral signing secret when `SECRET_KEY` is absent, and gives the local browser a signed session and CSRF token. No provider key or browser-visible `API_KEY` is needed; marketplace routes return 503 in this mode. Image analysis still needs the fixture implementation planned for the next slice task.
+For the local fixture journey, start the Flask app with `LOCAL_DRAFT_MODE=1 python app_enhanced.py` and open `http://127.0.0.1:5000/local` (also linked from `/` and `/simple`). Select the example item, inspect the persisted structured record, create a draft, enter a description and price, save, and explicitly approve it. The page uses a signed local browser session and CSRF token; no provider key, API key in browser code, image analysis, external API, or marketplace credential is needed. Publishing remains disabled even after approval. This fixture path makes no claim that an uploaded image was analyzed or a market price was measured.
 
 From a fresh, disposable clone with Python 3.12+, install the checked-in dependencies and run the offline smoke tests:
 
@@ -16,7 +16,7 @@ python -m venv .venv
 .venv/bin/python -m pytest tests/test_smoke.py -q
 ```
 
-The smoke tests set sentinel environment values, initialize local SQLite files, and remove `listings.db`, `valuations.db`, and `consignment.db` in their teardown. Run them only in a disposable checkout without valuable files under those names or a local `.env`. They cover application import, `/health`, and unauthenticated draft access; they do not verify image analysis, external APIs, OAuth, or publishing. See [SETUP_GUIDE.md](SETUP_GUIDE.md) for the current entry point and its limits.
+The tests set sentinel environment values, initialize local SQLite files, and may remove `listings.db`, `valuations.db`, and `consignment.db` in their teardown. Run them only in a disposable checkout without valuable files under those names or a local `.env`. `tests/test_local_fixture_journey.py` covers the fixture journey through API and HTML forms with network access blocked; the smoke test covers boot and basic auth. Neither establishes external API, OAuth, or publishing readiness.
 
 ## Core workflow
 
@@ -65,7 +65,7 @@ The project is being developed as an applied AI reliability lab: model output is
 
 ## Security boundary
 
-The application reads integration configuration from its environment and contains routes with consequential marketplace actions. Authentication, request validation, and publishing safeguards need a separate security review before any deployment or credential-based test. The offline smoke tests do not establish production readiness.
+The application reads integration configuration from its environment. Both marketplace publishing routes fail closed in this slice, while other legacy integration paths remain subject to separate security review before any deployment or credential-based test. The offline tests do not establish production readiness.
 
 ## Related JenR8ed work
 

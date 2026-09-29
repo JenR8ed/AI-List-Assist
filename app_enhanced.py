@@ -3,7 +3,7 @@ Enhanced Flask App - End-to-End eBay Listing Assistant
 Integrates all services: vision, valuation, conversation, listing synthesis, eBay API
 """
 
-from flask import Flask, abort, render_template, request, jsonify, session
+from flask import Flask, abort, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.utils import secure_filename
 import base64
 import json
@@ -33,6 +33,7 @@ from services.ebay_category_service import EBayCategoryService
 from services.draft_image_manager import DraftImageManager
 from services.category_detail_generator import CategoryDetailGenerator
 from services.draft_review import validate_draft
+from services.local_draft_journey import FIXTURES, intake_fixture, get_item, create_fixture_draft
 
 # Load environment variables
 load_dotenv()
@@ -109,7 +110,8 @@ def _render_local_ui(template):
             abort(403)
         session['local_ui'] = True
         csrf_token = session.setdefault('csrf_token', secrets.token_urlsafe(32))
-    return render_template(template, csrf_token=csrf_token)
+    return render_template(template, csrf_token=csrf_token,
+                           local_draft_mode=app.config['LOCAL_DRAFT_MODE'])
 
 
 def require_api_key(f):
@@ -208,6 +210,151 @@ def index():
 def simple_interface():
     """Simple upload interface."""
     return _render_local_ui('index.html')
+
+
+def _local_journey_guard(form=False):
+    if not app.config['LOCAL_DRAFT_MODE']:
+        abort(404)
+    if not _is_local_request() or not session.get('local_ui'):
+        abort(403)
+    if form and not hmac.compare_digest(request.form.get('csrf_token', ''), session.get('csrf_token', '')):
+        abort(403)
+
+
+def _owned(kind, identifier):
+    if identifier not in session.get(kind, []):
+        abort(404)
+
+
+@app.route('/local', methods=['GET'])
+def local_journey():
+    """Fixture-only intake entry point with a signed local browser session."""
+    if not app.config['LOCAL_DRAFT_MODE']:
+        abort(404)
+    if not _is_local_request():
+        abort(403)
+    session['local_ui'] = True
+    token = session.setdefault('csrf_token', secrets.token_urlsafe(32))
+    return render_template('local_draft.html', step='intake', fixtures=FIXTURES, csrf_token=token)
+
+
+@app.route('/api/local/intake', methods=['POST'])
+@require_api_key
+def local_intake_api():
+    _local_journey_guard()
+    data = request.get_json(silent=True)
+    item = intake_fixture(data.get('fixture_id')) if isinstance(data, dict) else None
+    if not item:
+        return jsonify({"error": "Unknown fixture"}), 400
+    session['local_items'] = [*session.get('local_items', []), item['item_id']]
+    return jsonify({"item": item, "source": "fixture"}), 201
+
+
+@app.route('/api/local/items/<item_id>', methods=['GET'])
+@require_api_key
+def local_item_api(item_id):
+    _local_journey_guard()
+    _owned('local_items', item_id)
+    return jsonify({"item": get_item(item_id), "source": "fixture"})
+
+
+@app.route('/api/local/drafts', methods=['POST'])
+@require_api_key
+def local_draft_api():
+    _local_journey_guard()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get('item_id'), str):
+        return jsonify({"error": "item_id required"}), 400
+    _owned('local_items', data['item_id'])
+    item = get_item(data['item_id'])
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+    draft = create_fixture_draft(item)
+    session['local_drafts'] = [*session.get('local_drafts', []), draft['listing_id']]
+    return jsonify({"listing": draft, "status": "draft", "source": "fixture"}), 201
+
+
+@app.route('/api/local/drafts/<listing_id>', methods=['GET'])
+@require_api_key
+def local_draft_detail_api(listing_id):
+    _local_journey_guard()
+    _owned('local_drafts', listing_id)
+    stored = _stored_listing(listing_id)
+    if not stored:
+        return jsonify({"error": "Listing draft not found"}), 404
+    status, draft = stored
+    return jsonify({"listing": draft, "status": status, "errors": validate_draft(draft), "source": "fixture"})
+
+
+@app.route('/local/intake', methods=['POST'])
+def local_intake_form():
+    _local_journey_guard(form=True)
+    item = intake_fixture(request.form.get('fixture_id'))
+    if not item:
+        return jsonify({"error": "Unknown fixture"}), 400
+    session['local_items'] = [*session.get('local_items', []), item['item_id']]
+    return redirect(url_for('local_item_page', item_id=item['item_id']), code=303)
+
+
+@app.route('/local/items/<item_id>', methods=['GET'])
+def local_item_page(item_id):
+    _local_journey_guard()
+    _owned('local_items', item_id)
+    item = get_item(item_id)
+    if not item:
+        abort(404)
+    return render_template('local_draft.html', step='item', item=item,
+                           csrf_token=session['csrf_token'])
+
+
+@app.route('/local/items/<item_id>/drafts', methods=['POST'])
+def local_draft_form(item_id):
+    _local_journey_guard(form=True)
+    _owned('local_items', item_id)
+    item = get_item(item_id)
+    if not item:
+        abort(404)
+    draft = create_fixture_draft(item)
+    session['local_drafts'] = [*session.get('local_drafts', []), draft['listing_id']]
+    return redirect(url_for('local_draft_page', listing_id=draft['listing_id']), code=303)
+
+
+@app.route('/local/drafts/<listing_id>', methods=['GET'])
+def local_draft_page(listing_id):
+    _local_journey_guard()
+    _owned('local_drafts', listing_id)
+    stored = _stored_listing(listing_id)
+    if not stored:
+        abort(404)
+    status, draft = stored
+    return render_template('local_draft.html', step='review', draft=draft, status=status,
+                           errors=validate_draft(draft), csrf_token=session['csrf_token'])
+
+
+@app.route('/local/drafts/<listing_id>/edit', methods=['POST'])
+def local_draft_edit_form(listing_id):
+    _local_journey_guard(form=True)
+    _owned('local_drafts', listing_id)
+    try:
+        price = float(request.form['price']) if request.form.get('price', '').strip() else None
+    except ValueError:
+        return jsonify({"error": "price must be a number"}), 400
+    changes = {key: request.form.get(key, '') for key in ('title', 'description', 'category_id', 'condition')}
+    changes['price'] = price
+    result, status = _edit_stored_listing(listing_id, changes)
+    if status != 200:
+        return jsonify(result), status
+    return redirect(url_for('local_draft_page', listing_id=listing_id), code=303)
+
+
+@app.route('/local/drafts/<listing_id>/approve', methods=['POST'])
+def local_draft_approve_form(listing_id):
+    _local_journey_guard(form=True)
+    _owned('local_drafts', listing_id)
+    result, status = _approve_stored_listing(listing_id)
+    if status != 200:
+        return jsonify(result), status
+    return redirect(url_for('local_draft_page', listing_id=listing_id), code=303)
 
 @app.route('/api/analyze', methods=['POST'])
 @require_api_key
@@ -501,6 +648,52 @@ def _stored_listing(listing_id):
     return (row[0], json.loads(row[1])) if row and row[1] else None
 
 
+def _approve_stored_listing(listing_id):
+    """Shared API/browser transition; recheck the stored draft under a write lock."""
+    with closing(sqlite3.connect('listings.db', check_same_thread=False)) as conn, conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,)).fetchone()
+        if not row or not row[1]:
+            return {"error": "Listing draft not found"}, 404
+        if row[0] not in ('draft', 'approved'):
+            return {"error": "Listing is not a draft"}, 409
+        draft = json.loads(row[1])
+        errors = validate_draft(draft)
+        if errors:
+            return {"error": "Draft incomplete", "errors": errors}, 422
+        conn.execute("UPDATE listings SET status = 'approved' WHERE listing_id = ?", (listing_id,))
+    return {"listing_id": listing_id, "status": "approved", "source": draft.get('source', 'simulated')}, 200
+
+
+def _edit_stored_listing(listing_id, changes):
+    """Shared API/browser edit; every save resets human approval."""
+    editable = {'title', 'description', 'category_id', 'condition', 'price', 'item_specifics', 'images'}
+    if not isinstance(changes, dict) or not changes or set(changes) - editable:
+        return {"error": "Provide only editable draft fields"}, 400
+    if any(not isinstance(changes[key], str) for key in changes.keys() &
+           {'title', 'description', 'category_id', 'condition'}):
+        return {"error": "Text draft fields must be strings"}, 400
+    if 'price' in changes and changes['price'] is not None and (
+            isinstance(changes['price'], bool) or not isinstance(changes['price'], (int, float))):
+        return {"error": "price must be a number"}, 400
+    if ('item_specifics' in changes and not isinstance(changes['item_specifics'], dict) or
+            'images' in changes and not isinstance(changes['images'], list)):
+        return {"error": "Invalid draft field type"}, 400
+    with closing(sqlite3.connect('listings.db', check_same_thread=False)) as conn, conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,)).fetchone()
+        if not row or not row[1]:
+            return {"error": "Listing draft not found"}, 404
+        if row[0] not in ('draft', 'approved'):
+            return {"error": "Listing is not editable"}, 409
+        draft = json.loads(row[1])
+        draft.update(changes)
+        conn.execute('UPDATE listings SET draft_data = ?, title = ?, price = ?, status = ? WHERE listing_id = ?',
+                     (json.dumps(draft), draft.get('title'), draft.get('price'), 'draft', listing_id))
+    return {"listing_id": listing_id, "status": "draft", "listing": draft,
+            "source": draft.get('source', 'simulated')}, 200
+
+
 @app.route('/api/listing/<listing_id>/validate', methods=['GET'])
 @require_api_key
 def validate_listing(listing_id):
@@ -518,51 +711,16 @@ def validate_listing(listing_id):
 @require_api_key
 def approve_listing(listing_id):
     """Record human approval only after the stored draft passes validation."""
-    with closing(sqlite3.connect('listings.db', check_same_thread=False)) as conn, conn:
-        conn.execute('BEGIN IMMEDIATE')
-        row = conn.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,)).fetchone()
-        if not row or not row[1]:
-            return jsonify({"error": "Listing draft not found"}), 404
-        if row[0] not in ('draft', 'approved'):
-            return jsonify({"error": "Listing is not a draft"}), 409
-        errors = validate_draft(json.loads(row[1]))
-        if errors:
-            return jsonify({"error": "Draft incomplete", "errors": errors}), 422
-        conn.execute("UPDATE listings SET status = 'approved' WHERE listing_id = ?", (listing_id,))
-    return jsonify({"listing_id": listing_id, "status": "approved",
-                    "source": json.loads(row[1]).get('source', 'simulated')})
+    result, status = _approve_stored_listing(listing_id)
+    return jsonify(result), status
 
 
 @app.route('/api/listing/<listing_id>', methods=['PUT'])
 @require_api_key
 def edit_listing(listing_id):
     """Save review edits and revoke any previous approval."""
-    changes = request.get_json(silent=True)
-    editable = {'title', 'description', 'category_id', 'condition', 'price', 'item_specifics', 'images'}
-    if not isinstance(changes, dict) or not changes or set(changes) - editable:
-        return jsonify({"error": "Provide only editable draft fields"}), 400
-    if any(not isinstance(changes[key], str) for key in changes.keys() &
-           {'title', 'description', 'category_id', 'condition'}):
-        return jsonify({"error": "Text draft fields must be strings"}), 400
-    if 'price' in changes and (isinstance(changes['price'], bool) or
-                               not isinstance(changes['price'], (int, float))):
-        return jsonify({"error": "price must be a number"}), 400
-    if ('item_specifics' in changes and not isinstance(changes['item_specifics'], dict) or
-            'images' in changes and not isinstance(changes['images'], list)):
-        return jsonify({"error": "Invalid draft field type"}), 400
-    with closing(sqlite3.connect('listings.db', check_same_thread=False)) as conn, conn:
-        conn.execute('BEGIN IMMEDIATE')
-        row = conn.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,)).fetchone()
-        if not row or not row[1]:
-            return jsonify({"error": "Listing draft not found"}), 404
-        if row[0] not in ('draft', 'approved'):
-            return jsonify({"error": "Listing is not editable"}), 409
-        draft = json.loads(row[1])
-        draft.update(changes)
-        conn.execute('UPDATE listings SET draft_data = ?, title = ?, price = ?, status = ? WHERE listing_id = ?',
-                     (json.dumps(draft), draft.get('title'), draft.get('price'), 'draft', listing_id))
-    return jsonify({"listing_id": listing_id, "status": "draft", "listing": draft,
-                    "source": draft.get('source', 'simulated')})
+    result, status = _edit_stored_listing(listing_id, request.get_json(silent=True))
+    return jsonify(result), status
 
 
 @app.route('/api/listing/publish', methods=['POST'])

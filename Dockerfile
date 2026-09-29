@@ -28,6 +28,7 @@ COPY --chown=appuser:appuser app_enhanced.py ./
 COPY --chown=appuser:appuser services/ ./services/
 COPY --chown=appuser:appuser shared/ ./shared/
 COPY --chown=appuser:appuser templates/ ./templates/
+COPY --chown=appuser:appuser fixtures/ ./fixtures/
 COPY --chown=appuser:appuser static/ ./static/
 
 USER appuser

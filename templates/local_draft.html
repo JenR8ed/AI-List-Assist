@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>Local fixture draft review | AI List Assist</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; color: #162034; }
+    main { border: 1px solid #ccd5e2; border-radius: .6rem; padding: 1.4rem; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    input, textarea, select { display: block; width: 100%; box-sizing: border-box; padding: .6rem; font: inherit; }
+    button { margin-top: 1rem; padding: .6rem 1rem; font: inherit; cursor: pointer; }
+    .notice { background: #e8f2ff; padding: .8rem; }
+    .errors { color: #8a1b1b; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Local draft review</h1>
+    <p class="notice">Fixture data only. No image analysis, market price, provider request, or publishing.</p>
+    {% if step == 'intake' %}
+      <h2>1. Intake</h2>
+      <form action="{{ url_for('local_intake_form') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="fixture_id">Example item</label>
+        <select id="fixture_id" name="fixture_id">
+          {% for key, fixture in fixtures.items() %}
+            <option value="{{ key }}">{{ fixture.name }} (fixture)</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Create item record</button>
+      </form>
+    {% elif step == 'item' %}
+      <h2>2. Structured item record</h2>
+      <dl>
+        <dt>Item</dt><dd>{{ item.name }}</dd>
+        <dt>Brand</dt><dd>{{ item.brand }}</dd>
+        <dt>Category ID</dt><dd>{{ item.category_id }}</dd>
+        <dt>Condition</dt><dd>{{ item.condition }}</dd>
+        <dt>Notes</dt><dd>{{ item.notes }}</dd>
+        <dt>Price</dt><dd>Unavailable</dd>
+        <dt>Source</dt><dd>{{ item.source }}</dd>
+      </dl>
+      <form action="{{ url_for('local_draft_form', item_id=item.item_id) }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">Create editable draft</button>
+      </form>
+    {% elif step == 'review' %}
+      <h2>3. Edit and review</h2>
+      <p>Draft status: <strong>{{ status }}</strong> · Source: {{ draft.source }}</p>
+      <form action="{{ url_for('local_draft_edit_form', listing_id=draft.listing_id) }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="title">Title</label><input id="title" name="title" maxlength="80" value="{{ draft.title }}">
+        <label for="description">Description</label><textarea id="description" name="description">{{ draft.description }}</textarea>
+        <label for="category_id">Category ID</label><input id="category_id" name="category_id" value="{{ draft.category_id }}">
+        <label for="condition">Condition</label>
+        <select id="condition" name="condition">
+          {% for value in ['New', 'Used', 'For parts or not working'] %}
+            <option value="{{ value }}" {% if draft.condition == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+        <label for="price">Human-entered price (USD)</label>
+        <input id="price" name="price" type="number" step="0.01" min="0.01" value="{{ draft.price if draft.price is not none else '' }}">
+        <button type="submit">Save draft</button>
+      </form>
+      {% if errors %}
+        <p>Complete these fields before approval:</p>
+        <ul class="errors">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+      {% elif status == 'draft' %}
+        <form action="{{ url_for('local_draft_approve_form', listing_id=draft.listing_id) }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit">Approve reviewed draft</button>
+        </form>
+      {% else %}
+        <p>Human review complete. Editing this draft will require approval again.</p>
+      {% endif %}
+    {% endif %}
+  </main>
+</body>
+</html>

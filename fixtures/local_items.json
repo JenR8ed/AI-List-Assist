@@ -1,0 +1,9 @@
+{
+  "camera": {
+    "name": "Example compact camera",
+    "brand": "Example brand",
+    "category_id": "293",
+    "condition": "Used",
+    "notes": "Fixture metadata for local workflow tests. No photo, market price, or model output."
+  }
+}

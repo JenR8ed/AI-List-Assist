@@ -322,6 +322,7 @@
         <header>
             <h1>📸 AI Item Valuation</h1>
             <p>Professional AI-powered item pricing for resellers</p>
+            {% if local_draft_mode %}<p><a href="{{ url_for('local_journey') }}" style="color: white;">Open local fixture draft review</a></p>{% endif %}
         </header>
 
         <div class="main-grid">

@@ -93,6 +93,7 @@
         <header>
             <h1><span role="img" aria-label="Bar chart">📊</span> eBay Listing Assistant</h1>
             <p>Track valuations and manage eBay submissions</p>
+            {% if local_draft_mode %}<p><a href="{{ url_for('local_journey') }}" style="color: white;">Open local fixture draft review</a></p>{% endif %}
         </header>
 
         <!-- Upload & Analyze Section (Always Visible) -->
