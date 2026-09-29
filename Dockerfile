@@ -8,8 +8,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN groupadd -g 1000 appuser && \
     useradd -u 1000 -g appuser -s /bin/bash -m appuser
 
-# Create working directory and change ownership
-RUN mkdir -p /app && chown appuser:appuser /app
+# Create writable application directories before dropping root privileges
+RUN mkdir -p /app/data /app/uploads && chown -R appuser:appuser /app
 WORKDIR /app
 
 # Install system dependencies
@@ -23,13 +23,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # We explicitly install some extra packages that might be needed based on app imports if they aren't in requirements
 RUN pip install --no-cache-dir flask werkzeug python-dotenv requests pandas pydantic pillow
 
-# Drop root privileges by switching to the non-root user
-USER appuser
-
-# Ensure standard app user configuration
-RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/data && \
-    chown -R appuser:appuser /app
+# Copy only application files; exclude local credentials and databases from the image.
+COPY --chown=appuser:appuser app_enhanced.py ./
+COPY --chown=appuser:appuser services/ ./services/
+COPY --chown=appuser:appuser shared/ ./shared/
+COPY --chown=appuser:appuser templates/ ./templates/
+COPY --chown=appuser:appuser static/ ./static/
 
 USER appuser
 

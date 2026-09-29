@@ -850,16 +850,16 @@ def get_required_fields(category_id):
 @app.route('/api/ebay/token/status', methods=['GET'])
 @require_api_key
 def get_token_status():
-    """Check eBay token status."""
+    """Check stored token presence without exposing or refreshing it."""
     try:
         from services.ebay_token_manager import EBayTokenManager
         token_manager = EBayTokenManager()
-        token = token_manager.get_valid_token()
+        stored = token_manager._load_token()
 
         return jsonify({
             "success": True,
-            "has_token": bool(token),
-            "token_preview": token[:20] + "..." if token else None
+            "has_token": bool(stored and stored.get('access_token') and
+                              not token_manager._is_expired(stored))
         })
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
@@ -984,6 +984,7 @@ def end_ebay_listing():
         return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/uploads/<filename>')
+@require_api_key
 def download_file(filename):
     """Serve uploaded images."""
     from flask import send_from_directory
