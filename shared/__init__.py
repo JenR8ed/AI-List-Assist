@@ -3,7 +3,6 @@ Shared models and schemas for eBay Listing Assistant.
 """
 
 from .models import (
-    DetectedItem,
     ItemValuation,
     ConversationState,
     ListingDraft,
@@ -14,7 +13,6 @@ from .models import (
 )
 
 __all__ = [
-    'DetectedItem',
     'ItemValuation',
     'ConversationState',
     'ListingDraft',
