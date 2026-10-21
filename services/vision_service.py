@@ -74,6 +74,19 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
             logger.warning(f"Cloud Vision failed: {e}, falling back to Gemini")
             return self._detect_with_gemini(image_base64, media_type)
 
+
+    @property
+    def async_client(self) -> httpx.AsyncClient:
+        """Get or create an async HTTP client for the service lifetime."""
+        if not hasattr(self, '_async_client') or self._async_client.is_closed:
+            self._async_client = httpx.AsyncClient(timeout=30)
+        return self._async_client
+
+    async def close_async(self):
+        """Close the async client."""
+        if hasattr(self, '_async_client') and not self._async_client.is_closed:
+            await self._async_client.aclose()
+
     async def detect_items_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
         """Detect items using Google Cloud Vision API first, fallback to Gemini, asynchronously."""
 
