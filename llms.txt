@@ -12,7 +12,7 @@ The repository is migrating to a FARM-style stack:
 - Frontend: React / Next.js with TailwindCSS
 - Async / cache: Redis-backed background jobs
 
-Deprecated patterns:
+Legacy, being migrated:
 - Flask
 - SQLite as primary production database
 - Jinja2 + large vanilla JS DOM workflows
@@ -68,7 +68,7 @@ Deprecated patterns:
 
 ## Assistant behavior
 When editing code in this repo:
-- prefer updating existing architecture toward FARM, not reinforcing deprecated patterns
+- prefer updating existing architecture toward FARM, not reinforcing legacy patterns that are being migrated
 - suggest incremental migrations with minimal breakage
 - keep diffs focused and reversible
 - explain schema, API, and frontend boundary changes clearly
