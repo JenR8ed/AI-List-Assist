@@ -3,9 +3,9 @@
 You are the primary AI-first IDE engine for the AI-List-Assist repository. You must strictly adhere to the following enterprise guardrails and architectural standards.
 
 ## 1. Architectural Stack (FARM)
-- **Backend:** FastAPI (Flask is DEPRECATED).
+- **Backend:** FastAPI (Flask is legacy, being migrated).
 - **Data Validation & ORM:** Pydantic and SQLModel.
-- **Database:** PostgreSQL via Neon Serverless Postgres (SQLite is DEPRECATED).
+- **Database:** PostgreSQL via Neon Serverless Postgres (SQLite is legacy, being migrated).
 - **Frontend:** Next.js (React) with TailwindCSS (Vanilla JS and Jinja2 templates are DEPRECATED).
 - **Asynchronous I/O:** Always use native async/await for external API calls (Gemini, Vision, eBay). Do not use blocking requests or asyncio.to_thread wrappers.
 
