@@ -3,8 +3,11 @@
 ## Project purpose
 AI-List-Assist is an AI-assisted resale and listing workflow application for product intake, valuation, listing draft generation, image analysis, category/aspect selection, and marketplace publishing.
 
+## Current application
+The current runnable application uses Flask, Jinja templates, and SQLite, orchestrated by `app_enhanced.py`.
+
 ## Target architecture
-The repository is migrating to a FARM-style stack:
+The planned migration targets a FARM-style stack. These targets do not describe the current runnable application:
 
 - Backend: FastAPI
 - Validation / ORM: Pydantic + SQLModel
@@ -12,9 +15,9 @@ The repository is migrating to a FARM-style stack:
 - Frontend: React / Next.js with TailwindCSS
 - Async / cache: Redis-backed background jobs
 
-Legacy, being migrated:
+Current components targeted for migration:
 - Flask
-- SQLite as primary production database
+- SQLite persistence in the current application
 - Jinja2 + large vanilla JS DOM workflows
 - Blocking request wrappers for external APIs
 
@@ -32,8 +35,8 @@ Legacy, being migrated:
 - Gemini API for generative AI workflows
 - Google Cloud Vision for image analysis / OCR
 - eBay APIs for taxonomy, pricing, and listing workflows
-- PostgreSQL for application state
-- Redis for caching and background tasks
+- PostgreSQL for application state (planned migration target)
+- Redis-backed caching and background workers (target architecture; not established by this context map)
 
 ## What the assistant should optimize for
 1. FastAPI-first backend design
@@ -68,7 +71,7 @@ Legacy, being migrated:
 
 ## Assistant behavior
 When editing code in this repo:
-- prefer updating existing architecture toward FARM, not reinforcing legacy patterns that are being migrated
+- propose incremental changes toward the target architecture while preserving the current Flask/SQLite/Jinja workflow; do not assume migration work is complete
 - suggest incremental migrations with minimal breakage
 - keep diffs focused and reversible
 - explain schema, API, and frontend boundary changes clearly
