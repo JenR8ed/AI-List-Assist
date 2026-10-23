@@ -21,9 +21,8 @@ _MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}[A-Z0-9]*')
 class VisionService:
     """Service for multi-item detection and OCR using Google Vision APIs."""
 
-    # Class-level HTTP sessions for connection reuse
+    # Reuse the synchronous HTTP session across service instances.
     _session = None
-    _async_client = None
 
     _COMMON_BRANDS = ["Sony", "Apple", "Samsung", "Nike", "Adidas", "Canon", "Nikon"]
     _BRAND_DATA = [(brand.lower(), brand) for brand in _COMMON_BRANDS]
@@ -54,9 +53,8 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
             VisionService._session = requests.Session()
         self.session = VisionService._session
 
-        if VisionService._async_client is None:
-            VisionService._async_client = httpx.AsyncClient(timeout=30)
-        self.async_client = VisionService._async_client
+        # The async client belongs to this instance and is created on first use.
+        self._async_client: Optional[httpx.AsyncClient] = None
         
         # Initialize Gemini client
         try:
@@ -78,13 +76,13 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
     @property
     def async_client(self) -> httpx.AsyncClient:
         """Get or create an async HTTP client for the service lifetime."""
-        if not hasattr(self, '_async_client') or self._async_client.is_closed:
+        if self._async_client is None or self._async_client.is_closed:
             self._async_client = httpx.AsyncClient(timeout=30)
         return self._async_client
 
-    async def close_async(self):
+    async def close_async(self) -> None:
         """Close the async client."""
-        if hasattr(self, '_async_client') and not self._async_client.is_closed:
+        if self._async_client is not None and not self._async_client.is_closed:
             await self._async_client.aclose()
 
     async def detect_items_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
