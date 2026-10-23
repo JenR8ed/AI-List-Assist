@@ -1,13 +1,13 @@
 # AI-List-Assist — LLM Context Map
 
 ## Project purpose
-AI-List-Assist is an AI-assisted resale and listing workflow application for product intake, valuation, listing draft generation, image analysis, category/aspect selection, and marketplace publishing.
+AI-List-Assist is an actively developed AI-assisted resale project for product intake, valuation, listing drafts, image analysis, and category/aspect selection. Marketplace publishing routes exist, but a live end-to-end publishing workflow and production readiness have not been established.
 
 ## Current application
 The current runnable application uses Flask, Jinja templates, and SQLite, orchestrated by `app_enhanced.py`.
 
 ## Target architecture
-The planned migration targets a FARM-style stack. These targets do not describe the current runnable application:
+Planned migration targets include FastAPI, Pydantic/SQLModel, PostgreSQL, and React/Next.js. These targets do not describe the current application.
 
 - Backend: FastAPI
 - Validation / ORM: Pydantic + SQLModel
