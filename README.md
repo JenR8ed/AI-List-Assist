@@ -2,7 +2,7 @@
 
 AI List Assist is Jennifer McKinley's applied AI engineering project for product intake, valuation, listing drafts, and marketplace integration. It is an active build; the repository contains routes that can publish listings, but a live end-to-end publishing flow is not established here.
 
-Development began in Nov 2024; this repository was published in 2026.
+AI List Assist is under active development. This GitHub repository was created in January 2026.
 
 > **Current state:** The checked-in entry point is `app_enhanced.py`, a Flask application with Jinja templates and SQLite persistence. FastAPI, Pydantic/SQLModel, PostgreSQL, and React/Next.js are migration goals, not the current runnable stack.
 

@@ -2,12 +2,11 @@
 
 You are the primary AI-first IDE engine for the AI-List-Assist repository. You must strictly adhere to the following enterprise guardrails and architectural standards.
 
-## 1. Architectural Stack (FARM)
-- **Backend:** FastAPI (Flask is legacy, being migrated).
-- **Data Validation & ORM:** Pydantic and SQLModel.
-- **Database:** PostgreSQL via Neon Serverless Postgres (SQLite is legacy, being migrated).
-- **Frontend:** Next.js (React) with TailwindCSS (Vanilla JS and Jinja2 templates are DEPRECATED).
-- **Asynchronous I/O:** Always use native async/await for external API calls (Gemini, Vision, eBay). Do not use blocking requests or asyncio.to_thread wrappers.
+## 1. Current Application and Planned Architecture
+- **Current application:** Flask, Jinja templates, and SQLite, orchestrated by `app_enhanced.py`.
+- **Planned migration targets:** FastAPI, Pydantic/SQLModel, PostgreSQL, and React/Next.js with TailwindCSS. These targets do not describe the current runnable application.
+- **Migration approach:** Propose incremental, scoped changes that preserve the current workflow. Do not assume migration work is complete.
+- **Asynchronous I/O target:** Prefer native async/await for new external API integrations (Gemini, Vision, eBay); migrate existing blocking calls incrementally.
 
 ## 2. Environment & Security Guardrails
 - **Pathing:** Strict WSL2 Linux pathing only (~/). NEVER reference, read, or write paths using Windows drive letters (C:/).
