@@ -194,6 +194,7 @@ class TestListingReconstruction(unittest.TestCase):
             category_id="123",
             condition=ItemCondition.USED,
             price=100.0,
+            ready_for_api=True,
             created_at=datetime.now()
         )
         mock_create_draft.return_value = draft
@@ -218,7 +219,14 @@ class TestListingReconstruction(unittest.TestCase):
         self.assertEqual(saved_draft['title'], "Test Title")
         self.assertEqual(saved_draft['condition'], ItemCondition.USED.value)
 
-        # 4. Mock eBay publish and call it
+        # 4. Explicit server-side human approval is required.
+        approval = self.client.post(
+            f'/api/listing/{listing_id}/approve',
+            headers={'Authorization': 'Bearer test'},
+        )
+        self.assertEqual(approval.status_code, 200)
+
+        # 5. Mock eBay publish and call it only with the opt-in enabled.
         with patch('services.ebay_integration.eBayIntegration.create_listing') as mock_ebay_publish:
             mock_ebay_publish.return_value = {
                 "listing_id": "ebay_12345",
@@ -229,9 +237,10 @@ class TestListingReconstruction(unittest.TestCase):
             with patch('services.ebay_token_manager.EBayTokenManager.get_valid_token') as mock_get_token:
                 mock_get_token.return_value = "valid_token"
 
-                response = self.client.post('/api/listing/publish', headers={'Authorization': 'Bearer test', 'X-API-Key': 'test'}, json={
-                    "listing_id": listing_id
-                })
+                with patch.dict(os.environ, {'ENABLE_EBAY_PUBLISHING': '1'}):
+                    response = self.client.post('/api/listing/publish', headers={'Authorization': 'Bearer test', 'X-API-Key': 'test'}, json={
+                        "listing_id": listing_id
+                    })
 
                 self.assertEqual(response.status_code, 200)
                 data = response.get_json()
