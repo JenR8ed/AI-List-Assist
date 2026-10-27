@@ -142,5 +142,19 @@ class TestCategoryDetailGenerator(unittest.TestCase):
         self.assertEqual(result["invalid"][0]["value"], "Broken")
         self.assertEqual(result["invalid"][0]["allowed"], ["New", "Used", "Refurbished"])
 
+    @patch.dict(os.environ, {}, clear=True)
+    @patch('services.category_detail_generator.GeminiRestClient')
+    def test_init_without_google_key_skips_gemini(self, mock_gemini_client):
+        generator = CategoryDetailGenerator()
+        self.assertIsNone(generator.gemini_client)
+        mock_gemini_client.assert_not_called()
+
+    @patch.dict(os.environ, {'GOOGLE_API_KEY': 'test-only-key'})
+    @patch('services.category_detail_generator.GeminiRestClient')
+    def test_init_passes_configured_google_key(self, mock_gemini_client):
+        generator = CategoryDetailGenerator()
+        mock_gemini_client.assert_called_once_with(api_key='test-only-key')
+        self.assertIs(generator.gemini_client, mock_gemini_client.return_value)
+
 if __name__ == '__main__':
     unittest.main()

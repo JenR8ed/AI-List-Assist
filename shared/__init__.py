@@ -8,16 +8,18 @@ from .models import (
     ListingDraft,
     ImageSession,
     BoundingBox,
+    DetectedItem,
     ItemCondition,
-    Profitability
+    Profitability,
 )
 
 __all__ = [
-    'ItemValuation',
-    'ConversationState',
-    'ListingDraft',
-    'ImageSession',
-    'BoundingBox',
-    'ItemCondition',
-    'Profitability'
+    "ItemValuation",
+    "ConversationState",
+    "ListingDraft",
+    "ImageSession",
+    "BoundingBox",
+    "DetectedItem",
+    "ItemCondition",
+    "Profitability",
 ]
