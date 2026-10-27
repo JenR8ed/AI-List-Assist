@@ -315,8 +315,26 @@
             }
         }
     </style>
+<script>
+    // Local session UI requests use a CSRF token, never the server API key.
+    (() => {
+        const csrfToken = {{ csrf_token | tojson }};
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = (resource, options = {}) => {
+            const url = typeof resource === 'string' ? resource : resource.url;
+            if (!url.startsWith('/api/')) return nativeFetch(resource, options);
+            const method = (options.method || 'GET').toUpperCase();
+            const headers = new Headers(options.headers || {});
+            if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+                headers.set('X-CSRF-Token', csrfToken);
+            }
+            return nativeFetch(resource, { ...options, credentials: 'same-origin', headers });
+        };
+    })();
+</script>
 </head>
 <body>
+    <nav style="text-align:right;padding:8px"><a href="/login" style="color:inherit">Sign in</a></nav>
     <div class="container">
         <header>
             <h1>📸 AI Item Valuation</h1>
