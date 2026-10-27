@@ -1,22 +1,21 @@
 """
 Gemini REST Client (no google-generativeai dependency)
 
-Uses Google Generative Language REST API via `requests`, avoiding protobuf issues on Python 3.14.
+Uses Google Generative Language REST API via `requests` and `httpx`, avoiding protobuf issues on Python 3.14.
+Supports native structured outputs (`responseMimeType` + `responseSchema`) and `x-goog-api-key` headers.
 """
 
 from __future__ import annotations
 
 import json
-import httpx
 from typing import Any, Dict, List, Optional
-
-import requests
 import httpx
+import requests
 
 
 class GeminiRestClient:
     """
-    Minimal client for Gemini `generateContent` endpoint.
+    Minimal client for Gemini `generateContent` endpoint with native structured output support.
 
     Docs: https://ai.google.dev/
     """
@@ -37,7 +36,17 @@ class GeminiRestClient:
         self.api_version = api_version
         self.timeout_s = timeout_s
         self.session = requests.Session()
-        self.async_client = httpx.AsyncClient(timeout=self.timeout_s)
+        self.session.headers.update({"x-goog-api-key": self.api_key})
+        self.async_client = httpx.AsyncClient(
+            timeout=self.timeout_s,
+            headers={"x-goog-api-key": self.api_key},
+        )
+
+    def _build_headers(self) -> Dict[str, str]:
+        return {
+            "x-goog-api-key": self.api_key,
+            "Content-Type": "application/json",
+        }
 
     def _prepare_payload(
         self,
@@ -71,11 +80,28 @@ class GeminiRestClient:
             payload["generationConfig"] = generation_config
         return payload
 
+    def _build_generation_config(
+        self,
+        temperature: float = 0.2,
+        max_output_tokens: int = 1024,
+        response_mime_type: Optional[str] = None,
+        response_schema: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        config: Dict[str, Any] = {
+            "temperature": temperature,
+            "maxOutputTokens": max_output_tokens,
+        }
+        if response_mime_type:
+            config["responseMimeType"] = response_mime_type
+        elif response_schema:
+            config["responseMimeType"] = "application/json"
+        if response_schema:
+            config["responseSchema"] = response_schema
+        return config
+
     def _parse_generate_content_response(self, data: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
-        # Extract usage metadata
         usage_metadata = data.get("usageMetadata", {})
 
-        # Typical response path: candidates[0].content.parts[*].text
         candidates = data.get("candidates") or []
         if not candidates:
             raise RuntimeError(f"No candidates in response: {json.dumps(data)[:2000]}")
@@ -100,17 +126,13 @@ class GeminiRestClient:
         inline_image_mime_type: Optional[str] = None,
     ) -> Dict[str, int]:
         """Count tokens for content before making request."""
-        url = (
-            f"{self.api_base}/{self.api_version}/models/"
-            f"{self.model}:countTokens?key={self.api_key}"
-        )
-
+        url = f"{self.api_base}/{self.api_version}/models/{self.model}:countTokens"
         payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type)
 
         resp = self.session.post(url, json=payload, timeout=self.timeout_s)
         resp.raise_for_status()
         data = resp.json()
-        
+
         return {"totalTokens": data.get("totalTokens", 0)}
 
     async def count_tokens_async(
@@ -121,11 +143,7 @@ class GeminiRestClient:
         inline_image_mime_type: Optional[str] = None,
     ) -> Dict[str, int]:
         """Count tokens for content before making request asynchronously."""
-        url = (
-            f"{self.api_base}/{self.api_version}/models/"
-            f"{self.model}:countTokens?key={self.api_key}"
-        )
-
+        url = f"{self.api_base}/{self.api_version}/models/{self.model}:countTokens"
         payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type)
 
         resp = await self.async_client.post(url, json=payload)
@@ -142,16 +160,16 @@ class GeminiRestClient:
         inline_image_mime_type: Optional[str] = None,
         temperature: float = 0.2,
         max_output_tokens: int = 1024,
+        response_mime_type: Optional[str] = None,
+        response_schema: Optional[Dict[str, Any]] = None,
     ) -> tuple[str, Dict[str, Any]]:
-        url = (
-            f"{self.api_base}/{self.api_version}/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
+        url = f"{self.api_base}/{self.api_version}/models/{self.model}:generateContent"
+        generation_config = self._build_generation_config(
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            response_mime_type=response_mime_type,
+            response_schema=response_schema,
         )
-
-        generation_config = {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens,
-        }
         payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type, generation_config)
 
         resp = self.session.post(url, json=payload, timeout=self.timeout_s)
@@ -168,17 +186,17 @@ class GeminiRestClient:
         inline_image_mime_type: Optional[str] = None,
         temperature: float = 0.2,
         max_output_tokens: int = 1024,
+        response_mime_type: Optional[str] = None,
+        response_schema: Optional[Dict[str, Any]] = None,
     ) -> tuple[str, Dict[str, Any]]:
         """Async version of generate_content."""
-        url = (
-            f"{self.api_base}/{self.api_version}/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
+        url = f"{self.api_base}/{self.api_version}/models/{self.model}:generateContent"
+        generation_config = self._build_generation_config(
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            response_mime_type=response_mime_type,
+            response_schema=response_schema,
         )
-
-        generation_config = {
-            "temperature": temperature,
-            "maxOutputTokens": max_output_tokens,
-        }
         payload = self._prepare_payload(prompt, inline_image_base64, inline_image_mime_type, generation_config)
 
         resp = await self.async_client.post(url, json=payload)
