@@ -220,9 +220,12 @@ class TestListingReconstruction(unittest.TestCase):
         self.assertEqual(saved_draft['condition'], ItemCondition.USED.value)
 
         # 4. Explicit server-side human approval is required.
+        with self.client.session_transaction() as human_session:
+            human_session['ui_authenticated'] = True
+            human_session['csrf_token'] = 'test-approval-csrf'
         approval = self.client.post(
             f'/api/listing/{listing_id}/approve',
-            headers={'Authorization': 'Bearer test'},
+            headers={'X-CSRF-Token': 'test-approval-csrf'},
         )
         self.assertEqual(approval.status_code, 200)
 
