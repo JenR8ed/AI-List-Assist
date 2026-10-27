@@ -4,10 +4,10 @@ Defines canonical data structures used across services.
 """
 
 from dataclasses import dataclass, field
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple, Union
+from pydantic import BaseModel, Field
 
 
 class ItemCondition(str, Enum):
@@ -42,7 +42,7 @@ class BoundingBox:
             "x": self.x,
             "y": self.y,
             "width": self.width,
-            "height": self.height
+            "height": self.height,
         }
 
 
@@ -65,7 +65,7 @@ class DetectedItem:
             "probable_category": self.probable_category,
             "detected_text": self.detected_text,
             "brand": self.brand,
-            "model": self.model
+            "model": self.model,
         }
 
 
@@ -80,7 +80,7 @@ class ItemValuation:
     condition_notes: str
     is_complete: bool
     estimated_value: float
-    value_range: Dict[str, float]  # {"low": x, "high": y}
+    value_range: Union[Dict[str, float], Tuple[float, float]]  # {"low": x, "high": y}
     resale_score: int  # 1-10
     profitability: Profitability
     recommended_platforms: List[str]
@@ -100,15 +100,15 @@ class ItemValuation:
             "condition_notes": self.condition_notes,
             "is_complete": self.is_complete,
             "estimated_value": self.estimated_value,
-            "value_range": self.value_range,
+            "value_range": self.value_range if isinstance(self.value_range, dict) else {"low": self.value_range[0], "high": self.value_range[1]},
             "resale_score": self.resale_score,
-            "profitability": self.profitability.value,
+            "profitability": self.profitability.value if hasattr(self.profitability, "value") else self.profitability,
             "recommended_platforms": self.recommended_platforms,
             "key_factors": self.key_factors,
             "risks": self.risks,
             "listing_tips": self.listing_tips,
             "worth_listing": self.worth_listing,
-            "confidence": self.confidence
+            "confidence": self.confidence,
         }
 
 
@@ -133,7 +133,7 @@ class ConversationState:
             "confidence": self.confidence,
             "questions_asked": self.questions_asked,
             "current_question": self.current_question,
-            "is_complete": self.is_complete
+            "is_complete": self.is_complete,
         }
 
 
@@ -146,13 +146,19 @@ class ListingDraft(BaseModel):
     category_id: str
     condition: ItemCondition
     price: float
-    item_specifics: Dict[str, str] = Field(default_factory=dict)
+    item_specifics: Dict[str, Union[str, List[str]]] = Field(default_factory=dict)
     shipping_details: Dict[str, Any] = Field(default_factory=dict)
     images: List[str] = Field(default_factory=list)
     confidence: float = 0.0
     created_at: datetime = Field(default_factory=datetime.now)
     missing_required_specifics: List[str] = Field(default_factory=list)
     ready_for_api: bool = False
+
+    @classmethod
+    def model_validate_json(cls, json_data: str) -> "ListingDraft":
+        if hasattr(super(), "model_validate_json"):
+            return super().model_validate_json(json_data)
+        return cls.parse_raw(json_data)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -161,15 +167,15 @@ class ListingDraft(BaseModel):
             "title": self.title,
             "description": self.description,
             "category_id": self.category_id,
-            "condition": self.condition.value if hasattr(self.condition, 'value') else self.condition,
+            "condition": self.condition.value if hasattr(self.condition, "value") else self.condition,
             "price": self.price,
             "item_specifics": self.item_specifics,
             "shipping_details": self.shipping_details,
             "images": self.images,
             "confidence": self.confidence,
-            "created_at": self.created_at.isoformat() if hasattr(self.created_at, 'isoformat') else self.created_at,
+            "created_at": self.created_at.isoformat() if hasattr(self.created_at, "isoformat") else self.created_at,
             "missing_required_specifics": self.missing_required_specifics,
-            "ready_for_api": self.ready_for_api
+            "ready_for_api": self.ready_for_api,
         }
 
 
@@ -188,5 +194,5 @@ class ImageSession:
             "images": self.images,
             "detected_items": [item.to_dict() for item in self.detected_items],
             "valuations": [val.to_dict() for val in self.valuations],
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }

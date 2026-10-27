@@ -1,10 +1,48 @@
 import pytest
+import httpx
 from unittest.mock import patch, MagicMock, AsyncMock
 from services.vision_service import VisionService
 
 @pytest.fixture
 def vision_service():
     return VisionService(api_key="test_key")
+
+
+async def test_close_before_async_use_does_not_create_client():
+    with patch("services.vision_service.GeminiRestClient"), patch(
+        "services.vision_service.httpx.AsyncClient"
+    ) as client_factory:
+        service = VisionService(api_key="test_key")
+        await service.close_async()
+        await service.close_async()
+        client_factory.assert_not_called()
+
+
+async def test_async_client_reuse_isolation_and_reopen():
+    with patch("services.vision_service.GeminiRestClient"):
+        first = VisionService(api_key="test_key")
+        second = VisionService(api_key="test_key")
+
+    try:
+        first_client = first.async_client
+        second_client = second.async_client
+        assert isinstance(first_client, httpx.AsyncClient)
+        assert first.async_client is first_client
+        assert first_client is not second_client
+
+        await first.close_async()
+        await first.close_async()
+        assert first_client.is_closed
+        assert not second_client.is_closed
+        assert second.async_client is second_client
+
+        reopened_client = first.async_client
+        assert reopened_client is not first_client
+        assert not reopened_client.is_closed
+        assert first.async_client is reopened_client
+    finally:
+        await first.close_async()
+        await second.close_async()
 
 def test_parse_gemini_response_valid_markdown_json(vision_service):
     response_text = """
@@ -88,7 +126,6 @@ def test_detect_with_gemini_json_decode_error(mock_logger_error, vision_service)
     assert items[0].probable_category == "Unknown"
     mock_logger_error.assert_called_once()
 
-@pytest.mark.asyncio
 @patch("services.vision_service.logger.error")
 async def test_detect_with_gemini_async_json_decode_error(mock_logger_error, vision_service):
     # Setup mock to return invalid JSON

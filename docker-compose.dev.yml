@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build:
@@ -11,16 +9,22 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      # Mount source code for live reloading
+      # Mount source code and writable data directory
       - .:/app:rw
       - ./data:/app/data:rw
     environment:
       - FLASK_APP=app_enhanced.py
       - FLASK_ENV=development
       - PYTHONPATH=/app
+      - DATA_DIR=/app/data
       - SECRET_KEY=${SECRET_KEY:-dummy_secret_for_sandbox}
+      - API_KEY=${API_KEY:-dev_api_key}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-mock_google_key}
+      - EBAY_CLIENT_ID=${EBAY_CLIENT_ID:-mock}
+      - EBAY_CLIENT_SECRET=${EBAY_CLIENT_SECRET:-mock}
       - EBAY_APP_ID=${EBAY_APP_ID:-mock}
       - EBAY_CERT_ID=${EBAY_CERT_ID:-mock}
+      - EBAY_CATEGORY_TREE_ID=${EBAY_CATEGORY_TREE_ID:-0}
     # 2. Secure the container from mutating its own binaries
     read_only: true
     tmpfs:
