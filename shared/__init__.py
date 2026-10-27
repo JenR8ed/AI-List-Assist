@@ -1,23 +1,15 @@
-"""
-Shared models and schemas for eBay Listing Assistant.
-"""
+"""Shared models and schemas for AI List Assist."""
 
 from .models import (
-    ItemValuation,
-    ConversationState,
-    ListingDraft,
-    ImageSession,
-    BoundingBox,
     ItemCondition,
-    Profitability
+    ListingDraft,
+    ValuationResult,
+    ConsignmentItem,
 )
 
 __all__ = [
-    'ItemValuation',
-    'ConversationState',
-    'ListingDraft',
-    'ImageSession',
-    'BoundingBox',
-    'ItemCondition',
-    'Profitability'
+    "ItemCondition",
+    "ListingDraft",
+    "ValuationResult",
+    "ConsignmentItem",
 ]
