@@ -3,13 +3,15 @@ Enhanced Flask App - End-to-End eBay Listing Assistant
 Integrates all services: vision, valuation, conversation, listing synthesis, eBay API
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.utils import secure_filename
 import base64
 import json
 import os
 import logging
 import hmac
+import secrets
+from datetime import timedelta
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -43,6 +45,12 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 if not app.config['SECRET_KEY']:
     raise ValueError("SECRET_KEY environment variable must be set")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.getenv('LOCAL_HTTP_DEV') != '1',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=2),
+)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
@@ -81,24 +89,91 @@ except Exception as e:
 
 from functools import wraps
 
+def _csrf_token():
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_urlsafe(32)
+    return session['csrf_token']
+
+
+@app.context_processor
+def inject_csrf_token():
+    return {'csrf_token': _csrf_token}
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Local UI authentication; API_KEY is never exposed to browser code."""
+    configured_password = os.getenv('LOCAL_UI_PASSWORD')
+    if not configured_password:
+        return jsonify({'error': 'LOCAL_UI_PASSWORD is not configured'}), 503
+    if request.method == 'POST':
+        submitted_token = request.form.get('csrf_token', '')
+        if not hmac.compare_digest(submitted_token, _csrf_token()):
+            return jsonify({'error': 'Invalid CSRF token'}), 403
+        password = request.form.get('password', '')
+        if hmac.compare_digest(password, configured_password):
+            session.clear()
+            session.permanent = True
+            session['ui_authenticated'] = True
+            _csrf_token()
+            return redirect(url_for('index'))
+        return render_template('login.html', csrf_token=_csrf_token(), error='Incorrect password'), 401
+    return render_template('login.html', csrf_token=_csrf_token(), error=None)
+
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    if not hmac.compare_digest(request.form.get('csrf_token', ''), _csrf_token()):
+        return jsonify({'error': 'Invalid CSRF token'}), 403
+    session.clear()
+    return redirect(url_for('login'))
+
+
+@app.route('/api/auth/session', methods=['GET'])
+def ui_session_status():
+    if not session.get('ui_authenticated'):
+        return jsonify({'authenticated': False}), 401
+    return jsonify({'authenticated': True, 'csrf_token': _csrf_token()})
+
+
 def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         api_key = os.getenv('API_KEY')
+        header = request.headers.get('Authorization', '')
+        bearer = header[7:] if header.startswith('Bearer ') else header
+        if api_key and bearer and hmac.compare_digest(bearer, api_key):
+            return f(*args, **kwargs)
+
+        if session.get('ui_authenticated'):
+            if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+                submitted = request.headers.get('X-CSRF-Token', '')
+                if not submitted or not hmac.compare_digest(submitted, _csrf_token()):
+                    return jsonify({'error': 'Invalid CSRF token'}), 403
+            return f(*args, **kwargs)
+
         if not api_key:
-            # If no API key is configured, we might want to allow it for dev
-            # But for security, we should enforce it.
-            return jsonify({"error": "Server misconfiguration: API_KEY not set"}), 500
-
-        request_key = request.headers.get('Authorization')
-        if request_key and request_key.startswith('Bearer '):
-            request_key = request_key.split('Bearer ')[1]
-
-        if not request_key or not hmac.compare_digest(request_key, api_key):
-            return jsonify({"error": "Unauthorized"}), 401
-
-        return f(*args, **kwargs)
+            return jsonify({'error': 'Server misconfiguration: API_KEY not set'}), 500
+        return jsonify({'error': 'Unauthorized'}), 401
     return decorated_function
+
+
+def _publishing_disabled():
+    return os.getenv('ENABLE_EBAY_PUBLISHING') != '1'
+
+
+def _validate_draft_for_approval(draft):
+    """Reject incomplete drafts before transitioning to approved."""
+    if not draft.title.strip() or not draft.description.strip():
+        return 'Title and description are required'
+    if not draft.category_id or not draft.condition or draft.price <= 0:
+        return 'Valid category, condition and positive price are required'
+    if draft.missing_required_specifics:
+        return 'Required item specifics are missing'
+    if not draft.ready_for_api:
+        return 'Draft has not passed listing readiness validation'
+    return None
+
 
 # ============================================================================
 # DATABASE
@@ -470,10 +545,39 @@ def create_listing():
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
 
+@app.route('/api/listing/<listing_id>/approve', methods=['POST'])
+@require_api_key
+def approve_listing_draft(listing_id):
+    """Persist human approval after independently validating the stored draft."""
+    conn = sqlite3.connect('listings.db', check_same_thread=False)
+    try:
+        row = conn.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Draft not found'}), 404
+        if row[0] != 'draft':
+            return jsonify({'error': 'Only drafts can be approved'}), 409
+        if not row[1]:
+            return jsonify({'error': 'Draft data missing'}), 422
+        try:
+            draft = ListingDraft.model_validate(json.loads(row[1]))
+        except Exception:
+            return jsonify({'error': 'Invalid stored draft'}), 422
+        validation_error = _validate_draft_for_approval(draft)
+        if validation_error:
+            return jsonify({'error': validation_error}), 422
+        conn.execute("UPDATE listings SET status = 'approved' WHERE listing_id = ? AND status = 'draft'", (listing_id,))
+        conn.commit()
+        return jsonify({'success': True, 'status': 'approved'})
+    finally:
+        conn.close()
+
+
 @app.route('/api/listing/publish', methods=['POST'])
 @require_api_key
 def publish_listing():
-    """Publish listing to eBay."""
+    """Publish only previously approved drafts when explicitly enabled."""
+    if _publishing_disabled():
+        return jsonify({'error': 'Publishing is disabled'}), 403
     if not ebay_integration:
         return jsonify({"error": "eBay integration not initialized"}), 500
 
@@ -490,15 +594,19 @@ def publish_listing():
         # Get listing from database
         conn = sqlite3.connect('listings.db', check_same_thread=False)
         c = conn.cursor()
-        c.execute('SELECT draft_data FROM listings WHERE listing_id = ?', (listing_id,))
+        c.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,))
         row = c.fetchone()
         conn.close()
 
-        if not row or not row[0]:
+        if not row:
             return jsonify({"error": "Listing draft data not found"}), 404
+        if row[0] != 'approved':
+            return jsonify({"error": "Listing must be approved before publishing"}), 409
+        if not row[1]:
+            return jsonify({"error": "Listing draft data not found"}), 422
 
         # Reconstruct ListingDraft from DB
-        draft_dict = json.loads(row[0])
+        draft_dict = json.loads(row[1])
 
         # Handle datetime conversion
         if 'created_at' in draft_dict:
@@ -509,6 +617,9 @@ def publish_listing():
             draft_dict['condition'] = ItemCondition(draft_dict['condition'])
 
         listing_draft = ListingDraft(**draft_dict)
+        validation_error = _validate_draft_for_approval(listing_draft)
+        if validation_error:
+            return jsonify({"error": validation_error}), 422
 
         # Ensure we have a valid eBay token
         token = ebay_integration.token_manager.get_valid_token()
@@ -658,7 +769,9 @@ def get_category_aspects(category_id):
 @app.route('/api/ebay/submit-listing', methods=['POST'])
 @require_api_key
 def submit_listing_to_ebay():
-    """Submit listing to eBay with category aspects."""
+    """Legacy endpoint cannot bypass stored-draft approval."""
+    return jsonify({"error": "Legacy submission disabled; use approved draft workflow"}), 410
+
     data = request.json
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
@@ -915,7 +1028,7 @@ def get_token_status():
         return jsonify({
             "success": True,
             "has_token": bool(token),
-            "token_preview": token[:20] + "..." if token else None
+            "token_preview": None
         })
     except Exception as e:
         logger.exception("API Error"); return jsonify({"error": "An internal server error occurred."}), 500
@@ -1036,6 +1149,7 @@ def end_ebay_listing():
         return jsonify({"error": "An internal server error occurred."}), 500
 
 @app.route('/uploads/<filename>')
+@require_api_key
 def download_file(filename):
     """Serve uploaded images."""
     from flask import send_from_directory
