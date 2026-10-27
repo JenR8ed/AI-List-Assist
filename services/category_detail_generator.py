@@ -54,3 +54,46 @@ class CategoryDetailGenerator:
             if word in item_name:
                 return [{"category_id": "11700", "confidence": 0.7}]
         return [{"category_id": "293", "confidence": 0.3}]  # Default to electronics
+
+    def suggest_category_from_data(self, item_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Suggest a category from item metadata without external API calls."""
+        name = str((item_data or {}).get("item_name") or "").lower()
+        groups = (
+            (("phone", "headphone", "electronic", "computer", "laptop", "tablet",
+              "camera", "speaker", "monitor"), "293", 0.8),
+            (("shirt", "pants", "clothing", "jacket", "dress", "shoe",
+              "sneaker"), "1059", 0.7),
+            (("vintage", "collectible", "antique"), "20081", 0.6),
+            (("car", "auto", "vehicle", "engine"), "6024", 0.7),
+        )
+        for keywords, category_id, confidence in groups:
+            if any(word in name for word in keywords):
+                return [{"category_id": category_id, "confidence": confidence}]
+        return [{"category_id": "293", "confidence": 0.3}]
+
+    def get_required_fields(self, category_id: str) -> List[Dict[str, Any]]:
+        """Normalize required aspects from the category service."""
+        aspects = self.category_service.get_category_aspects(category_id) or {}
+        return [
+            {
+                "name": aspect["name"],
+                "input_mode": aspect.get("input_mode", aspect.get("mode", "FREETEXT")),
+                "allowed_values": aspect.get("allowed_values", aspect.get("values", [])),
+            }
+            for aspect in aspects.get("required", [])
+        ]
+
+    def validate_data(self, category_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Check required fields and constrained selections without publishing."""
+        missing = []
+        invalid = []
+        for definition in self.get_required_fields(category_id):
+            name = definition["name"]
+            value = (data or {}).get(name)
+            if value is None or (isinstance(value, str) and not value.strip()):
+                missing.append(name)
+                continue
+            allowed = definition.get("allowed_values", [])
+            if definition.get("input_mode") == "SELECT" and allowed and value not in allowed:
+                invalid.append({"field": name, "value": value, "allowed": allowed})
+        return {"valid": not missing and not invalid, "missing": missing, "invalid": invalid}
