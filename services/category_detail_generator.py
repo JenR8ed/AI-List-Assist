@@ -16,7 +16,17 @@ class CategoryDetailGenerator:
 
     def __init__(self):
         self.category_service = EBayCategoryService()
-        self.gemini = GeminiRestClient()
+        # Category suggestions do not require Gemini. Only initialize the
+        # optional client when a server-side key is configured.
+        self.gemini_client = None
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if api_key:
+            try:
+                self.gemini_client = GeminiRestClient(api_key=api_key)
+            except Exception:
+                # Keep local/fixture category suggestions available if the
+                # optional Gemini client cannot initialize.
+                self.gemini_client = None
 
     def generate_details(self, item_name: str, category_id: str = None, image_b64: str = None) -> Dict[str, Any]:
         """Generate category-specific item details and suggested aspects."""
