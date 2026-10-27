@@ -69,7 +69,7 @@ def test_session_auth_and_csrf(security_client, monkeypatch):
         "/login", data={"password": "test-local-password", "csrf_token": token}
     )
     assert response.status_code == 302
-    assert security_client.get("/api/listings/drafts").status_code == 200
+    assert security_client.get("/api/auth/session").status_code == 200
     assert security_client.post("/api/category/suggest", json={"item_name": "camera"}).status_code == 403
     with security_client.session_transaction() as state:
         token = state["csrf_token"]
