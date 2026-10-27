@@ -97,7 +97,7 @@ def _csrf_token():
 
 @app.context_processor
 def inject_csrf_token():
-    return {'csrf_token': _csrf_token}
+    return {'csrf_token': _csrf_token()}
 
 
 @app.route('/login', methods=['GET', 'POST'])
