@@ -95,9 +95,12 @@ def test_publish_disabled_even_with_valid_server_key(security_client, monkeypatc
 
 def test_approval_requires_valid_stored_draft(security_client):
     _insert_draft(_draft(ready=False))
+    with security_client.session_transaction() as state:
+        state["ui_authenticated"] = True
+        state["csrf_token"] = "test-csrf"
     response = security_client.post(
         "/api/listing/draft-one/approve",
-        headers={"Authorization": "Bearer test-only-api-key"},
+        headers={"X-CSRF-Token": "test-csrf"},
     )
     assert response.status_code == 422
     conn = sqlite3.connect("listings.db")
@@ -127,3 +130,25 @@ def test_legacy_direct_publish_disabled(security_client):
         headers={"Authorization": "Bearer test-only-api-key"},
     )
     assert response.status_code == 410
+
+
+def test_bearer_key_cannot_approve_as_human(security_client):
+    _insert_draft(_draft())
+    response = security_client.post(
+        "/api/listing/draft-one/approve",
+        headers={"Authorization": "Bearer test-only-api-key"},
+    )
+    assert response.status_code == 403
+
+
+def test_human_approval_requires_csrf(security_client):
+    _insert_draft(_draft())
+    with security_client.session_transaction() as state:
+        state["ui_authenticated"] = True
+        state["csrf_token"] = "test-csrf"
+    assert security_client.post("/api/listing/draft-one/approve").status_code == 403
+    response = security_client.post(
+        "/api/listing/draft-one/approve",
+        headers={"X-CSRF-Token": "test-csrf"},
+    )
+    assert response.status_code == 200
