@@ -1,39 +1,46 @@
-# AI List Assist Makefile
+.PHONY: venv install init-db test smoke lint run docker-build docker-up clean
 
-.PHONY: help install test smoke lint run docker-up docker-down clean
+PYTHON ?= python3
+VENV ?= .venv
 
-help:
-	@echo "AI List Assist targets:"
-	@echo "  install     Install Python dependencies"
-	@echo "  test        Run full pytest suite"
-	@echo "  smoke       Run offline smoke tests only"
-	@echo "  lint        Run flake8"
-	@echo "  run         Start Flask app (dev)"
-	@echo "  docker-up   Start postgres + redis via docker-compose.db.yml"
-	@echo "  docker-down Stop docker services"
-	@echo "  clean       Remove caches and local DBs"
+venv:
+	$(PYTHON) -m venv $(VENV)
+	$(VENV)/bin/python -m pip install --upgrade pip
+	$(VENV)/bin/python -m pip install -r requirements.txt
 
 install:
-	python -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -r requirements.txt
 
-test:
-	PYTHONPATH=. python -m pytest tests/ -v --tb=short
+init-db:
+	SECRET_KEY=$${SECRET_KEY:-dev-secret} API_KEY=$${API_KEY:-dev-key} GOOGLE_API_KEY=$${GOOGLE_API_KEY:-dev-google-key} \
+	$(PYTHON) -c "from app_enhanced import init_db; from services.consignment_database import init_db as init_consignment; init_db(); init_consignment()"
 
 smoke:
-	PYTHONPATH=. python -m pytest tests/test_smoke.py -q
+	PYTHONPATH=. SECRET_KEY=smoke-test-secret API_KEY=smoke-test-api-key \
+	EBAY_CLIENT_ID=smoke-test-client-id EBAY_CLIENT_SECRET=smoke-test-client-secret \
+	GOOGLE_API_KEY=smoke-test-google-key \
+	$(PYTHON) -m pytest tests/test_smoke.py -v --tb=short
+
+test:
+	PYTHONPATH=. SECRET_KEY=smoke-test-secret API_KEY=smoke-test-api-key \
+	EBAY_CLIENT_ID=smoke-test-client-id EBAY_CLIENT_SECRET=smoke-test-client-secret \
+	GOOGLE_API_KEY=smoke-test-google-key \
+	$(PYTHON) -m pytest tests/ -v --tb=short
 
 lint:
-	flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-	run:
-	FLASK_APP=app_enhanced.py FLASK_ENV=development python -m flask run --host=0.0.0.0 --port=5000
+	$(PYTHON) -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+run: init-db
+	SECRET_KEY=$${SECRET_KEY:-dev-secret} API_KEY=$${API_KEY:-dev-key} GOOGLE_API_KEY=$${GOOGLE_API_KEY:-dev-google-key} \
+	$(PYTHON) app_enhanced.py
+
+docker-build:
+	mkdir -p data
+	docker compose -f docker-compose.dev.yml build
 
 docker-up:
-	docker compose -f docker-compose.db.yml up -d
-
-docker-down:
-	docker compose -f docker-compose.db.yml down
+	mkdir -p data
+	docker compose -f docker-compose.dev.yml up --build
 
 clean:
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	rm -f *.db *.db-shm *.db-wal
-	rm -rf .pytest_cache .coverage htmlcov
+	rm -rf __pycache__ .pytest_cache *.db *.db-shm *.db-wal
