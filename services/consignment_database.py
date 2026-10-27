@@ -1,6 +1,3 @@
-import logging
-logger = logging.getLogger(__name__)
-
 """
 Consignment Database Service
 Manages participants, assets, transactions, and documentation for the
@@ -8,14 +5,18 @@ consignment & return protocol system.
 Schema version: 1.0.0
 """
 
+import hashlib
+import logging
+import os
 import sqlite3
 import uuid
-import hashlib
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
+logger = logging.getLogger(__name__)
 
-DB_PATH = "consignment.db"
+_DATA_DIR = os.getenv("DATA_DIR")
+DB_PATH = os.path.join(_DATA_DIR, "consignment.db") if _DATA_DIR else "consignment.db"
 
 
 # ---------------------------------------------------------------------------
@@ -27,8 +28,8 @@ CREATE TABLE IF NOT EXISTS participants (
     participant_id      TEXT PRIMARY KEY,
     display_name        TEXT,
     email               TEXT,
-    kyc_status          TEXT NOT NULL DEFAULT 'PENDING',   -- PENDING | VERIFIED | REJECTED
-    tax_nexus_code      TEXT,                              -- ISO-3166-2, e.g. US-CA
+    kyc_status          TEXT NOT NULL DEFAULT 'PENDING',
+    tax_nexus_code      TEXT,
     payout_method_type  TEXT,
     last_verification_utc TEXT,
     created_at          TEXT NOT NULL
@@ -37,10 +38,10 @@ CREATE TABLE IF NOT EXISTS participants (
 CREATE TABLE IF NOT EXISTS assets (
     asset_id            TEXT PRIMARY KEY,
     participant_id      TEXT NOT NULL REFERENCES participants(participant_id),
-    provenance_hash     TEXT,                              -- SHA-256 of identifying data
+    provenance_hash     TEXT,
     basis_value         REAL NOT NULL DEFAULT 0.0,
-    condition_state     TEXT NOT NULL DEFAULT 'GOOD',      -- MINT | GOOD | DAMAGED | INAD
-    current_status      TEXT NOT NULL DEFAULT 'RECEIVED',  -- RECEIVED | LISTED | SOLD | RETURN_PENDING | CLOSED
+    condition_state     TEXT NOT NULL DEFAULT 'GOOD',
+    current_status      TEXT NOT NULL DEFAULT 'RECEIVED',
     ebay_listing_id     TEXT,
     sale_price          REAL,
     created_at          TEXT NOT NULL,
@@ -50,7 +51,7 @@ CREATE TABLE IF NOT EXISTS assets (
 CREATE TABLE IF NOT EXISTS transactions (
     transaction_id      TEXT PRIMARY KEY,
     asset_id            TEXT NOT NULL REFERENCES assets(asset_id),
-    call_type           TEXT NOT NULL,  -- LISTING_SUBMISSION | SALE_RECORD | RETURN_CLAIM | DISPUTE_RESOLUTION
+    call_type           TEXT NOT NULL,
     commission_multiplier REAL NOT NULL DEFAULT 0.15,
     timestamp_iso8601   TEXT NOT NULL,
     carrier_trace_id    TEXT,
@@ -63,7 +64,7 @@ CREATE TABLE IF NOT EXISTS documents (
     gsa_file_name       TEXT NOT NULL,
     persistent_url      TEXT,
     mime_type           TEXT NOT NULL DEFAULT 'application/pdf',
-    document_category   TEXT NOT NULL,  -- VALUATION | DAMAGE_PROOF | SHIP_LABEL
+    document_category   TEXT NOT NULL,
     created_at          TEXT NOT NULL
 );
 """
@@ -72,15 +73,17 @@ CREATE TABLE IF NOT EXISTS documents (
 def _get_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
-def init_db():
-    """Create all tables if they don't exist."""
+def init_db() -> None:
     with _get_conn() as conn:
         conn.executescript(SCHEMA_SQL)
-    logger.info(f"Consignment DB initialised at {DB_PATH}")
+    logger.info("Consignment database initialized at %s", DB_PATH)
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +166,6 @@ def create_asset(
                VALUES (?, ?, ?, ?, ?, 'RECEIVED', ?, ?)""",
             (asset_id, participant_id, provenance_hash, basis_value, condition_state, now, now),
         )
-    # Auto-log the intake transaction
     log_transaction(asset_id, "LISTING_SUBMISSION", notes="Asset received into consignment")
     return get_asset(asset_id)
 
@@ -196,19 +198,30 @@ def list_assets(
 
 def update_asset_status(
     asset_id: str,
-    new_status: str,
+    current_status: str,
     ebay_listing_id: Optional[str] = None,
     sale_price: Optional[float] = None,
 ) -> Optional[Dict[str, Any]]:
     now = _now()
     with _get_conn() as conn:
-        conn.execute(
-            """UPDATE assets
-               SET current_status = ?, ebay_listing_id = COALESCE(?, ebay_listing_id),
-                   sale_price = COALESCE(?, sale_price), updated_at = ?
-               WHERE asset_id = ?""",
-            (new_status, ebay_listing_id, sale_price, now, asset_id),
-        )
+        if ebay_listing_id is not None and sale_price is not None:
+            conn.execute(
+                """UPDATE assets SET current_status = ?, ebay_listing_id = ?,
+                   sale_price = ?, updated_at = ? WHERE asset_id = ?""",
+                (current_status, ebay_listing_id, sale_price, now, asset_id),
+            )
+        elif ebay_listing_id is not None:
+            conn.execute(
+                """UPDATE assets SET current_status = ?, ebay_listing_id = ?,
+                   updated_at = ? WHERE asset_id = ?""",
+                (current_status, ebay_listing_id, now, asset_id),
+            )
+        else:
+            conn.execute(
+                """UPDATE assets SET current_status = ?, updated_at = ?
+                   WHERE asset_id = ?""",
+                (current_status, now, asset_id),
+            )
     return get_asset(asset_id)
 
 
@@ -223,7 +236,7 @@ def log_transaction(
     carrier_trace_id: Optional[str] = None,
     notes: Optional[str] = None,
 ) -> Dict[str, Any]:
-    txn_id = str(uuid.uuid4())
+    tx_id = str(uuid.uuid4())
     now = _now()
     with _get_conn() as conn:
         conn.execute(
@@ -231,50 +244,30 @@ def log_transaction(
                (transaction_id, asset_id, call_type, commission_multiplier,
                 timestamp_iso8601, carrier_trace_id, notes)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (txn_id, asset_id, call_type, commission_multiplier, now, carrier_trace_id, notes),
+            (tx_id, asset_id, call_type, commission_multiplier, now, carrier_trace_id, notes),
         )
-    return get_transaction(txn_id)
+    return {"transaction_id": tx_id, "asset_id": asset_id, "call_type": call_type}
 
 
-def get_transaction(transaction_id: str) -> Optional[Dict[str, Any]]:
+def calculate_payout(asset_id: str) -> Dict[str, Any]:
     with _get_conn() as conn:
         row = conn.execute(
-            "SELECT * FROM transactions WHERE transaction_id = ?", (transaction_id,)
-        ).fetchone()
-    return dict(row) if row else None
-
-
-def list_transactions(asset_id: Optional[str] = None) -> List[Dict[str, Any]]:
-    sql = "SELECT * FROM transactions"
-    params = []
-    if asset_id:
-        sql += " WHERE asset_id = ?"
-        params.append(asset_id)
-    sql += " ORDER BY timestamp_iso8601 DESC"
-    with _get_conn() as conn:
-        rows = conn.execute(sql, params).fetchall()
-    return [dict(r) for r in rows]
-
-
-def calculate_commission(asset_id: str) -> Dict[str, Any]:
-    """Calculate commission owed for a sold asset."""
-    with _get_conn() as conn:
-        row = conn.execute(
-            '''
-            SELECT a.sale_price, a.current_status,
-                   (SELECT commission_multiplier FROM transactions
-                    WHERE asset_id = a.asset_id AND call_type = 'SALE_RECORD'
-                    ORDER BY timestamp_iso8601 DESC LIMIT 1) as multiplier
-            FROM assets a
-            WHERE a.asset_id = ?
-            ''', (asset_id,)
+            """SELECT a.sale_price, t.commission_multiplier as multiplier
+               FROM assets a
+               LEFT JOIN transactions t ON t.asset_id = a.asset_id
+               WHERE a.asset_id = ?
+               ORDER BY t.timestamp_iso8601 DESC LIMIT 1""",
+            (asset_id,),
         ).fetchone()
 
     if not row:
         return {"error": "Asset not found"}
 
-    if row["current_status"] != "SOLD":
-        return {"error": "Asset is not yet SOLD"}
+    if row["current_status"] != "SOLD" if "current_status" in row.keys() else False:
+        # Re-fetch status
+        asset = get_asset(asset_id)
+        if not asset or asset.get("current_status") != "SOLD":
+            return {"error": "Asset is not yet SOLD"}
 
     multiplier = row["multiplier"] if row["multiplier"] is not None else 0.15
     sale_price = row["sale_price"] or 0.0
@@ -303,7 +296,6 @@ def attach_document(
     doc_id = f"DOC-{uuid.uuid4().hex[:8].upper()}"
     now = _now()
     if not gsa_file_name:
-        # Auto-generate GSA-compliant file name: YYYYMMDD_ASSETID_CATEGORY
         date_str = datetime.now().strftime("%Y%m%d")
         gsa_file_name = f"{date_str}_{asset_id}_{document_category}"
     with _get_conn() as conn:
@@ -336,10 +328,8 @@ def list_documents(asset_id: Optional[str] = None) -> List[Dict[str, Any]]:
         rows = conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
-def calculate_commission_amount(amount):
+def calculate_commission_amount(amount: float) -> float:
     if amount <= 1000:
         return amount * 0.15
     elif amount <= 5000:
