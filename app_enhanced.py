@@ -549,6 +549,11 @@ def create_listing():
 @require_api_key
 def approve_listing_draft(listing_id):
     """Persist human approval after independently validating the stored draft."""
+    if not session.get('ui_authenticated'):
+        return jsonify({'error': 'Human UI session required for approval'}), 403
+    token = request.headers.get('X-CSRF-Token', '')
+    if not token or not hmac.compare_digest(token, _csrf_token()):
+        return jsonify({'error': 'Invalid CSRF token'}), 403
     conn = sqlite3.connect('listings.db', check_same_thread=False)
     try:
         row = conn.execute('SELECT status, draft_data FROM listings WHERE listing_id = ?', (listing_id,)).fetchone()
