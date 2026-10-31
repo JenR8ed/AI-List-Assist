@@ -94,5 +94,71 @@ class TestConversationOrchestrator(unittest.TestCase):
                 result = self.orchestrator._extract_info_from_answer(question, answer)
                 self.assertEqual(result.get("price"), expected)
 
+
+    def test_process_answer_happy_path(self):
+        # Setup initial state
+        initial_data = {"item_name": "Test Item"}
+        state = self.orchestrator.start_conversation("item-1", initial_data)
+        session_id = state.session_id
+
+        # We know "item_name" so "condition" should be the next required field in unknown_fields
+        self.assertIn("condition", state.unknown_fields)
+        self.assertNotIn("condition", state.known_fields)
+
+        # Override current question to ensure predictable testing
+        state.current_question = "What condition is it in?"
+
+        # Process the answer
+        new_state = self.orchestrator.process_answer(session_id, "It is brand new")
+
+        # Verify state updated correctly
+        self.assertEqual(new_state.known_fields.get("condition"), "New")
+        self.assertNotIn("condition", new_state.unknown_fields)
+        self.assertFalse(new_state.is_complete)
+        self.assertIsNotNone(new_state.current_question)
+
+    def test_process_answer_completion(self):
+        # Setup initial state with almost everything known
+        initial_data = {
+            "item_name": "Test Item",
+            "condition": "New",
+            "price": 100.0,
+            # Missing "category"
+        }
+        state = self.orchestrator.start_conversation("item-1", initial_data)
+        session_id = state.session_id
+
+        # Provide optional fields to ensure confidence >= 0.6
+        state.known_fields.update({
+            "brand": "Nike", "model": "Air", "color": "Red",
+            "material": "Leather", "is_complete": True
+        })
+
+        state.current_question = "What category does it belong to?"
+
+        # Process the final required answer
+        # Note: _extract_info_from_answer doesn't currently extract "category"
+        # but to trigger completion, it just needs to be in known_fields
+        # Wait, process_answer only updates based on what _extract_info_from_answer returns.
+        # Since _extract_info_from_answer does not have logic for "category", it won't add it.
+        # Let's mock _extract_info_from_answer to return the category for this test.
+        original_extract = self.orchestrator._extract_info_from_answer
+        self.orchestrator._extract_info_from_answer = lambda q, a: {"category": "Shoes"}
+
+        new_state = self.orchestrator.process_answer(session_id, "Shoes")
+
+        # Restore original
+        self.orchestrator._extract_info_from_answer = original_extract
+
+        # Verify state is complete
+        self.assertTrue(new_state.is_complete)
+        self.assertIsNone(new_state.current_question)
+
+    def test_process_answer_invalid_session(self):
+        with self.assertRaises(ValueError) as context:
+            self.orchestrator.process_answer("invalid-session-id", "Some answer")
+
+        self.assertIn("not found", str(context.exception))
+
 if __name__ == '__main__':
     unittest.main()
