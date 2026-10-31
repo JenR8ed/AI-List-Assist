@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS participants (
     participant_id      TEXT PRIMARY KEY,
     display_name        TEXT,
     email               TEXT,
-    kyc_status          TEXT NOT NULL DEFAULT 'PENDING',
-    tax_nexus_code      TEXT,
+    kyc_status          TEXT NOT NULL DEFAULT 'PENDING',   -- PENDING | VERIFIED | REJECTED
+    tax_nexus_code      TEXT,                              -- ISO-3166-2, e.g. US-CA
     payout_method_type  TEXT,
     last_verification_utc TEXT,
     created_at          TEXT NOT NULL
@@ -38,10 +38,10 @@ CREATE TABLE IF NOT EXISTS participants (
 CREATE TABLE IF NOT EXISTS assets (
     asset_id            TEXT PRIMARY KEY,
     participant_id      TEXT NOT NULL REFERENCES participants(participant_id),
-    provenance_hash     TEXT,
+    provenance_hash     TEXT,                              -- SHA-256 of identifying data
     basis_value         REAL NOT NULL DEFAULT 0.0,
-    condition_state     TEXT NOT NULL DEFAULT 'GOOD',
-    current_status      TEXT NOT NULL DEFAULT 'RECEIVED',
+    condition_state     TEXT NOT NULL DEFAULT 'GOOD',      -- MINT | GOOD | DAMAGED | INAD
+    current_status      TEXT NOT NULL DEFAULT 'RECEIVED',  -- RECEIVED | LISTED | SOLD | RETURN_PENDING | CLOSED
     ebay_listing_id     TEXT,
     sale_price          REAL,
     created_at          TEXT NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS assets (
 CREATE TABLE IF NOT EXISTS transactions (
     transaction_id      TEXT PRIMARY KEY,
     asset_id            TEXT NOT NULL REFERENCES assets(asset_id),
-    call_type           TEXT NOT NULL,
+    call_type           TEXT NOT NULL,  -- LISTING_SUBMISSION | SALE_RECORD | RETURN_CLAIM | DISPUTE_RESOLUTION
     commission_multiplier REAL NOT NULL DEFAULT 0.15,
     timestamp_iso8601   TEXT NOT NULL,
     carrier_trace_id    TEXT,
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS documents (
     gsa_file_name       TEXT NOT NULL,
     persistent_url      TEXT,
     mime_type           TEXT NOT NULL DEFAULT 'application/pdf',
-    document_category   TEXT NOT NULL,
+    document_category   TEXT NOT NULL,  -- VALUATION | DAMAGE_PROOF | SHIP_LABEL
     created_at          TEXT NOT NULL
 );
 """
@@ -73,17 +73,15 @@ CREATE TABLE IF NOT EXISTS documents (
 def _get_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
 def init_db() -> None:
+    """Create tables if they do not exist."""
     with _get_conn() as conn:
         conn.executescript(SCHEMA_SQL)
     logger.info("Consignment database initialized at %s", DB_PATH)
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -92,11 +90,11 @@ def _now() -> str:
 
 def create_participant(
     display_name: str,
-    email: str,
+    email: Optional[str] = None,
     tax_nexus_code: Optional[str] = None,
     payout_method_type: Optional[str] = None,
 ) -> Dict[str, Any]:
-    pid = f"P-{uuid.uuid4().hex[:10].upper()}"
+    pid = f"US-CA-{uuid.uuid4().hex[:6].upper()}"
     now = _now()
     with _get_conn() as conn:
         conn.execute(
@@ -198,30 +196,19 @@ def list_assets(
 
 def update_asset_status(
     asset_id: str,
-    current_status: str,
+    new_status: str,
     ebay_listing_id: Optional[str] = None,
     sale_price: Optional[float] = None,
 ) -> Optional[Dict[str, Any]]:
     now = _now()
     with _get_conn() as conn:
-        if ebay_listing_id is not None and sale_price is not None:
-            conn.execute(
-                """UPDATE assets SET current_status = ?, ebay_listing_id = ?,
-                   sale_price = ?, updated_at = ? WHERE asset_id = ?""",
-                (current_status, ebay_listing_id, sale_price, now, asset_id),
-            )
-        elif ebay_listing_id is not None:
-            conn.execute(
-                """UPDATE assets SET current_status = ?, ebay_listing_id = ?,
-                   updated_at = ? WHERE asset_id = ?""",
-                (current_status, ebay_listing_id, now, asset_id),
-            )
-        else:
-            conn.execute(
-                """UPDATE assets SET current_status = ?, updated_at = ?
-                   WHERE asset_id = ?""",
-                (current_status, now, asset_id),
-            )
+        conn.execute(
+            """UPDATE assets
+               SET current_status = ?, ebay_listing_id = COALESCE(?, ebay_listing_id),
+                   sale_price = COALESCE(?, sale_price), updated_at = ?
+               WHERE asset_id = ?""",
+            (new_status, ebay_listing_id, sale_price, now, asset_id),
+        )
     return get_asset(asset_id)
 
 
@@ -246,15 +233,16 @@ def log_transaction(
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (tx_id, asset_id, call_type, commission_multiplier, now, carrier_trace_id, notes),
         )
-    return {"transaction_id": tx_id, "asset_id": asset_id, "call_type": call_type}
+    return {"transaction_id": tx_id, "asset_id": asset_id, "call_type": call_type, "timestamp": now}
 
 
 def calculate_payout(asset_id: str) -> Dict[str, Any]:
     with _get_conn() as conn:
         row = conn.execute(
-            """SELECT a.sale_price, t.commission_multiplier as multiplier
+            """SELECT a.sale_price, t.commission_multiplier AS multiplier
                FROM assets a
                LEFT JOIN transactions t ON t.asset_id = a.asset_id
+                 AND t.call_type = 'SALE_RECORD'
                WHERE a.asset_id = ?
                ORDER BY t.timestamp_iso8601 DESC LIMIT 1""",
             (asset_id,),
@@ -327,6 +315,10 @@ def list_documents(asset_id: Optional[str] = None) -> List[Dict[str, Any]]:
     with _get_conn() as conn:
         rows = conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def calculate_commission_amount(amount: float) -> float:
