@@ -55,7 +55,7 @@ class MockValuationService:
                 "resale_score": 8,
                 "profitability": "high",
                 "recommended_platforms": ["eBay", "Swappa", "Facebook Marketplace"],
-                "key_factors": ["Apple brand", "Still supported", "Good specs"],
+                "key_factors": ["Apple brand", "Still supported"],
                 "risks": ["Battery degradation", "New models available"],
                 "listing_tips": ["Include battery health", "Show all angles"],
                 "worth_listing": True,
