@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI List Assist — Local Sign In</title></head>
+<body style="font-family:system-ui;max-width:28rem;margin:4rem auto;padding:1rem">
+<h1>AI List Assist</h1>
+<p>Local development sign-in. Configure LOCAL_UI_PASSWORD on the server.</p>
+{% if error %}<p role="alert" style="color:#a00">{{ error }}</p>{% endif %}
+<form method="post" action="/login">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="password">Local password</label>
+<input id="password" type="password" name="password" required autocomplete="current-password">
+<button type="submit">Sign in</button>
+</form>
+</body></html>

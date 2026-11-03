@@ -67,6 +67,14 @@ The project is being developed as an applied AI reliability lab: model output is
 
 The application reads integration configuration from its environment and contains routes with consequential marketplace actions. Authentication, request validation, and publishing safeguards need a separate security review before any deployment or credential-based test. The offline smoke tests do not establish production readiness.
 
+## Local session-authenticated draft review
+
+The local UI uses a server-side Flask session; the API bearer key remains for server-to-server requests. Configure `LOCAL_UI_PASSWORD` with a strong value and visit `/login` before using the dashboard. For an explicitly localhost-only HTTP setup, use `LOCAL_HTTP_DEV=1`; otherwise the session cookie requires HTTPS. Browser requests use a CSRF token and never receive `API_KEY`.
+
+Publishing is **disabled by default** (`ENABLE_EBAY_PUBLISHING=0`). An approved status must be persisted on a validated listing draft before the publishing endpoint can proceed when explicitly enabled. The legacy valuation-to-publish shortcut returns HTTP 410. These safeguards do not establish production readiness or complete the eBay OAuth callback.
+
+Do not configure real marketplace credentials for local fixture tests. The UI does not yet expose a complete draft approval interface; the authenticated server endpoint is `POST /api/listing/<listing_id>/approve`.
+
 ## Related JenR8ed work
 
 - jenr8ed-deploy-kit — deployment/governance layer
