@@ -1,23 +1,47 @@
 """
 eBay API Integration Layer
-Handles OAuth, listing creation, and eBay Sell APIs.
+Handles OAuth, listing creation, Account API business policy lookup,
+aspect normalization (Dict[str, List[str]] <= 65 chars), and condition enum mapping.
 """
 
-import logging
-from typing import Dict, Any, Optional, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import os
-import requests
 from datetime import datetime
-from shared.models import ListingDraft
+import logging
+import os
+from typing import Any, Dict, List, Optional, Union
+import requests
+from shared.models import ItemCondition, ListingDraft
 from services.ebay_token_manager import EBayTokenManager
 
 logger = logging.getLogger(__name__)
 
+
+INVENTORY_CONDITION_ENUM_MAP: Dict[str, str] = {
+    "New": "NEW",
+    "NEW": "NEW",
+    "New other (see details)": "NEW_OTHER",
+    "NEW_OTHER": "NEW_OTHER",
+    "New with defects": "NEW_WITH_DEFECTS",
+    "NEW_WITH_DEFECTS": "NEW_WITH_DEFECTS",
+    "Manufacturer refurbished": "CERTIFIED_REFURBISHED",
+    "MANUFACTURER_REFURBISHED": "CERTIFIED_REFURBISHED",
+    "CERTIFIED_REFURBISHED": "CERTIFIED_REFURBISHED",
+    "Seller refurbished": "SELLER_REFURBISHED",
+    "SELLER_REFURBISHED": "SELLER_REFURBISHED",
+    "Used": "USED_EXCELLENT",
+    "USED": "USED_EXCELLENT",
+    "USED_EXCELLENT": "USED_EXCELLENT",
+    "USED_GOOD": "USED_GOOD",
+    "USED_ACCEPTABLE": "USED_ACCEPTABLE",
+    "For parts or not working": "FOR_PARTS_OR_NOT_WORKING",
+    "FOR_PARTS": "FOR_PARTS_OR_NOT_WORKING",
+    "FOR_PARTS_OR_NOT_WORKING": "FOR_PARTS_OR_NOT_WORKING",
+}
+
+
 class eBayIntegration:
     """Integration layer for eBay Sell APIs."""
 
-    # eBay API endpoints (Sandbox)
     SANDBOX_BASE_URL = "https://api.sandbox.ebay.com"
     PRODUCTION_BASE_URL = "https://api.ebay.com"
 
@@ -26,330 +50,191 @@ class eBayIntegration:
         app_id: Optional[str] = None,
         cert_id: Optional[str] = None,
         dev_id: Optional[str] = None,
-        use_sandbox: bool = True
+        use_sandbox: bool = True,
     ):
-        """
-        Initialize eBay integration.
-
-        Args:
-            app_id: eBay App ID (Client ID)
-            cert_id: eBay Certificate ID (Client Secret)
-            dev_id: eBay Developer ID
-            use_sandbox: Use sandbox environment
-        """
-        # Support both naming conventions for environment variables
-        self.app_id = app_id or os.getenv('EBAY_APP_ID') or os.getenv('EBAY_CLIENT_ID')
-        self.cert_id = cert_id or os.getenv('EBAY_CERT_ID') or os.getenv('EBAY_CLIENT_SECRET')
-        self.dev_id = dev_id or os.getenv('EBAY_DEV_ID')
+        self.app_id = app_id or os.getenv("EBAY_APP_ID") or os.getenv("EBAY_CLIENT_ID")
+        self.cert_id = cert_id or os.getenv("EBAY_CERT_ID") or os.getenv("EBAY_CLIENT_SECRET")
+        self.dev_id = dev_id or os.getenv("EBAY_DEV_ID")
         self.use_sandbox = use_sandbox
 
         self.base_url = self.SANDBOX_BASE_URL if use_sandbox else self.PRODUCTION_BASE_URL
 
-        # Initialize token manager for persistence and lifecycle handling
         self.token_manager = EBayTokenManager(
             client_id=self.app_id,
             client_secret=self.cert_id,
-            use_sandbox=use_sandbox
+            use_sandbox=use_sandbox,
         )
 
-        # Load initial tokens if available
-        self.access_token: Optional[str] = os.getenv('EBAY_ACCESS_TOKEN')
-        self.refresh_token: Optional[str] = os.getenv('EBAY_REFRESH_TOKEN')
-
-    def authenticate(self, auth_code: str, redirect_uri: str) -> bool:
-        """
-        Authenticate with eBay using OAuth 2.0 authorization code.
-
-        Args:
-            auth_code: Authorization code from OAuth callback
-            redirect_uri: Redirect URI used in OAuth flow
-
-        Returns:
-            True if authentication successful
-        """
-        token_data = self.token_manager.exchange_code_for_token(auth_code, redirect_uri)
-        if token_data:
-            self.access_token = token_data.get("access_token")
-            self.refresh_token = token_data.get("refresh_token")
-            return True
-        return False
-
-    def refresh_access_token(self) -> bool:
-        """
-        Refresh the access token using the refresh token.
-
-        Returns:
-            True if refresh successful
-        """
-        # The token manager handles the refresh logic internally using stored refresh token
-        token_data = self.token_manager._refresh_token()
-        if token_data:
-            self.access_token = token_data.get("access_token")
-            if token_data.get("refresh_token"):
-                self.refresh_token = token_data.get("refresh_token")
-            return True
-        return False
-
-    def create_listing(self, listing_draft: ListingDraft) -> Dict[str, Any]:
-        """
-        Create an eBay listing from a draft.
-
-        Args:
-            listing_draft: ListingDraft object
-
-        Returns:
-            API response with listing details
-        """
-        if not self.access_token:
-            raise ValueError("Not authenticated. Call authenticate() first.")
-
-        # Map to eBay Inventory API format
-        inventory_item = self._map_to_ebay_inventory(listing_draft)
-
-        # Create inventory item
-        inventory_response = self._create_inventory_item(inventory_item)
-
-        # Create offer
-        offer = self._map_to_ebay_offer(listing_draft, inventory_response)
-        offer_response = self._create_offer(offer)
-
-        # Publish listing
-        publish_response = self._publish_listing(offer_response.get("offerId"))
-
-        return {
-            "listing_id": publish_response.get("listingId"),
-            "status": "published",
-            "url": f"https://www.ebay.com/itm/{publish_response.get('listingId')}"
-        }
-
-    def _map_to_ebay_inventory(self, draft: ListingDraft) -> Dict[str, Any]:
-        """Map ListingDraft to eBay Inventory API format."""
-        return {
-            "sku": draft.listing_id,
-            "product": {
-                "title": draft.title,
-                "description": draft.description,
-                "aspects": draft.item_specifics,
-                "imageUrls": draft.images
-            },
-            "condition": draft.condition.value,
-            "availability": {
-                "shipToLocationAvailability": {
-                    "quantity": 1
-                }
-            }
-        }
-
-    def _map_to_ebay_offer(self, draft: ListingDraft, inventory_response: Dict) -> Dict[str, Any]:
-        """Map ListingDraft to eBay Offer API format."""
-        return {
-            "sku": draft.listing_id,
-            "marketplaceId": "EBAY_US",  # Default to US marketplace
-            "format": "FIXED_PRICE",
-            "pricingSummary": {
-                "price": {
-                    "value": str(draft.price),
-                    "currency": "USD"
-                }
-            },
-            "categoryId": draft.category_id or "267",  # Default category
-            "listingPolicies": {
-                "fulfillmentPolicyId": "default",
-                "paymentPolicyId": "default",
-                "returnPolicyId": "default"
-            }
-        }
-
-    def _create_inventory_item(self, inventory_item: Dict[str, Any]) -> Dict[str, Any]:
-        """Create or update inventory item via eBay Inventory API (PUT)."""
-        sku = inventory_item.get("sku")
-        if not sku:
-            raise ValueError("Inventory item must have a SKU")
-
-        url = f"{self.base_url}/sell/inventory/v1/inventory_item/{sku}"
-        headers = self._get_headers()
-
-        try:
-            response = requests.put(url, headers=headers, json=inventory_item)
-            if response.status_code in [200, 201, 204]:
-                return {
-                    "sku": sku,
-                    "status": "created"
-                }
-            else:
-                self._handle_api_error(response, "create_inventory_item")
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Network error creating inventory item: {str(e)}") from e
+        self.access_token: Optional[str] = os.getenv("EBAY_ACCESS_TOKEN")
+        self.refresh_token: Optional[str] = os.getenv("EBAY_REFRESH_TOKEN")
+        self._policy_cache: Dict[str, Dict[str, str]] = {}
 
     def _get_headers(self) -> Dict[str, str]:
-        """Helper to get standard eBay API headers, ensuring token is fresh."""
-        self.access_token = self.token_manager.get_valid_token()
-
+        token = self.token_manager.get_user_token() or self.token_manager.get_valid_token() or self.access_token
         return {
-            "Authorization": f"Bearer {self.access_token}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "Content-Language": "en-US",
-            "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
         }
 
-    def _handle_api_error(self, response: requests.Response, context: str):
-        """Handle eBay API errors with granular parsing."""
-        try:
-            error_data = response.json()
-            errors = error_data.get('errors', [])
-            if errors:
-                main_error = errors[0]
-                error_msg = main_error.get('message', 'Unknown error')
-                error_id = main_error.get('errorId', 'Unknown ID')
-                full_msg = f"eBay API error in {context}: {response.status_code} - {error_msg} (Error ID: {error_id})"
-                logger.error(full_msg)
-                raise RuntimeError(full_msg)
-            else:
-                raise RuntimeError(f"eBay API error in {context}: {response.status_code} - [REDACTED]")
-        except (ValueError, KeyError):
-            raise RuntimeError(f"eBay API error in {context}: {response.status_code} - [REDACTED]")
+    def _normalize_aspects(self, item_specifics: Dict[str, Union[str, List[str]]]) -> Dict[str, List[str]]:
+        """Normalize aspects to Dict[str, List[str]] with values truncated to 65 chars."""
+        normalized: Dict[str, List[str]] = {}
+        for key, value in (item_specifics or {}).items():
+            if isinstance(value, list):
+                normalized[key] = [str(v)[:65] for v in value if v]
+            elif value is not None:
+                normalized[key] = [str(value)[:65]]
+        return normalized
 
-    def _create_offer(self, offer: Dict[str, Any]) -> Dict[str, Any]:
-        """Create offer via eBay Offer API."""
-        url = f"{self.base_url}/sell/offer/v1/offer"
-        headers = self._get_headers()
+    def _map_condition(self, condition: Union[ItemCondition, str]) -> str:
+        if isinstance(condition, ItemCondition):
+            condition = condition.value
+        return INVENTORY_CONDITION_ENUM_MAP.get(str(condition), "USED_EXCELLENT")
 
-        try:
-            response = requests.post(url, headers=headers, json=offer)
-            if response.status_code in [200, 201]:
-                return response.json()
-            else:
-                self._handle_api_error(response, "create_offer")
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Network error creating offer: {str(e)}") from e
+    def create_inventory_item(self, draft: ListingDraft, sku: Optional[str] = None) -> Dict[str, Any]:
+        """Create or replace an inventory item from a ListingDraft."""
+        sku = sku or draft.listing_id or draft.item_id
+        url = f"{self.base_url}/sell/inventory/v1/inventory_item/{sku}"
 
-    def _publish_listing(self, offer_id: str) -> Dict[str, Any]:
-        """Publish listing via eBay Offer API."""
-        url = f"{self.base_url}/sell/offer/v1/offer/{offer_id}/publish"
-        headers = self._get_headers()
-
-        try:
-            response = requests.post(url, headers=headers)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                self._handle_api_error(response, "publish_listing")
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Network error publishing listing: {str(e)}") from e
-
-    def get_oauth_url(self, redirect_uri: str, scopes: List[str] = None) -> str:
-        """
-        Generate eBay OAuth authorization URL.
-
-        Args:
-            redirect_uri: Redirect URI after authorization
-            scopes: List of OAuth scopes
-
-        Returns:
-            OAuth authorization URL
-        """
-        if scopes is None:
-            scopes = [
-                "https://api.ebay.com/oauth/api_scope/sell.inventory",
-                "https://api.ebay.com/oauth/api_scope/sell.marketing.readonly"
-            ]
-
-        base_url = "https://auth.sandbox.ebay.com" if self.use_sandbox else "https://auth.ebay.com"
-
-        params = {
-            "client_id": self.app_id,
-            "redirect_uri": redirect_uri,
-            "response_type": "code",
-            "scope": " ".join(scopes)
+        payload = {
+            "availability": {"shipToLocationAvailability": {"quantity": 1}},
+            "condition": self._map_condition(draft.condition),
+            "product": {
+                "title": draft.title[:80],
+                "description": draft.description,
+                "aspects": self._normalize_aspects(draft.item_specifics),
+                "imageUrls": draft.images[:12] if draft.images else [],
+            },
         }
 
-        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
-        return f"{base_url}/oauth2/authorize?{query_string}"
+        resp = requests.put(url, headers=self._get_headers(), json=payload, timeout=30)
+        if resp.status_code not in (200, 201, 204):
+            logger.error(f"create_inventory_item failed: {resp.status_code} {resp.text[:500]}")
+            resp.raise_for_status()
+        return {"sku": sku, "status": "created"}
+
+    def create_offer(self, sku: str, draft: ListingDraft, category_id: Optional[str] = None) -> Dict[str, Any]:
+        """Create an offer for an existing inventory item."""
+        url = f"{self.base_url}/sell/inventory/v1/offer"
+
+        policies = self._get_business_policies()
+
+        payload = {
+            "sku": sku,
+            "marketplaceId": "EBAY_US",
+            "format": "FIXED_PRICE",
+            "availableQuantity": 1,
+            "categoryId": category_id or draft.category_id,
+            "listingDescription": draft.description,
+            "listingPolicies": {
+                "fulfillmentPolicyId": policies.get("fulfillmentPolicyId"),
+                "paymentPolicyId": policies.get("paymentPolicyId"),
+                "returnPolicyId": policies.get("returnPolicyId"),
+            },
+            "pricingSummary": {
+                "price": {"value": str(draft.price), "currency": "USD"}
+            },
+        }
+
+        resp = requests.post(url, headers=self._get_headers(), json=payload, timeout=30)
+        if resp.status_code not in (200, 201):
+            logger.error(f"create_offer failed: {resp.status_code} {resp.text[:500]}")
+            resp.raise_for_status()
+        return resp.json()
+
+    def publish_offer(self, offer_id: str) -> Dict[str, Any]:
+        """Publish an offer to make the listing live."""
+        url = f"{self.base_url}/sell/inventory/v1/offer/{offer_id}/publish"
+        resp = requests.post(url, headers=self._get_headers(), timeout=30)
+        if resp.status_code not in (200, 201):
+            logger.error(f"publish_offer failed: {resp.status_code} {resp.text[:500]}")
+            resp.raise_for_status()
+        return resp.json()
+
+    def _get_business_policies(self) -> Dict[str, str]:
+        """Fetch or return cached business policy IDs."""
+        if self._policy_cache:
+            return self._policy_cache
+
+        # Prefer env overrides
+        fulfillment = os.getenv("EBAY_FULFILLMENT_POLICY_ID")
+        payment = os.getenv("EBAY_PAYMENT_POLICY_ID")
+        return_policy = os.getenv("EBAY_RETURN_POLICY_ID")
+
+        if fulfillment and payment and return_policy:
+            self._policy_cache = {
+                "fulfillmentPolicyId": fulfillment,
+                "paymentPolicyId": payment,
+                "returnPolicyId": return_policy,
+            }
+            return self._policy_cache
+
+        # Fallback: attempt Account API lookup
+        try:
+            url = f"{self.base_url}/sell/account/v1/fulfillment_policy"
+            resp = requests.get(url, headers=self._get_headers(), params={"marketplace_id": "EBAY_US"}, timeout=15)
+            if resp.status_code == 200:
+                policies = resp.json().get("fulfillmentPolicies", [])
+                if policies:
+                    fulfillment = policies[0].get("fulfillmentPolicyId")
+            # Similar for payment / return would go here; keep simple for now
+        except Exception as e:
+            logger.warning(f"Policy lookup failed: {e}")
+
+        self._policy_cache = {
+            "fulfillmentPolicyId": fulfillment or "",
+            "paymentPolicyId": payment or "",
+            "returnPolicyId": return_policy or "",
+        }
+        return self._policy_cache
 
     def get_active_listings(self) -> List[Dict[str, Any]]:
-        """
-        Fetch active listings (published offers) from eBay, joined with inventory data.
-        Handles pagination for both offers and inventory items.
-
-        Returns:
-            List of dictionaries containing listing details
-        """
-        headers = self._get_headers()
-        if not headers.get("Authorization"):
-            logger.warning("No access token available for eBay API")
-            return []
-
-        # 1. Fetch Offers (Active Listings) with Pagination
-        published_offers = []
-        offer_url = f"{self.base_url}/sell/inventory/v1/offer"
-        offer_params = {"marketplace_id": "EBAY_US", "limit": 100}
-
+        """Fetch active listings by joining offers + inventory items."""
         try:
-            next_url = offer_url
-            params = offer_params
-            while next_url:
-                offer_response = requests.get(next_url, headers=headers, params=params)
-                if offer_response.status_code == 401:
-                    if self.refresh_access_token():
-                        headers = self._get_headers()
-                        offer_response = requests.get(next_url, headers=headers, params=params)
-
-                if offer_response.status_code != 200:
-                    self._handle_api_error(offer_response, "get_active_listings_offers")
-                    break
-
-                offers_data = offer_response.json()
-                published_offers.extend([o for o in offers_data.get("offers", []) if o.get("status") == "PUBLISHED"])
-
-                next_url = offers_data.get("next")
-                params = None  # Subsequent calls use full URL from 'next'
-
-            if not published_offers:
+            headers = self._get_headers()
+            offers_url = f"{self.base_url}/sell/inventory/v1/offer"
+            resp = requests.get(offers_url, headers=headers, params={"limit": 100}, timeout=30)
+            if resp.status_code != 200:
+                logger.warning(f"Failed to fetch offers: {resp.status_code}")
                 return []
 
-            # 2. Fetch Inventory Items with Pagination to get images/details
-            inventory_map = {}
+            data = resp.json()
+            offers = data.get("offers", [])
+            published_offers = [o for o in offers if o.get("status") == "PUBLISHED"]
+
+            inventory_map: Dict[str, Dict] = {}
             inventory_url = f"{self.base_url}/sell/inventory/v1/inventory_item"
 
-            # Initial request to get total and first page
-            inventory_response = requests.get(inventory_url, headers=headers, params={"limit": 100, "offset": 0})
-            if inventory_response.status_code != 200:
-                logger.warning(f"Failed to fetch inventory page: {inventory_response.status_code}")
-                return self._join_offer_inventory(published_offers, inventory_map)
+            # First page
+            inv_resp = requests.get(inventory_url, headers=headers, params={"limit": 100}, timeout=30)
+            if inv_resp.status_code == 200:
+                inv_data = inv_resp.json()
+                for item in inv_data.get("inventoryItems", []):
+                    inventory_map[item.get("sku")] = item
 
-            inv_data = inventory_response.json()
-            for item in inv_data.get("inventoryItems", []):
-                inventory_map[item.get("sku")] = item
+                total = inv_data.get("total", 0)
+                if total > 100:
+                    def fetch_inventory_page(offset: int):
+                        try:
+                            r = requests.get(inventory_url, headers=headers, params={"limit": 100, "offset": offset}, timeout=30)
+                            if r.status_code == 200:
+                                return r.json().get("inventoryItems", [])
+                        except Exception as e:
+                            logger.error(f"Error fetching inventory page at offset {offset}: {e}")
+                        return []
 
-            total = inv_data.get("total", 0)
+                    offsets = range(100, total, 100)
+                    with ThreadPoolExecutor(max_workers=5) as executor:
+                        futures = {executor.submit(fetch_inventory_page, off): off for off in offsets}
+                        for future in as_completed(futures):
+                            for item in future.result():
+                                inventory_map[item.get("sku")] = item
 
-            # Fetch remaining pages concurrently if there are more than 100 items
-            if total > 100:
-                def fetch_inventory_page(offset):
-                    try:
-                        resp = requests.get(inventory_url, headers=headers, params={"limit": 100, "offset": offset})
-                        if resp.status_code == 200:
-                            return resp.json().get("inventoryItems", [])
-                        else:
-                            logger.warning(f"Failed to fetch inventory page at offset {offset}: {resp.status_code}")
-                    except Exception as e:
-                        logger.error(f"Error fetching inventory page at offset {offset}: {str(e)}")
-                    return []
-
-                offsets = range(100, total, 100)
-                with ThreadPoolExecutor(max_workers=5) as executor:
-                    # We submit all offset tasks
-                    future_to_offset = {executor.submit(fetch_inventory_page, offset): offset for offset in offsets}
-                    for future in as_completed(future_to_offset):
-                        items = future.result()
-                        for item in items:
-                            inventory_map[item.get("sku")] = item
-
-            # 3. Join and Map
             return self._join_offer_inventory(published_offers, inventory_map)
 
         except Exception as e:
-            logger.exception(f"Exception fetching eBay listings: {str(e)}")
+            logger.exception(f"Exception fetching eBay listings: {e}")
             return []
 
     def _join_offer_inventory(self, offers: List[Dict], inventory_map: Dict) -> List[Dict[str, Any]]:
@@ -378,6 +263,6 @@ class eBayIntegration:
                 "submission_timestamp": datetime.now().isoformat(),
                 "image_filename": image_filename,
                 "views": 0,
-                "watchers": 0
+                "watchers": 0,
             })
         return active_listings
