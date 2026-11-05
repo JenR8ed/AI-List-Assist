@@ -2,24 +2,31 @@
 Database service for tracking valuations and eBay submissions
 """
 
-import sqlite3
 import json
-import time
+import logging
 import os
+import sqlite3
+import threading
+import time
+import uuid
+from typing import Any, Dict, List, Optional
+from shared.models import ItemValuation
+
 try:
     import redis
 except ImportError:
     redis = None
-import uuid
-import threading
-from datetime import datetime
-from typing import List, Dict, Any, Optional
-from shared.models import ItemValuation
+
+logger = logging.getLogger(__name__)
+
 
 class ValuationDatabase:
     """Database service for tracking all valuations and eBay submissions."""
-    
-    def __init__(self, db_path: str = "valuations.db"):
+
+    def __init__(self, db_path: Optional[str] = None):
+        if db_path is None:
+            data_dir = os.getenv("DATA_DIR")
+            db_path = os.path.join(data_dir, "valuations.db") if data_dir else "valuations.db"
         self.db_path = db_path
         self._local = threading.local()
 
@@ -38,79 +45,85 @@ class ValuationDatabase:
                         host=redis_host,
                         port=int(os.environ.get("REDIS_PORT", 6379)),
                         db=0,
-                        decode_responses=True
+                        decode_responses=True,
                     )
                     self.redis_client.ping()
                 except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(f"Failed to connect to Redis for valuation caching: {e}")
+                    logger.warning(f"Failed to connect to Redis for valuation caching: {e}")
                     self.redis_client = None
 
         self.init_database()
-    
+
     @property
     def conn(self) -> sqlite3.Connection:
         """Get per-thread database connection."""
-        if not hasattr(self._local, 'conn'):
+        if not hasattr(self._local, "conn") or self._local.conn is None:
             self._local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-            # Enable WAL mode for better performance with concurrent access
-            self._local.conn.execute("PRAGMA journal_mode=WAL")
-            # Set a longer timeout for busy database
+            try:
+                self._local.conn.execute("PRAGMA journal_mode=WAL")
+            except sqlite3.OperationalError:
+                pass
             self._local.conn.execute("PRAGMA busy_timeout=5000")
         return self._local.conn
 
-    def init_database(self):
-        """Initialize database tables."""
+    def _invalidate_stats_cache(self) -> None:
+        """Invalidate both local and Redis stats caches on write mutations."""
+        self._stats_cache = None
+        self._stats_cache_time = 0
+        if getattr(self, "redis_client", None):
+            try:
+                self.redis_client.delete("valuation_stats")
+            except Exception:
+                pass
+
+    def init_database(self) -> None:
+        """Initialize database schema."""
         conn = self.conn
         c = conn.cursor()
-        
-        # Valuations table - tracks all image analyses
+
         c.execute('''
         CREATE TABLE IF NOT EXISTS valuations (
             id TEXT PRIMARY KEY,
-            image_filename TEXT NOT NULL,
-            image_hash TEXT NOT NULL,
-            upload_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            image_filename TEXT,
+            image_hash TEXT,
             item_name TEXT,
             brand TEXT,
             estimated_value REAL,
             condition_score INTEGER,
             profitability TEXT,
-            worth_listing BOOLEAN,
+            worth_listing INTEGER,
             confidence REAL,
-            valuation_data TEXT,  -- Full JSON of ItemValuation
-            status TEXT DEFAULT 'analyzed'  -- analyzed, approved, submitted, listed
+            valuation_data TEXT,
+            status TEXT DEFAULT 'analyzed',
+            upload_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         ''')
-        
-        # eBay submissions table - tracks listings sent to eBay
+
         c.execute('''
         CREATE TABLE IF NOT EXISTS ebay_submissions (
             id TEXT PRIMARY KEY,
             valuation_id TEXT,
-            ebay_listing_id TEXT,
             submission_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            listing_title TEXT,
-            listing_price REAL,
-            listing_status TEXT,  -- draft, active, sold, ended
-            ebay_response TEXT,   -- JSON response from eBay API
+            ebay_listing_id TEXT,
+            status TEXT,
+            ebay_response TEXT,
             FOREIGN KEY (valuation_id) REFERENCES valuations (id)
         )
         ''')
-        
+
         conn.commit()
-    
+
     def save_valuation(self, image_filename: str, image_hash: str, valuation: ItemValuation) -> str:
         """Save a new valuation to database."""
         valuation_id = str(uuid.uuid4())
-        
+
         conn = self.conn
         c = conn.cursor()
-        
+
         c.execute('''
         INSERT INTO valuations (
-            id, image_filename, image_hash, item_name, brand, 
-            estimated_value, condition_score, profitability, 
+            id, image_filename, image_hash, item_name, brand,
+            estimated_value, condition_score, profitability,
             worth_listing, confidence, valuation_data
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
@@ -121,16 +134,15 @@ class ValuationDatabase:
             valuation.brand,
             valuation.estimated_value,
             valuation.condition_score,
-            valuation.profitability.value,
+            valuation.profitability.value if hasattr(valuation.profitability, "value") else valuation.profitability,
             valuation.worth_listing,
             valuation.confidence,
-            json.dumps(valuation.to_dict())
+            json.dumps(valuation.to_dict()) if hasattr(valuation, "to_dict") else json.dumps(valuation),
         ))
-        
+
         conn.commit()
-        
+        self._invalidate_stats_cache()
         return valuation_id
-    
 
     def save_valuations(self, image_filename: str, image_hash: str, valuations: List[ItemValuation]) -> List[str]:
         """Save multiple valuations to database using bulk insert."""
@@ -142,7 +154,6 @@ class ValuationDatabase:
 
         valuation_ids = [str(uuid.uuid4()) for _ in valuations]
 
-        # Prepare parameters for executemany
         params = [
             (
                 vid,
@@ -152,10 +163,10 @@ class ValuationDatabase:
                 v.brand,
                 v.estimated_value,
                 v.condition_score,
-                v.profitability.value if hasattr(v.profitability, 'value') else v.profitability,
+                v.profitability.value if hasattr(v.profitability, "value") else v.profitability,
                 v.worth_listing,
                 v.confidence,
-                json.dumps(v.to_dict()) if hasattr(v, 'to_dict') else json.dumps(v)
+                json.dumps(v.to_dict()) if hasattr(v, "to_dict") else json.dumps(v),
             )
             for vid, v in zip(valuation_ids, valuations)
         ]
@@ -169,55 +180,66 @@ class ValuationDatabase:
         ''', params)
 
         conn.commit()
-
+        self._invalidate_stats_cache()
         return valuation_ids
+
+    def get_valuation_by_id(self, valuation_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single valuation's JSON data by ID."""
+        conn = self.conn
+        c = conn.cursor()
+        c.execute("SELECT valuation_data FROM valuations WHERE id = ?", (valuation_id,))
+        row = c.fetchone()
+        if row and row[0]:
+            return json.loads(row[0])
+        return None
 
     def get_recent_valuations(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Get recent valuations ordered by timestamp."""
         conn = self.conn
         c = conn.cursor()
-        
+
         c.execute('''
         SELECT id, image_filename, upload_timestamp, item_name, brand,
                estimated_value, condition_score, profitability, worth_listing, status
-        FROM valuations 
-        ORDER BY upload_timestamp DESC 
+        FROM valuations
+        ORDER BY upload_timestamp DESC
         LIMIT ?
         ''', (limit,))
-        
+
         rows = c.fetchall()
-        
+
         return [
             {
                 "id": row[0],
                 "image_filename": row[1],
                 "upload_timestamp": row[2],
+                "timestamp": row[2],
                 "item_name": row[3],
                 "brand": row[4],
                 "estimated_value": row[5],
                 "condition_score": row[6],
                 "profitability": row[7],
                 "worth_listing": bool(row[8]),
-                "status": row[9]
+                "status": row[9],
             }
             for row in rows
         ]
-    
+
     def get_approved_valuations(self) -> List[Dict[str, Any]]:
         """Get valuations approved for eBay listing."""
         conn = self.conn
         c = conn.cursor()
-        
+
         c.execute('''
         SELECT id, image_filename, upload_timestamp, item_name, brand,
                estimated_value, condition_score, profitability, status
-        FROM valuations 
+        FROM valuations
         WHERE status IN ('approved', 'submitted', 'listed')
         ORDER BY upload_timestamp DESC
         ''')
-        
+
         rows = c.fetchall()
-        
+
         return [
             {
                 "id": row[0],
@@ -228,162 +250,66 @@ class ValuationDatabase:
                 "estimated_value": row[5],
                 "condition_score": row[6],
                 "profitability": row[7],
-                "status": row[8]
+                "status": row[8],
             }
             for row in rows
         ]
-    
-    def approve_valuation(self, valuation_id: str) -> bool:
-        """Mark valuation as approved for eBay listing."""
+
+    def update_status(self, valuation_id: str, status: str) -> bool:
+        """Update valuation status."""
         conn = self.conn
         c = conn.cursor()
-        
-        c.execute('''
-        UPDATE valuations 
-        SET status = 'approved' 
-        WHERE id = ?
-        ''', (valuation_id,))
-        
+        c.execute("UPDATE valuations SET status = ? WHERE id = ?", (status, valuation_id))
         success = c.rowcount > 0
         conn.commit()
-        
+        if success:
+            self._invalidate_stats_cache()
         return success
-    
-    def submit_to_ebay(self, valuation_id: str, ebay_listing_id: str, 
-                      listing_title: str, listing_price: float, 
-                      ebay_response: Dict[str, Any]) -> str:
-        """Record eBay submission."""
-        submission_id = str(uuid.uuid4())
-        
-        conn = self.conn
-        c = conn.cursor()
-        
-        # Update valuation status
-        c.execute('''
-        UPDATE valuations 
-        SET status = 'submitted' 
-        WHERE id = ?
-        ''', (valuation_id,))
-        
-        # Record eBay submission
-        c.execute('''
-        INSERT INTO ebay_submissions (
-            id, valuation_id, ebay_listing_id, listing_title, 
-            listing_price, listing_status, ebay_response
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            submission_id,
-            valuation_id,
-            ebay_listing_id,
-            listing_title,
-            listing_price,
-            'active',
-            json.dumps(ebay_response)
-        ))
-        
-        conn.commit()
-        
-        return submission_id
-    
-    def get_ebay_submissions(self) -> List[Dict[str, Any]]:
-        """Get all eBay submissions with valuation data."""
-        conn = self.conn
-        c = conn.cursor()
-        
-        c.execute('''
-        SELECT e.id, e.ebay_listing_id, e.submission_timestamp, 
-               e.listing_title, e.listing_price, e.listing_status,
-               v.item_name, v.image_filename, v.estimated_value
-        FROM ebay_submissions e
-        JOIN valuations v ON e.valuation_id = v.id
-        ORDER BY e.submission_timestamp DESC
-        ''')
-        
-        rows = c.fetchall()
-        
-        return [
-            {
-                "submission_id": row[0],
-                "ebay_listing_id": row[1],
-                "submission_timestamp": row[2],
-                "listing_title": row[3],
-                "listing_price": row[4],
-                "listing_status": row[5],
-                "item_name": row[6],
-                "image_filename": row[7],
-                "estimated_value": row[8]
-            }
-            for row in rows
-        ]
-    
 
+    def get_stats(self) -> Dict[str, Any]:
+        """Get aggregated valuation statistics with caching."""
+        now = time.time()
+        if self._stats_cache and (now - self._stats_cache_time) < self.cache_ttl:
+            return self._stats_cache
 
-    def get_valuation_stats(self) -> Dict[str, Any]:
-        """Get summary statistics with caching."""
-        cache_key = "valuation_stats"
-
-        # 1. Try Redis Cache
-        if getattr(self, 'redis_client', None):
+        if self.redis_client:
             try:
-                cached_stats = self.redis_client.get(cache_key)
-                if cached_stats:
-                    return json.loads(cached_stats)
+                cached = self.redis_client.get("valuation_stats")
+                if cached:
+                    self._stats_cache = json.loads(cached)
+                    self._stats_cache_time = now
+                    return self._stats_cache
             except Exception:
                 pass
 
-        # 2. Try Local In-Memory Cache
-        current_time = time.time()
-        if getattr(self, '_stats_cache', None) and (current_time - getattr(self, '_stats_cache_time', 0)) < getattr(self, 'cache_ttl', 300):
-            return self._stats_cache
-
         conn = self.conn
         c = conn.cursor()
-        
-        # Optimized single query to get all valuation stats at once
-        c.execute('''
-        SELECT
-            COUNT(*) as total_valuations,
-            SUM(CASE WHEN worth_listing = 1 THEN 1 ELSE 0 END) as worth_listing,
-            AVG(CASE WHEN estimated_value > 0 THEN estimated_value ELSE NULL END) as avg_value,
-            SUM(CASE WHEN status IN ("approved", "submitted", "listed") THEN 1 ELSE 0 END) as approved_count
-        FROM valuations
-        ''')
-        
-        row = c.fetchone()
-        
-        # Handle empty table case
-        if not row or row[0] == 0:
-            total_valuations = 0
-            worth_listing = 0
-            avg_value = 0.0
-            approved_count = 0
-        else:
-            total_valuations = row[0] or 0
-            worth_listing = row[1] or 0
-            avg_value = row[2] or 0.0
-            approved_count = row[3] or 0
-        
-        # eBay submissions still needs its own query as it's a different table
-        c.execute('SELECT COUNT(*) FROM ebay_submissions')
-        ebay_submissions = c.fetchone()[0] or 0
-        
+
+        c.execute("SELECT COUNT(*) FROM valuations")
+        total = c.fetchone()[0]
+
+        c.execute("SELECT COUNT(*) FROM valuations WHERE worth_listing = 1")
+        worth_listing = c.fetchone()[0]
+
+        c.execute("SELECT COUNT(*) FROM valuations WHERE status = 'draft'")
+        drafts = c.fetchone()[0]
+
+        c.execute("SELECT AVG(estimated_value) FROM valuations WHERE estimated_value > 0")
+        avg_value = c.fetchone()[0] or 0.0
+
         stats = {
-            "total_valuations": total_valuations,
+            "total_valuations": total,
             "worth_listing": worth_listing,
+            "drafts": drafts,
             "average_value": round(avg_value, 2),
-            "approved_count": approved_count,
-            "ebay_submissions": ebay_submissions,
-            "approval_rate": round((approved_count / total_valuations * 100) if total_valuations > 0 else 0, 1)
         }
 
-        # Update local cache
         self._stats_cache = stats
-        self._stats_cache_time = current_time
+        self._stats_cache_time = now
 
-        # Update Redis cache
-        if getattr(self, 'redis_client', None):
+        if self.redis_client:
             try:
-                self.redis_client.setex(cache_key, getattr(self, 'cache_ttl', 300), json.dumps(stats))
+                self.redis_client.setex("valuation_stats", self.cache_ttl, json.dumps(stats))
             except Exception:
                 pass
 
@@ -392,66 +318,77 @@ class ValuationDatabase:
     def create_draft_listing(self, valuation_id: str, listing_data: Dict[str, Any]) -> str:
         """Create draft listing from valuation."""
         listing_id = str(uuid.uuid4())
-        
+
         conn = self.conn
         c = conn.cursor()
-        
-        # Update valuation status
-        c.execute('UPDATE valuations SET status = ? WHERE id = ?', ('draft', valuation_id))
-        
-        # Store listing data in valuation_data field
-        c.execute('UPDATE valuations SET valuation_data = ? WHERE id = ?', 
-                  (json.dumps(listing_data), valuation_id))
-        
+
+        c.execute("UPDATE valuations SET status = ? WHERE id = ?", ("draft", valuation_id))
+        c.execute(
+            "UPDATE valuations SET valuation_data = ? WHERE id = ?",
+            (json.dumps(listing_data), valuation_id),
+        )
+
         conn.commit()
+        self._invalidate_stats_cache()
         return listing_id
-    
+
     def get_draft_listings(self) -> List[Dict[str, Any]]:
         """Get draft listings ready for eBay submission."""
         conn = self.conn
         c = conn.cursor()
-        
+
         c.execute('''
         SELECT id, image_filename, item_name, estimated_value, valuation_data, upload_timestamp
         FROM valuations WHERE status = 'draft'
         ORDER BY upload_timestamp DESC
         ''')
-        
+
         rows = c.fetchall()
-        
+
         return [
             {
-                "id": row[0], 
-                "image_filename": row[1], 
-                "item_name": row[2], 
-                "estimated_value": row[3], 
+                "id": row[0],
+                "image_filename": row[1],
+                "item_name": row[2],
+                "estimated_value": row[3],
                 "listing_data": json.loads(row[4]) if row[4] else {},
-                "upload_timestamp": row[5]
-            } 
+                "upload_timestamp": row[5],
+            }
             for row in rows
         ]
-    
+
     def update_draft_listing(self, listing_id: str, update_data: Dict[str, Any]) -> bool:
         """Update draft listing with new data."""
         conn = self.conn
         c = conn.cursor()
-        
-        # Get current listing data
-        c.execute('SELECT valuation_data FROM valuations WHERE id = ?', (listing_id,))
+
+        c.execute("SELECT valuation_data FROM valuations WHERE id = ?", (listing_id,))
         row = c.fetchone()
-        
+
         if not row:
             return False
-        
-        # Merge update data with existing data
+
         current_data = json.loads(row[0]) if row[0] else {}
         current_data.update(update_data)
-        
-        # Update the record
-        c.execute('UPDATE valuations SET valuation_data = ? WHERE id = ?', 
-                  (json.dumps(current_data), listing_id))
-        
+
+        c.execute(
+            "UPDATE valuations SET valuation_data = ? WHERE id = ?",
+            (json.dumps(current_data), listing_id),
+        )
+
         success = c.rowcount > 0
         conn.commit()
-        
+        if success:
+            self._invalidate_stats_cache()
+        return success
+
+    def delete_draft_listing(self, listing_id: str) -> bool:
+        """Revert a draft listing back to analyzed or remove it."""
+        conn = self.conn
+        c = conn.cursor()
+        c.execute("UPDATE valuations SET status = 'analyzed' WHERE id = ? AND status = 'draft'", (listing_id,))
+        success = c.rowcount > 0
+        conn.commit()
+        if success:
+            self._invalidate_stats_cache()
         return success
