@@ -86,8 +86,26 @@
         .photo-modal img { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 90%; max-height: 90%; border-radius: 8px; }
         .photo-modal .close { position: absolute; top: 20px; right: 30px; color: white; font-size: 30px; cursor: pointer; }
     </style>
+<script>
+    // Local session UI requests use a CSRF token, never the server API key.
+    (() => {
+        const csrfToken = {{ csrf_token | tojson }};
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = (resource, options = {}) => {
+            const url = typeof resource === 'string' ? resource : resource.url;
+            if (!url.startsWith('/api/')) return nativeFetch(resource, options);
+            const method = (options.method || 'GET').toUpperCase();
+            const headers = new Headers(options.headers || {});
+            if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+                headers.set('X-CSRF-Token', csrfToken);
+            }
+            return nativeFetch(resource, { ...options, credentials: 'same-origin', headers });
+        };
+    })();
+</script>
 </head>
 <body>
+    <nav style="text-align:right;padding:8px"><a href="/login" style="color:inherit">Sign in</a></nav>
     <div class="container">
         <header>
             <h1><span role="img" aria-label="Bar chart">📊</span> eBay Listing Assistant</h1>
