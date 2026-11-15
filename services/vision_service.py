@@ -21,6 +21,9 @@ _MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}[A-Z0-9]*')
 class VisionService:
     """Service for multi-item detection and OCR using Google Vision APIs."""
 
+    # Reuse the synchronous HTTP session across service instances.
+    _session = None
+
     _COMMON_BRANDS = ["Sony", "Apple", "Samsung", "Nike", "Adidas", "Canon", "Nikon"]
     _BRAND_DATA = [(brand.lower(), brand) for brand in _COMMON_BRANDS]
     _MODEL_PATTERN = re.compile(r'[A-Z]{2,}[-\s]?\d{3,}')
@@ -44,7 +47,14 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
 
         self.api_key = api_key
         self.last_usage_metadata = {}
-        self.session = requests.Session()
+
+        # Initialize or reuse shared sessions
+        if VisionService._session is None:
+            VisionService._session = requests.Session()
+        self.session = VisionService._session
+
+        # The async client belongs to this instance and is created on first use.
+        self._async_client: Optional[httpx.AsyncClient] = None
         
         # Initialize Gemini client
         try:
@@ -61,6 +71,19 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
         except Exception as e:
             logger.warning(f"Cloud Vision failed: {e}, falling back to Gemini")
             return self._detect_with_gemini(image_base64, media_type)
+
+
+    @property
+    def async_client(self) -> httpx.AsyncClient:
+        """Get or create an async HTTP client for the service lifetime."""
+        if self._async_client is None or self._async_client.is_closed:
+            self._async_client = httpx.AsyncClient(timeout=30)
+        return self._async_client
+
+    async def close_async(self) -> None:
+        """Close the async client."""
+        if self._async_client is not None and not self._async_client.is_closed:
+            await self._async_client.aclose()
 
     async def detect_items_async(self, image_base64: str, media_type: str) -> List[DetectedItem]:
         """Detect items using Google Cloud Vision API first, fallback to Gemini, asynchronously."""
@@ -110,10 +133,9 @@ Return JSON: {"items": [{"item_id": "item_1", "probable_category": "Electronics"
             }]
         }
 
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
+        response = await self.async_client.post(url, json=payload)
+        response.raise_for_status()
+        data = response.json()
 
         return self._parse_cloud_vision_response(data)
     
