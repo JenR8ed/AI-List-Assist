@@ -1,42 +1,31 @@
 FROM python:3.12-slim
 
-# Prevent Python from writing .pyc files and ensure logs are unbuffered
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Create a non-root user and group
-RUN groupadd -g 1000 appuser && \
-    useradd -u 1000 -g appuser -s /bin/bash -m appuser
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create working directory and change ownership
-RUN mkdir -p /app && chown appuser:appuser /app
+# Create working and writable data directories with non-root ownership
 WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y gcc sqlite3 libsqlite3-dev && rm -rf /var/lib/apt/lists/*
-
-# Optimal layer caching: copy requirements and install dependencies BEFORE copying the rest of the source code.
-# This ensures that changes to the application code do not invalidate the cached layer containing installed dependencies.
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# We explicitly install some extra packages that might be needed based on app imports if they aren't in requirements
-RUN pip install --no-cache-dir flask werkzeug python-dotenv requests pandas pydantic pillow
-
-# Drop root privileges by switching to the non-root user
-USER appuser
-
-# Ensure standard app user configuration
-RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/data && \
+RUN mkdir -p /app/data /app/uploads /app/drafts && \
     chown -R appuser:appuser /app
 
+# Optimal layer caching: install Python dependencies before copying source code
+COPY --chown=appuser:appuser requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application source code into container
+COPY --chown=appuser:appuser . .
+
+# Drop root privileges
 USER appuser
 
 EXPOSE 5000
 
-ENV FLASK_APP=app_enhanced.py
-ENV FLASK_ENV=development
-ENV FLASK_RUN_HOST=0.0.0.0
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS http://localhost:5000/health || exit 1
 
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=5000"]

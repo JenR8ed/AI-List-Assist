@@ -3,23 +3,23 @@ Shared models and schemas for eBay Listing Assistant.
 """
 
 from .models import (
-    DetectedItem,
     ItemValuation,
     ConversationState,
     ListingDraft,
     ImageSession,
     BoundingBox,
+    DetectedItem,
     ItemCondition,
-    Profitability
+    Profitability,
 )
 
 __all__ = [
-    'DetectedItem',
-    'ItemValuation',
-    'ConversationState',
-    'ListingDraft',
-    'ImageSession',
-    'BoundingBox',
-    'ItemCondition',
-    'Profitability'
+    "ItemValuation",
+    "ConversationState",
+    "ListingDraft",
+    "ImageSession",
+    "BoundingBox",
+    "DetectedItem",
+    "ItemCondition",
+    "Profitability",
 ]
